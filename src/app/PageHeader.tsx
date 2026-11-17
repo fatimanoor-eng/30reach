@@ -9,6 +9,7 @@ export function PageHeader({
   title,
   mobileTitle,
   crumbs = [],
+  description,
   actions,
 }: {
   title: string;
@@ -16,6 +17,8 @@ export function PageHeader({
   mobileTitle?: string;
   /** Breadcrumb after the client name, e.g. ["Instagram", "Compare"] */
   crumbs?: string[];
+  /** One line under the title (e.g. 07 "6 brands tracked. Changes apply on the next Refresh.") */
+  description?: ReactNode;
   actions?: ReactNode;
 }) {
   const client = useClient();
@@ -44,6 +47,7 @@ export function PageHeader({
             title
           )}
         </h1>
+        {description && <p className="mt-2 text-body text-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>

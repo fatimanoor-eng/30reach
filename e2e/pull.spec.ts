@@ -230,7 +230,10 @@ test("05g finished with problems → Fix handle", async ({ page }, info) => {
   await expect(toast).toContainText("Found’s TikTok handle wasn’t found. Everything else updated.");
   await expect(page).toHaveScreenshot("pull-problems.png");
   await toast.getByRole("button", { name: "Fix handle" }).click();
-  await expect(page).toHaveURL(/\/competitors$/);
+  // Opens Found's 07b panel, cursor in the TikTok field.
+  await expect(page).toHaveURL(/\/competitors\?edit=c-found&focus=tiktok$/);
+  await expect(page.getByRole("dialog", { name: "Edit Found" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "TikTok" })).toBeFocused();
 });
 
 test("resume after a reload", async ({ page }, info) => {

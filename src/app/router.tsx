@@ -8,6 +8,7 @@ import { NotFoundPage } from "../features/NotFoundPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { PlaceholderPage } from "../features/PlaceholderPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
+import { CompetitorsPage } from "../features/competitors/CompetitorsPage";
 import { SocialPage } from "../features/social/SocialPage";
 import { AppShell } from "./AppShell";
 
@@ -47,13 +48,7 @@ const appRoutes: RouteObject[] = [
       { path: "tiktok", element: <SocialPage key="tiktok" platform="tiktok" /> },
       {
         path: "competitors",
-        element: (
-          <PlaceholderPage
-            title="Competitors"
-            slice={8}
-            text="Add, edit and remove the brands 30reach tracks. Handles are checked on save."
-          />
-        ),
+        element: <CompetitorsPage />,
       },
       {
         path: "calendar",

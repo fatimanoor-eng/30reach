@@ -444,3 +444,9 @@ entrypoint = "./functions/pull-task/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/pull-finish/index.ts"
+
+# Handle check (Slice 8, 07b) — same rules: signed-in team users only.
+[functions.check-handle]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/check-handle/index.ts"

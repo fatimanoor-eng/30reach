@@ -14,6 +14,7 @@ import {
 import { progressOf, PullInterrupted, runPull, toProgress } from "../../lib/pulls/run-pull";
 import { supabase } from "../../lib/supabase";
 import { useClient } from "../../lib/useClient";
+import type { Competitor } from "../../lib/useCompetitors";
 import { CREDITS_QUERY_KEY } from "../../lib/useCredits";
 import { PullContext, type PullUiState } from "./pull-context";
 import { PullProgressDialog } from "./PullProgressDialog";
@@ -89,13 +90,29 @@ export function PullProvider({ children }: { children: ReactNode }) {
           action: seeWhatsNew,
         });
       } else if (r.status === "partial") {
-        const handleProblem = r.problems.some((p) => p.code === "not_found");
+        // "Fix handle" → that brand's 07b panel, pre-filled, cursor in the handle that wasn't found.
+        // Problems carry the brand's name; the competitors list in the cache maps it to an id.
+        const handleProblem = r.problems.find((p) => p.code === "not_found");
+        const fixTarget = handleProblem
+          ? queryClient
+              .getQueriesData<Competitor[]>({ queryKey: ["competitors"] })
+              .flatMap(([, list]) => list ?? [])
+              .find((c) => c.name === handleProblem.brand)
+          : undefined;
         toast.show({
           title: `${label} finished with ${plural(r.problems.length, "problem")}`,
           detail: `${problemSentence(r.problems)} Everything else updated.`,
           pose: "error",
           action: handleProblem
-            ? { label: "Fix handle", onClick: () => navigate("/competitors") }
+            ? {
+                label: "Fix handle",
+                onClick: () =>
+                  navigate(
+                    fixTarget
+                      ? `/competitors?edit=${fixTarget.id}&focus=${handleProblem.platform}`
+                      : "/competitors",
+                  ),
+              }
             : seeWhatsNew,
         });
       } else {
@@ -107,7 +124,7 @@ export function PullProvider({ children }: { children: ReactNode }) {
         });
       }
     },
-    [toast, navigate, openRefresh, hasPreviousPull],
+    [toast, navigate, openRefresh, hasPreviousPull, queryClient],
   );
 
   const drive = useCallback(
