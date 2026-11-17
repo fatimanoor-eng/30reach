@@ -39,7 +39,16 @@
               "owner": {
                 "username": "hims"
               },
-              "display_uri": "https://scontent.example/ig/DfxDh1RqbNY.jpg?oe=6929A5B0"
+              "display_uri": "https://scontent.example/ig/DfxDh1RqbNY.jpg?oe=6929A5B0",
+              "image_versions2": {
+                "candidates": [
+                  {
+                    "width": 480,
+                    "height": 853,
+                    "url": "https://scontent.example/ig/DfxDh1RqbNY-480.jpg"
+                  }
+                ]
+              }
             },
             {
               "id": "4020931760065776147_6243461613",
@@ -64,7 +73,16 @@
               "owner": {
                 "username": "hims"
               },
-              "display_uri": "https://scontent.example/ig/DfNOCHIzooT.jpg?oe=6929A5B0"
+              "display_uri": "https://scontent.example/ig/DfNOCHIzooT.jpg?oe=6929A5B0",
+              "image_versions2": {
+                "candidates": [
+                  {
+                    "width": 480,
+                    "height": 853,
+                    "url": "https://scontent.example/ig/DfNOCHIzooT-480.jpg"
+                  }
+                ]
+              }
             },
             {
               "id": "4017537372667879079_6243461613",
@@ -89,7 +107,16 @@
               "owner": {
                 "username": "hims"
               },
-              "display_uri": "https://scontent.example/ig/DfBKPRhuZ6n.jpg?oe=6929A5B0"
+              "display_uri": "https://scontent.example/ig/DfBKPRhuZ6n.jpg?oe=6929A5B0",
+              "image_versions2": {
+                "candidates": [
+                  {
+                    "width": 480,
+                    "height": 853,
+                    "url": "https://scontent.example/ig/DfBKPRhuZ6n-480.jpg"
+                  }
+                ]
+              }
             },
             {
               "id": "4032030191635625117_6243461613",
@@ -114,7 +141,21 @@
               "owner": {
                 "username": "hims"
               },
-              "display_uri": "https://scontent.example/ig/Df0phjAF3Sd.jpg?oe=6929A5B0"
+              "display_uri": "https://scontent.example/ig/Df0phjAF3Sd-1440.jpg?oe=6929A5B0",
+              "image_versions2": {
+                "candidates": [
+                  {
+                    "width": 1440,
+                    "height": 1800,
+                    "url": "https://scontent.example/ig/Df0phjAF3Sd-1440.jpg"
+                  },
+                  {
+                    "width": 480,
+                    "height": 600,
+                    "url": "https://scontent.example/ig/Df0phjAF3Sd-480.jpg"
+                  }
+                ]
+              }
             },
             {
               "id": "4029805431124108141_6243461613",
@@ -139,7 +180,21 @@
               "owner": {
                 "username": "hims"
               },
-              "display_uri": "https://scontent.example/ig/DfsvrBUF6Nt.jpg?oe=6929A5B0"
+              "display_uri": "https://scontent.example/ig/DfsvrBUF6Nt-1440.jpg?oe=6929A5B0",
+              "image_versions2": {
+                "candidates": [
+                  {
+                    "width": 1440,
+                    "height": 1800,
+                    "url": "https://scontent.example/ig/DfsvrBUF6Nt-1440.jpg"
+                  },
+                  {
+                    "width": 480,
+                    "height": 600,
+                    "url": "https://scontent.example/ig/DfsvrBUF6Nt-480.jpg"
+                  }
+                ]
+              }
             }
           ]
         }

@@ -69,6 +69,27 @@ export function extractHashtags(text: string | null): string[] {
 }
 
 // ───────────────────────────────────────────── mapping (INTEGRATIONS.md §2a)
+/** Smallest width that still looks sharp in a post card (cards are ≤ 240 px wide, 2× for retina). */
+export const THUMB_MIN_WIDTH = 480;
+
+/**
+ * Instagram thumbnail URL. For carousels and images `display_uri` is the FULL-resolution image
+ * (1440 × 1800, often 300–450 KB, over the bucket limit — found in Slice 5's test pull), so prefer the
+ * smallest `image_versions2` candidate that is at least 480 px wide (~25–35 KB). Reels' display_uri is
+ * already 480 px. Fall back to display_uri when there are no candidates.
+ */
+export function instagramThumbnail(item: unknown): string | null {
+  const candidates = obj(item).image_versions2;
+  const list = Array.isArray(obj(candidates).candidates)
+    ? (obj(candidates).candidates as unknown[])
+    : [];
+  const usable = list
+    .map((c) => ({ url: str(obj(c).url), width: num(obj(c).width) ?? 0 }))
+    .filter((c): c is { url: string; width: number } => !!c.url && c.width >= THUMB_MIN_WIDTH)
+    .sort((a, b) => a.width - b.width);
+  return usable[0]?.url ?? str(obj(item).display_uri);
+}
+
 export function mapInstagramItem(item: unknown, pinned: boolean): MappedPost | null {
   const it = obj(item);
   const code = str(it.code) ?? (it.pk != null ? String(it.pk) : null);
@@ -86,8 +107,6 @@ export function mapInstagramItem(item: unknown, pinned: boolean): MappedPost | n
           ? "image"
           : null;
   const caption = str(obj(it.caption).text);
-  const candidates = obj(it.image_versions2).candidates;
-  const firstCandidate = Array.isArray(candidates) ? obj(candidates[0]) : {};
   return {
     platform: "instagram",
     external_id: code,
@@ -116,7 +135,7 @@ export function mapInstagramItem(item: unknown, pinned: boolean): MappedPost | n
       carousel_media_count: num(it.carousel_media_count),
       video_duration: num(it.video_duration),
     },
-    thumbnail_source: str(it.display_uri) ?? str(firstCandidate.url),
+    thumbnail_source: instagramThumbnail(it),
     pinned,
   };
 }

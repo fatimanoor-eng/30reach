@@ -8,6 +8,7 @@ import {
   estimate,
   extractHashtags,
   finishStatus,
+  instagramThumbnail,
   type MappedPost,
   parsePage,
   postColumns,
@@ -53,7 +54,23 @@ describe("parsePage — Instagram (spike fixture, Hims)", () => {
     });
     expect(reel.views).toBeGreaterThan(0); // reels have views
     expect(reel.posted_at).toMatch(/^2026-11-1\dT/);
-    expect(reel.thumbnail_source).toMatch(/^https:\/\/scontent\.example\//);
+    expect(reel.thumbnail_source).toBe("https://scontent.example/ig/DfxDh1RqbNY-480.jpg");
+  });
+
+  it("uses the 480 px candidate for carousels and images, not the full-size display_uri", () => {
+    // Slice 5 test pull: two carousels' display_uri were 366 KB and 447 KB (> 300 KB bucket limit).
+    expect(page.posts[3].thumbnail_source).toBe("https://scontent.example/ig/Df0phjAF3Sd-480.jpg");
+    expect(page.posts[4].thumbnail_source).toBe("https://scontent.example/ig/DfsvrBUF6Nt-480.jpg");
+  });
+
+  it("falls back to display_uri when there are no usable candidates", () => {
+    expect(instagramThumbnail({ display_uri: "https://x/full.jpg" })).toBe("https://x/full.jpg");
+    expect(
+      instagramThumbnail({
+        display_uri: "https://x/full.jpg",
+        image_versions2: { candidates: [{ width: 150, url: "https://x/tiny.jpg" }] },
+      }),
+    ).toBe("https://x/full.jpg");
   });
 
   it("has no views for images and carousels", () => {
