@@ -20,12 +20,15 @@ export function SegmentedControl<T extends string>({
   onChange,
   label,
   className = "",
+  fullWidth = false,
 }: {
   options: SegmentOption<T>[];
   value: T;
   onChange: (value: T) => void;
   label: string;
   className?: string;
+  /** Stretch to the container, options share the width equally (M05 Instagram | TikTok). */
+  fullWidth?: boolean;
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -51,7 +54,7 @@ export function SegmentedControl<T extends string>({
     <div
       role="radiogroup"
       aria-label={label}
-      className={`inline-flex rounded-control bg-soft p-1 ${className}`}
+      className={`${fullWidth ? "flex w-full" : "inline-flex"} rounded-control bg-soft p-1 ${className}`}
     >
       {options.map((option, i) => {
         const selected = option.value === value;
@@ -72,7 +75,7 @@ export function SegmentedControl<T extends string>({
             tabIndex={selected ? 0 : -1}
             onClick={(e) => (option.disabled ? tip?.onToggle(e) : onChange(option.value))}
             onKeyDown={(e) => onKeyDown(e, i)}
-            className={`min-h-11 min-w-11 rounded-md px-3 text-body-sm whitespace-nowrap transition-colors md:min-h-8 md:min-w-0 ${
+            className={`min-h-11 min-w-11 rounded-md px-3 ${fullWidth ? "inline-flex flex-1 items-center justify-center gap-2" : ""} text-body-sm whitespace-nowrap transition-colors md:min-h-8 md:min-w-0 ${
               selected
                 ? "bg-surface text-ink"
                 : option.disabled

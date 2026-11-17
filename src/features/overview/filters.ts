@@ -1,34 +1,49 @@
-import { useSearchParams } from "react-router";
-import type { Filters, PlatformFilter } from "./metrics";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
+import type { Filters } from "./metrics";
 
 /**
- * Platform + date range live in the URL (?platform=tiktok&days=7) so a view can be shared and survives
- * a reload. Brand pills stay in the shared selection context (Overview ↔ Instagram ↔ TikTok).
- * Only 7 and 30 days: pulls cover 30 days (90 is shown disabled).
+ * Date range lives in the URL (?days=7) so a view can be shared and survives a reload. Brand pills stay
+ * in the shared selection context (Overview ↔ Instagram ↔ TikTok). Only 7 and 30 days: pulls cover 30
+ * days (90 is shown disabled). Platform is not a filter: it's the page (/overview, /instagram, /tiktok).
  */
 export function useOverviewFilters() {
   const [params, setParams] = useSearchParams();
-  const platformParam = params.get("platform");
-  const platform: PlatformFilter =
-    platformParam === "instagram" || platformParam === "tiktok" ? platformParam : "both";
   const days: Filters["days"] = params.get("days") === "7" ? 7 : 30;
 
-  const update = (key: "platform" | "days", value: string, fallback: string) =>
-    setParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (value === fallback) next.delete(key);
-        else next.set(key, value);
-        return next;
-      },
-      { replace: true },
-    );
-
   return {
-    platform,
     days,
-    setPlatform: (p: PlatformFilter) => update("platform", p, "both"),
-    setDays: (d: 7 | 30) => update("days", String(d), "30"),
+    setDays: (d: 7 | 30) =>
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (d === 30) next.delete("days");
+          else next.set("days", String(d));
+          return next;
+        },
+        { replace: true },
+      ),
+  };
+}
+
+export type PlatformPage = "both" | "instagram" | "tiktok";
+const PATH: Record<PlatformPage, string> = {
+  both: "/overview",
+  instagram: "/instagram",
+  tiktok: "/tiktok",
+};
+
+/**
+ * Both / Instagram / TikTok switch = navigation. Keeps the date range (query string); the brand
+ * selection lives in context, so it carries over on its own.
+ */
+export function usePlatformNav() {
+  const navigate = useNavigate();
+  const { search } = useLocation();
+  return (to: PlatformPage) => {
+    const params = new URLSearchParams(search);
+    params.delete("platform"); // old ?platform= links from before this was navigation
+    const qs = params.toString();
+    navigate(`${PATH[to]}${qs ? `?${qs}` : ""}`);
   };
 }
 

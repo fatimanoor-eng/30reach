@@ -7,10 +7,13 @@ import { sampleClient } from "../lib/sample-data";
  */
 export function PageHeader({
   title,
+  mobileTitle,
   crumbs = [],
   actions,
 }: {
   title: string;
+  /** Shorter title below 768 px (e.g. "Social" for the Instagram/TikTok pages, M05). */
+  mobileTitle?: string;
   /** Breadcrumb after the client name, e.g. ["Instagram", "Compare"] */
   crumbs?: string[];
   actions?: ReactNode;
@@ -29,7 +32,16 @@ export function PageHeader({
             ))}
           </ol>
         </nav>
-        <h1 className="text-title md:text-display">{title}</h1>
+        <h1 className="text-title md:text-display">
+          {mobileTitle ? (
+            <>
+              <span className="md:hidden">{mobileTitle}</span>
+              <span className="hidden md:inline">{title}</span>
+            </>
+          ) : (
+            title
+          )}
+        </h1>
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>

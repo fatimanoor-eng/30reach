@@ -140,17 +140,9 @@ test("compare mode (2 brands) and one brand", async ({ page }, info) => {
   await expect(page).toHaveScreenshot("overview-compare.png", { fullPage: true });
 });
 
-test("platform + date range filters, 90 days disabled", async ({ page }, info) => {
+test("date range filter, 90 days disabled", async ({ page }, info) => {
   await setup(page, [LATEST]);
   await ready(page);
-  await page.getByRole("radio", { name: "TikTok" }).click();
-  await expect(page).toHaveURL(/platform=tiktok/);
-  await expect(
-    page
-      .getByText(/views ·/)
-      .filter({ visible: true })
-      .first(),
-  ).toBeVisible(); // TikTok shows views
 
   if (info.project.name === "mobile-390") {
     const select = page.getByRole("combobox", { name: "Date range" }); // the mobile select
@@ -168,6 +160,29 @@ test("platform + date range filters, 90 days disabled", async ({ page }, info) =
     ).toBeVisible();
     await ninety.click({ force: true }); // Playwright waits on aria-disabled; force it to prove nothing happens
     await expect(page).toHaveURL(/days=7/); // unchanged
+  }
+});
+
+test("platform switch navigates and keeps brands + date range", async ({ page }, info) => {
+  await setup(page, [LATEST]);
+  await ready(page, "/overview?days=7");
+  await page.getByRole("group", { name: "Brands" }).getByRole("button", { name: "Hims" }).click();
+  await page.getByRole("radio", { name: "TikTok" }).click();
+  await expect(page).toHaveURL(/\/tiktok\?days=7$/);
+  // Mobile: the Social tab's Instagram | TikTok switch; tablet/desktop: Both / Instagram / TikTok.
+  await expect(
+    page.getByRole("radio", { name: "TikTok", checked: true }).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Brands" }).getByRole("button", { name: "Hims" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  if (info.project.name === "mobile-390") {
+    await page.getByRole("radio", { name: "Instagram" }).click();
+    await expect(page).toHaveURL(/\/instagram\?days=7$/);
+  } else {
+    await page.getByRole("radio", { name: "Both" }).click();
+    await expect(page).toHaveURL(/\/overview\?days=7$/);
+    await expect(page.getByRole("radio", { name: "Both", checked: true })).toBeVisible();
   }
 });
 

@@ -21,7 +21,7 @@ import {
   topPosts,
   whatsNew,
 } from "./metrics";
-import { DateRangeControl, DateRangeSelect, LastPulled, PlatformControl } from "./OverviewControls";
+import { DateRangeControl, DateRangeSelect, LastPulled, PlatformNav } from "./OverviewControls";
 import { TopPostsCard } from "./TopPostsCard";
 import { type SavedPull, usePullPosts, useSavedPulls } from "./useOverviewData";
 import { WhatsNewBar } from "./WhatsNewBar";
@@ -77,13 +77,14 @@ function Dashboard({
   previous: SavedPull | null;
   competitors: Competitor[];
 }) {
-  const { platform, days } = useOverviewFilters();
+  const { days } = useOverviewFilters();
   const { selected } = useBrandSelection();
   const latestPosts = usePullPosts(latest.id);
   const previousPosts = usePullPosts(previous?.id);
 
   const brands: BrandRef[] = competitors.map(({ id, name, initials }) => ({ id, name, initials }));
-  const f: Filters = { platform, days, brandIds: selected };
+  // Overview always covers both platforms; Instagram / TikTok have their own pages.
+  const f: Filters = { platform: "both", days, brandIds: selected };
   const inScope = selected.length ? brands.filter((b) => selected.includes(b.id)) : brands;
 
   const header = (
@@ -103,7 +104,7 @@ function Dashboard({
       />
       <LastPulled startedAt={latest.started_at} className="-mt-3 mb-4 flex md:hidden" />
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <PlatformControl />
+        <PlatformNav current="both" />
         <DateRangeSelect className="md:hidden" />
       </div>
       <BrandPills brands={brands} />
@@ -190,12 +191,7 @@ function Dashboard({
           </div>
           <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
             <LeaderboardCard rows={leaderboard(posts, inScope)} rankDelta={news?.rankDelta} />
-            <TopPostsCard
-              posts={topPosts(posts, 6)}
-              brands={brands}
-              newIds={news?.newPostIds}
-              platform={platform}
-            />
+            <TopPostsCard posts={topPosts(posts, 6)} brands={brands} newIds={news?.newPostIds} />
           </div>
         </>
       )}

@@ -24,9 +24,10 @@ describe("App shell", () => {
     expect(router.state.location.pathname).toBe("/overview");
   });
 
-  it.each([
-    ["/instagram", "Instagram"],
-    ["/tiktok", "TikTok"],
+  // Social pages: jsdom ignores CSS, so the heading reads "Social" (mobile) + the desktop title.
+  it.each<[string, string | RegExp]>([
+    ["/instagram", /^Social\s*Instagram$/],
+    ["/tiktok", /^Social\s*TikTok$/],
     ["/competitors", "Competitors"],
     ["/calendar", "Calendar"],
     ["/ideas", "Idea board"],

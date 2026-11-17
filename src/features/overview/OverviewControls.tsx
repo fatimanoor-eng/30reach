@@ -2,7 +2,12 @@ import { ChevronDown } from "lucide-react";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { formatClock, formatShortDate, plural } from "../../lib/format";
 import { daysSince, isStale } from "./metrics";
-import { NINETY_DAYS_TOOLTIP, useOverviewFilters } from "./filters";
+import {
+  NINETY_DAYS_TOOLTIP,
+  type PlatformPage,
+  useOverviewFilters,
+  usePlatformNav,
+} from "./filters";
 
 /** "● Last pulled 16 Nov, 16:20" (green) / "● Last pulled 6 Nov · 10 days ago" (amber, > 7 days). */
 export function LastPulled({
@@ -78,14 +83,17 @@ export function DateRangeSelect({ className = "" }: { className?: string }) {
   );
 }
 
-/** Both / Instagram / TikTok (M02 shortens Instagram to "IG"). */
-export function PlatformControl() {
-  const { platform, setPlatform } = useOverviewFilters();
+/**
+ * Both / Instagram / TikTok — navigation, not a filter: Both = /overview, Instagram = /instagram,
+ * TikTok = /tiktok. The current page is selected. Mobile (M02) shortens Instagram to "IG".
+ */
+export function PlatformNav({ current }: { current: PlatformPage }) {
+  const go = usePlatformNav();
   return (
     <SegmentedControl
       label="Platform"
-      value={platform}
-      onChange={setPlatform}
+      value={current}
+      onChange={(to) => to !== current && go(to)}
       options={[
         { value: "both", label: "Both" },
         {
