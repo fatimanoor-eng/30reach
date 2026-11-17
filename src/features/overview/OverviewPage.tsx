@@ -12,15 +12,7 @@ import { RefreshButton } from "../pulls/RefreshButton";
 import { useOverviewFilters } from "./filters";
 import { FirstRun } from "./FirstRun";
 import { LeaderboardCard } from "./LeaderboardCard";
-import {
-  type BrandRef,
-  filterPosts,
-  type Filters,
-  kpis,
-  leaderboard,
-  topPosts,
-  whatsNew,
-} from "./metrics";
+import { type BrandRef, filterPosts, type Filters, kpis, leaderboard, whatsNew } from "./metrics";
 import { DateRangeControl, DateRangeSelect, LastPulled, PlatformNav } from "./OverviewControls";
 import { TopPostsCard } from "./TopPostsCard";
 import { type SavedPull, usePullPosts, useSavedPulls } from "./useOverviewData";
@@ -191,7 +183,7 @@ function Dashboard({
           </div>
           <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
             <LeaderboardCard rows={leaderboard(posts, inScope)} rankDelta={news?.rankDelta} />
-            <TopPostsCard posts={topPosts(posts, 6)} brands={brands} newIds={news?.newPostIds} />
+            <TopPostsCard posts={posts} brands={brands} newIds={news?.newPostIds} />
           </div>
         </>
       )}

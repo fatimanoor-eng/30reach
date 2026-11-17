@@ -162,3 +162,59 @@ test("no pull yet", async ({ page }) => {
   await expect(page.getByText("No Instagram posts yet")).toBeVisible();
   await noSidewaysScroll(page);
 });
+
+/** Dates ("16 Nov") of the visible posts in a card, in on-screen order. */
+async function postDates(card: import("@playwright/test").Locator) {
+  const metas = await card
+    .locator("article")
+    .filter({ visible: true })
+    .evaluateAll((els) => els.map((el) => el.querySelector("p")?.textContent ?? ""));
+  return metas.map((t) => Date.parse(`${t.split("·").pop()!.trim()} 2026`));
+}
+
+test("See all expands top posts in place, sorts, and collapses", async ({ page }, info) => {
+  const mobile = info.project.name === "mobile-390";
+  await setup(page);
+  await ready(page, "/instagram");
+  const card = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Top posts on Instagram" }) });
+  const toggle = card.getByRole("button", { name: "See all" });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
+  await expect(card.getByRole("button", { name: "Show less" }).first()).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  await expect(card.getByText("40 posts")).toBeVisible();
+  await expect(card.locator("article").filter({ visible: true })).toHaveCount(40);
+
+  if (mobile) {
+    // Vertical list, not a sideways scroller: each post sits below the previous one.
+    const boxes = await card
+      .locator("article")
+      .filter({ visible: true })
+      .evaluateAll((els) => els.slice(0, 3).map((el) => el.getBoundingClientRect().top));
+    expect(boxes[1]).toBeGreaterThan(boxes[0]);
+    expect(boxes[2]).toBeGreaterThan(boxes[1]);
+  }
+  await noSidewaysScroll(page);
+  if (mobile) await tapTargetsOk(page);
+  // Viewport shot of the card's top (the whole expanded card is very tall, with lazy thumbnails).
+  await card
+    .getByRole("button", { name: "Show less" })
+    .first()
+    .evaluate((el) => el.scrollIntoView({ block: "start" })); // lands below the sticky app bar
+  await expect(page).toHaveScreenshot("social-see-all.png");
+
+  await card.getByRole("radio", { name: "Newest" }).click();
+  const dates = await postDates(card);
+  expect(dates.length).toBe(40);
+  for (let i = 1; i < dates.length; i++) expect(dates[i]).toBeLessThanOrEqual(dates[i - 1]);
+
+  // Bottom "Show less" collapses and returns focus to the header button.
+  await card.getByRole("button", { name: "Show less" }).last().click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(toggle).toBeFocused();
+  await expect(card.getByText("40 posts")).toHaveCount(0);
+});

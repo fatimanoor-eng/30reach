@@ -186,6 +186,26 @@ test("platform switch navigates and keeps brands + date range", async ({ page },
   }
 });
 
+test("See all expands Overview top posts in place", async ({ page }, info) => {
+  await setup(page, [LATEST]);
+  await ready(page);
+  const card = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Top posts" }) });
+  await card.getByRole("button", { name: "See all" }).click();
+  await expect(card.getByRole("radio", { name: "Top", checked: true })).toBeVisible();
+  const count = await card.locator("article").filter({ visible: true }).count();
+  await expect(card.getByText(`${count} posts`)).toBeVisible();
+  expect(count).toBeGreaterThan(6);
+  await noSidewaysScroll(page);
+  if (info.project.name === "mobile-390") await tapTargetsOk(page);
+  await card.getByRole("button", { name: "Show less" }).first().click();
+  await expect(card.getByRole("button", { name: "See all" })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+});
+
 test("dismissing what's new hides it until the next pull", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
   await setup(page, [LATEST, PREVIOUS]);

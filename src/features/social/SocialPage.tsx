@@ -11,7 +11,7 @@ import { useBrandSelection } from "../../lib/brand-selection-context";
 import type { Platform } from "../../lib/pulls/api";
 import { type Competitor, useCompetitors } from "../../lib/useCompetitors";
 import { useOverviewFilters, usePlatformNav } from "../overview/filters";
-import { type BrandRef, filterPosts, topPosts } from "../overview/metrics";
+import { type BrandRef, filterPosts } from "../overview/metrics";
 import {
   DateRangeControl,
   DateRangeSelect,
@@ -252,7 +252,7 @@ function SocialBody({
         ))}
       </div>
       <div className="mt-6">
-        <SocialTopPosts posts={topPosts(posts, 8)} brands={brands} platform={platform} />
+        <SocialTopPosts posts={posts} brands={brands} platform={platform} />
       </div>
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-2">
         <div className="flex flex-col gap-6">

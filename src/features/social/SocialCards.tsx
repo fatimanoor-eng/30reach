@@ -2,8 +2,7 @@ import { Card } from "../../components/Card";
 import type { Platform } from "../../lib/pulls/api";
 import { formatCompact, plural } from "../../lib/format";
 import type { BrandRef, OverviewPost } from "../overview/metrics";
-import { useThumbnails } from "../overview/useOverviewData";
-import { PostItem } from "../posts/PostItem";
+import { PostsCard } from "../posts/PostsCard";
 import {
   cellLabel,
   DAY_PARTS,
@@ -15,49 +14,35 @@ import {
 const PLATFORM_NAME: Record<Platform, string> = { instagram: "Instagram", tiktok: "TikTok" };
 
 /**
- * Top posts (06a / 06b / M05). Ranked by likes + comments (TikTok shows views too, never ranked by them).
- * "See all" from Figma is left out until there is an all-posts view to link to.
- * Desktop 4 columns, tablet 2, mobile cards scroll sideways. Soft grey block when there's no thumbnail.
+ * Top posts (06a / 06b / M05): 4 columns desktop, 2 tablet, 8 sideways cards on mobile, ranked by
+ * likes + comments (TikTok shows views, never ranked by them). "See all" expands in place to every
+ * post in the current filters (Top / Newest). Soft grey block when there's no thumbnail.
  */
 export function SocialTopPosts({
   posts,
   brands,
   platform,
 }: {
+  /** every post in the current filters */
   posts: OverviewPost[];
   brands: BrandRef[];
   platform: Platform;
 }) {
-  const thumbs = useThumbnails(posts.map((p) => p.thumbnail_path).filter((p): p is string => !!p));
-  const brandName = (id: string) => brands.find((b) => b.id === id)?.name ?? "Unknown brand";
-  const item = (p: OverviewPost, layout: "grid" | "card") => (
-    <PostItem
-      key={p.id}
-      post={p}
-      layout={layout}
-      fallback="soft"
-      brandName={brandName(p.competitor_id)}
-      thumbUrl={(p.thumbnail_path && thumbs.data?.get(p.thumbnail_path)) || undefined}
-    />
-  );
-
   return (
-    <Card
+    <PostsCard
       title={`Top posts on ${PLATFORM_NAME[platform]}`}
       info={
         platform === "tiktok"
           ? "Ranked by likes + comments. Views are shown but don’t change the order."
           : "Ranked by likes + comments."
       }
-    >
-      <div className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-4">
-        {posts.slice(0, 4).map((p) => item(p, "grid"))}
-      </div>
-      {/* `relative` keeps the sr-only "opens in a new tab" labels inside the scroller. */}
-      <div className="relative -mx-4 flex snap-x [scrollbar-width:none] gap-3 overflow-x-auto px-4 pb-1 md:hidden">
-        {posts.map((p) => item(p, "card"))}
-      </div>
-    </Card>
+      posts={posts}
+      brands={brands}
+      desktop="grid"
+      collapsedCount={4}
+      mobileCount={8}
+      fallback="soft"
+    />
   );
 }
 
