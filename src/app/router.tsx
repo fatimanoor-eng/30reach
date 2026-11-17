@@ -26,6 +26,13 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
             Component: m.ComponentsGallery,
           })),
       },
+      {
+        // Slice 5 test mode: one brand × one platform, 2-page cap (real Firecrawl credits).
+        path: "dev/test-pull",
+        HydrateFallback: () => null,
+        lazy: () =>
+          import("../features/dev/TestPullPage").then((m) => ({ Component: m.TestPullPage })),
+      },
     ]
   : [];
 

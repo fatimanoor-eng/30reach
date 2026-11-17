@@ -7,7 +7,14 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const DIST = "dist";
-const FORBIDDEN = ["dev/components", "ComponentsGallery", "Open responsive dialog"];
+const FORBIDDEN = [
+  "dev/components",
+  "ComponentsGallery",
+  "Open responsive dialog",
+  "dev/test-pull",
+  "TestPullPage",
+  "Run test pull",
+];
 
 function files(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
