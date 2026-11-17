@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 
 afterEach(() => cleanup());
@@ -38,3 +38,25 @@ if (!proto.close) {
     this.dispatchEvent(new Event("close"));
   };
 }
+
+// Never talk to the real Supabase project from unit tests: replace the client module.
+// Profile reads resolve to a fixed admin row; auth calls are no-ops.
+vi.mock("../lib/supabase", () => {
+  const query = {
+    select: () => query,
+    eq: () => query,
+    maybeSingle: async () => ({ data: { role: "admin", full_name: "Fatima Noor" }, error: null }),
+  };
+  return {
+    supabaseConfigured: true,
+    AUTH_STORAGE_KEY: "30reach-auth",
+    supabase: {
+      from: () => query,
+      auth: {
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        signInWithOAuth: async () => ({ error: null }),
+        signOut: async () => ({ error: null }),
+      },
+    },
+  };
+});

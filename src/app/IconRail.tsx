@@ -3,7 +3,8 @@ import { Avatar } from "../components/Avatar";
 import { BlipIdle } from "../components/blip/BlipPoses";
 import { LogoMark } from "../components/Logo";
 import { Tooltip } from "../components/Tooltip";
-import { sampleClient, sampleCredits, sampleUser } from "../lib/sample-data";
+import { useCurrentUser } from "../lib/auth/useCurrentUser";
+import { sampleClient, sampleCredits } from "../lib/sample-data";
 import { navSections } from "./nav";
 
 const railButton =
@@ -20,6 +21,7 @@ export function IconRail({
   onAskBlip: () => void;
   className?: string;
 }) {
+  const me = useCurrentUser();
   const pct = (sampleCredits.remaining / sampleCredits.plan) * 100;
 
   return (
@@ -114,15 +116,15 @@ export function IconRail({
           )}
         </Tooltip>
 
-        <Tooltip side="right" content={`${sampleUser.name} · Settings`}>
+        <Tooltip side="right" content={`${me.name} · Settings`}>
           {(t) => (
             <Link
               to="/settings"
-              aria-label={`${sampleUser.name}, settings`}
+              aria-label={`${me.name}, settings`}
               aria-describedby={t["aria-describedby"]}
               className="rounded-full"
             >
-              <Avatar initials={sampleUser.initials} tone="user" size="md" />
+              <Avatar initials={me.initials} tone="user" size="md" />
             </Link>
           )}
         </Tooltip>

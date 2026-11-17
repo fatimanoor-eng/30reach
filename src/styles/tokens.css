@@ -53,6 +53,19 @@
   --text-title--line-height: 1.15;
   --text-title--font-weight: 500;
 
+  --text-hero: 3rem; /* 48 — sign-in brand tagline (01) */
+  --text-hero--line-height: 1.04;
+  --text-hero--letter-spacing: -0.01em;
+  --text-hero--font-weight: 500;
+
+  --text-hero-sm: 1.625rem; /* 26 — sign-in brand tagline on mobile (M01) */
+  --text-hero-sm--line-height: 1.18;
+  --text-hero-sm--font-weight: 500;
+
+  --text-heading-lg: 2rem; /* 32 — sign-in result titles (01b, 02) */
+  --text-heading-lg--line-height: 1.15;
+  --text-heading-lg--font-weight: 500;
+
   --text-heading: 1.5rem; /* 24 — dialog / sheet titles (07c, M03) */
   --text-heading--line-height: 1.2;
   --text-heading--font-weight: 500;

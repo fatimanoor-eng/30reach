@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { noSidewaysScroll, ready, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
 
 const ROUTES = [
   "/overview",
@@ -12,41 +13,10 @@ const ROUTES = [
   "/dev/components",
 ];
 
-async function ready(page: Page, path: string) {
-  await page.goto(path);
-  await page.locator("h1").first().waitFor();
-  await page.evaluate(() => document.fonts.ready);
-}
-
-async function noSidewaysScroll(page: Page) {
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow, "page scrolls sideways").toBe(0);
-}
-
-/** Every visible interactive element on mobile must be at least 44 × 44 px. */
-async function tapTargetsOk(page: Page) {
-  const small = await page.evaluate(() => {
-    const els = document.querySelectorAll<HTMLElement>(
-      'a[href], button, [role="radio"], [tabindex="0"]',
-    );
-    return [...els]
-      .filter((el) => {
-        const r = el.getBoundingClientRect();
-        const s = getComputedStyle(el);
-        // Ignore visually hidden elements (e.g. the skip link until it's focused).
-        const srOnly = s.clipPath !== "none" || s.clip.startsWith("rect");
-        const visible = r.width > 1 && r.height > 1 && s.visibility !== "hidden" && !srOnly;
-        return visible && (r.width < 44 || r.height < 44);
-      })
-      .map((el) => {
-        const r = el.getBoundingClientRect();
-        return `${el.tagName} "${(el.getAttribute("aria-label") ?? el.textContent ?? "").trim().slice(0, 30)}" ${Math.round(r.width)}×${Math.round(r.height)}`;
-      });
-  });
-  expect(small, "tap targets smaller than 44 px").toEqual([]);
-}
+test.beforeEach(async ({ page }) => {
+  await stubSupabase(page);
+  await signInAs(page);
+});
 
 for (const path of ROUTES) {
   test(`${path} renders and fits`, async ({ page }, info) => {

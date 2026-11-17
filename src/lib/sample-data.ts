@@ -22,10 +22,3 @@ export const sampleBrands: Brand[] = [
 ];
 
 export const sampleCredits = { remaining: 588, plan: 1000, resetsOn: "1 Dec" };
-
-export const sampleUser = {
-  name: "Fatima Noor",
-  initials: "FN",
-  title: "Design",
-  email: "fatima@breakthirty.com",
-};

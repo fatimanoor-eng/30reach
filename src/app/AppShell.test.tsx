@@ -1,11 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
+import { fakeAuth } from "../test/fake-auth";
+import { TestProviders } from "../test/FakeAuth";
 import { routes } from "./router";
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
+  render(
+    <TestProviders auth={fakeAuth("team")}>
+      <RouterProvider router={router} />
+    </TestProviders>,
+  );
   return router;
 }
 

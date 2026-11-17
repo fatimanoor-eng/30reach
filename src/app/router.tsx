@@ -1,8 +1,13 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
+import { RequireTeam } from "../features/auth/RequireTeam";
+import { SignInPage } from "../features/auth/SignInPage";
+import { WelcomePage } from "../features/auth/WelcomePage";
+import { WrongAccountPage } from "../features/auth/WrongAccountPage";
 import { MorePage } from "../features/more/MorePage";
 import { NotFoundPage } from "../features/NotFoundPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { PlaceholderPage } from "../features/PlaceholderPage";
+import { SettingsPage } from "../features/settings/SettingsPage";
 import { SocialPage } from "../features/social/SocialPage";
 import { AppShell } from "./AppShell";
 
@@ -24,7 +29,8 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
     ]
   : [];
 
-export const routes: RouteObject[] = [
+/** Everything inside the app shell — only for signed-in @breakthirty.com accounts. */
+const appRoutes: RouteObject[] = [
   {
     element: <AppShell />,
     children: [
@@ -62,21 +68,21 @@ export const routes: RouteObject[] = [
           />
         ),
       },
-      {
-        path: "settings",
-        element: (
-          <PlaceholderPage
-            title="Settings"
-            slice={12}
-            text="Team and roles, free-tier usage meters, data export and clearing a pull."
-          />
-        ),
-      },
+      { path: "settings", element: <SettingsPage /> },
       { path: "more", element: <MorePage /> },
       ...devRoutes,
       { path: "*", element: <NotFoundPage /> },
     ],
   },
+];
+
+export const routes: RouteObject[] = [
+  // Public: sign-in flow (01 / M01, 01b, 02)
+  { path: "sign-in", element: <SignInPage /> },
+  { path: "welcome", element: <WelcomePage /> },
+  { path: "wrong-account", element: <WrongAccountPage /> },
+  // Protected
+  { element: <RequireTeam />, children: appRoutes },
 ];
 
 export const router = createBrowserRouter(routes);

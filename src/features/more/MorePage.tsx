@@ -3,9 +3,10 @@ import { Link, Navigate } from "react-router";
 import { PageHeader } from "../../app/PageHeader";
 import { Avatar } from "../../components/Avatar";
 import { CreditsMeter } from "../../components/CreditsMeter";
-import { useToast } from "../../components/toast-context";
 import { MQ_TABLET_UP, useMediaQuery } from "../../lib/useMediaQuery";
-import { sampleBrands, sampleCredits, sampleUser } from "../../lib/sample-data";
+import { useAuth } from "../../lib/auth/auth-context";
+import { useCurrentUser } from "../../lib/auth/useCurrentUser";
+import { sampleBrands, sampleCredits } from "../../lib/sample-data";
 
 const rows = [
   {
@@ -20,7 +21,8 @@ const rows = [
 /** Mobile "More" tab (Figma M12): Competitors, Settings, credits, account. Tablet/desktop use the nav. */
 export function MorePage() {
   const tabletUp = useMediaQuery(MQ_TABLET_UP);
-  const toast = useToast();
+  const me = useCurrentUser();
+  const { signOut } = useAuth();
   if (tabletUp) return <Navigate to="/overview" replace />;
 
   return (
@@ -45,14 +47,14 @@ export function MorePage() {
         <CreditsMeter {...sampleCredits} variant="card" />
 
         <div className="flex items-center gap-3 rounded-card border border-line bg-surface p-4">
-          <Avatar initials={sampleUser.initials} tone="user" size="lg" />
+          <Avatar initials={me.initials} tone="user" size="lg" />
           <div className="min-w-0 flex-1">
-            <p className="text-body font-medium">{sampleUser.name}</p>
-            <p className="truncate font-mono text-small text-muted">{sampleUser.email}</p>
+            <p className="text-body font-medium">{me.name}</p>
+            <p className="truncate font-mono text-small text-muted">{me.email}</p>
           </div>
           <button
             type="button"
-            onClick={() => toast.show({ title: "Sign-in arrives in Slice 3", pose: "idle" })}
+            onClick={() => void signOut()}
             className="min-h-11 px-2 text-body-sm text-spark hover:underline"
           >
             Sign out

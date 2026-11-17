@@ -4,7 +4,8 @@ import { Avatar } from "../components/Avatar";
 import { BlipIdle } from "../components/blip/BlipPoses";
 import { CreditsMeter } from "../components/CreditsMeter";
 import { Logo } from "../components/Logo";
-import { sampleClient, sampleCredits, sampleUser } from "../lib/sample-data";
+import { useCurrentUser } from "../lib/auth/useCurrentUser";
+import { sampleClient, sampleCredits } from "../lib/sample-data";
 import { navSections } from "./nav";
 
 /** Desktop sidebar, 248 px (Figma 6897:126). Shown from 1200 px. */
@@ -15,6 +16,7 @@ export function Sidebar({
   onAskBlip: () => void;
   className?: string;
 }) {
+  const me = useCurrentUser();
   return (
     <aside
       aria-label="Sidebar"
@@ -80,10 +82,10 @@ export function Sidebar({
         </div>
 
         <div className="flex items-center gap-3 border-t border-sidebar-line px-1 pt-4">
-          <Avatar initials={sampleUser.initials} tone="user" size="md" />
+          <Avatar initials={me.initials} tone="user" size="md" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-body-sm">{sampleUser.name}</p>
-            <p className="text-label text-sidebar-text">{sampleUser.title}</p>
+            <p className="truncate text-body-sm">{me.name}</p>
+            <p className="text-label text-sidebar-text">{me.role}</p>
           </div>
           <Link
             to="/settings"
