@@ -41,3 +41,71 @@
     background: color-mix(in srgb, var(--color-ink) 45%, transparent);
   }
 }
+
+/* ───────────────────────────────────────────── Modal motion
+   Drawer (data-motion="drawer") slides in from the right, bottom sheet (data-motion="sheet") slides up;
+   both backdrops fade. Closing plays the reverse: useNativeModal sets data-closing and waits for these
+   exit animations before calling close(). Reduced motion: fade only. data-instant = swapped in for
+   another modal in the same moment, so no second slide-in. */
+@keyframes modal-drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes modal-drawer-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes modal-sheet-in {
+  from {
+    transform: translateY(calc(100% + 1rem));
+  }
+}
+@keyframes modal-sheet-out {
+  to {
+    transform: translateY(calc(100% + 1rem));
+  }
+}
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes modal-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+dialog[data-motion="drawer"][open] {
+  animation: modal-drawer-in var(--motion-modal) ease-out;
+}
+dialog[data-motion="sheet"][open] {
+  animation: modal-sheet-in var(--motion-modal) ease-out;
+}
+dialog[data-motion][open]::backdrop {
+  animation: modal-fade-in var(--motion-modal) ease-out;
+}
+dialog[data-motion="drawer"][data-closing] {
+  animation: modal-drawer-out var(--motion-modal) ease-in forwards;
+}
+dialog[data-motion="sheet"][data-closing] {
+  animation: modal-sheet-out var(--motion-modal) ease-in forwards;
+}
+dialog[data-motion][data-closing]::backdrop {
+  animation: modal-fade-out var(--motion-modal) ease-in forwards;
+}
+dialog[data-motion][data-instant],
+dialog[data-motion][data-instant]::backdrop {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog[data-motion][open] {
+    animation-name: modal-fade-in;
+  }
+  dialog[data-motion][data-closing] {
+    animation-name: modal-fade-out;
+  }
+}

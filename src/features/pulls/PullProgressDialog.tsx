@@ -17,11 +17,13 @@ const ICON = { instagram: InstagramIcon, tiktok: TikTokIcon };
 export function PullProgressDialog() {
   const { state, hideCard } = usePull();
   const tabletUp = useMediaQuery(MQ_TABLET_UP);
-  if (state.kind !== "running" || !state.cardOpen) return null;
+  // Shown by PullProvider inside <ModalPresence> (open while running + card open), so it can slide out.
 
-  const tasks = state.progress?.tasks ?? [];
-  const fraction = state.progress?.fraction ?? 0;
-  const used = state.progress?.creditsUsed ?? 0;
+  // While it slides out the pull may already have finished (state idle): fall back to empty values.
+  const progress = "progress" in state ? state.progress : null;
+  const tasks = progress?.tasks ?? [];
+  const fraction = progress?.fraction ?? 0;
+  const used = progress?.creditsUsed ?? 0;
 
   return (
     <ResponsiveDialog

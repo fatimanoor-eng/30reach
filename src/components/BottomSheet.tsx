@@ -20,13 +20,21 @@ export function BottomSheet({
   cancelLabel = "Cancel",
   align = "start",
   footer,
+  illustrationSize,
 }: ModalProps) {
   const center = align === "center";
+  const big = (illustrationSize ?? (center ? "lg" : "sm")) === "lg";
   const titleId = useId();
   const descId = useId();
   const modal = useNativeModal(open, onClose);
   const start = useRef<number | null>(null);
   const [dragY, setDragY] = useState(0);
+  // Reset a leftover drag offset when the sheet opens again (derived state, no effect needed).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setDragY(0);
+  }
 
   function onPointerDown(e: PointerEvent<HTMLDivElement>) {
     start.current = e.clientY;
@@ -38,8 +46,9 @@ export function BottomSheet({
   function onPointerUp() {
     if (start.current === null) return;
     start.current = null;
+    // Dragged far enough: close from where the finger let go (the slide-out continues from there).
     if (dragY > CLOSE_DISTANCE) onClose();
-    setDragY(0);
+    else setDragY(0);
   }
 
   return (
@@ -47,6 +56,7 @@ export function BottomSheet({
       {...modal}
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
+      data-motion="sheet"
       style={dragY ? { transform: `translateY(${dragY}px)` } : undefined}
       className={`mx-3 mt-auto mb-[max(0.75rem,env(safe-area-inset-bottom))] w-[calc(100%-1.5rem)] rounded-sheet bg-surface text-ink shadow-xl ${dragY ? "" : "transition-transform"}`}
     >
@@ -61,7 +71,9 @@ export function BottomSheet({
         >
           <div aria-hidden="true" className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
           {illustration && (
-            <div className={center ? "mx-auto mb-3 w-28" : "mb-3 w-16"}>{illustration}</div>
+            <div className={`mb-3 ${big ? "w-28" : "w-16"} ${center ? "mx-auto" : ""}`}>
+              {illustration}
+            </div>
           )}
           <h2 id={titleId} className={`text-heading ${center ? "text-center" : ""}`}>
             {title}

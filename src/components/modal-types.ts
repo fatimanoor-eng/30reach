@@ -21,8 +21,10 @@ export type ModalProps = {
   primary?: ModalAction;
   /** Set to null to hide the Cancel button. */
   cancelLabel?: string | null;
-  /** "center" for status cards (05b pulling, M04); default "start" for confirm dialogs. */
+  /** "center": everything centred — Blip, title, text, buttons (confirm pattern, 05b status cards). */
   align?: "start" | "center";
+  /** Blip size: "sm" 64 px (confirm pattern), "lg" 112 px (status cards). Default: lg if centred, else sm. */
+  illustrationSize?: "sm" | "lg";
   /** Dialog width: "md" (440 px, confirm) or "lg" (520 px, 05b pulling card). Sheets are always full width. */
   size?: "md" | "lg";
   /** Shown at the start of the button row on tablet/desktop (e.g. "Credits used so far · 71"). */

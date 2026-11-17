@@ -4,15 +4,14 @@ import { PageHeader } from "../../app/PageHeader";
 import { Avatar } from "../../components/Avatar";
 import { BlipError, BlipIdle, BlipSuccess } from "../../components/blip/BlipPoses";
 import { BottomSheet } from "../../components/BottomSheet";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { BrandPills } from "../../components/BrandPills";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { Chip } from "../../components/Chip";
 import { CreditsMeter } from "../../components/CreditsMeter";
-import { Dialog } from "../../components/Dialog";
 import { EmptyState } from "../../components/EmptyState";
 import { KpiTile } from "../../components/KpiTile";
-import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { useToast } from "../../components/toast-context";
 import { sampleBrands, sampleCredits } from "../../lib/sample-data";
@@ -25,7 +24,7 @@ export function ComponentsGallery() {
   const toast = useToast();
   const [range, setRange] = useState<"7" | "30" | "90">("30");
   const [platform, setPlatform] = useState<"both" | "instagram" | "tiktok">("both");
-  const [open, setOpen] = useState<"dialog" | "sheet" | "responsive" | null>(null);
+  const [open, setOpen] = useState<"dialog" | "sheet" | "responsive" | "idea" | null>(null);
   const close = () => setOpen(null);
 
   return (
@@ -117,6 +116,9 @@ export function ComponentsGallery() {
             <Button variant="secondary" onClick={() => setOpen("responsive")}>
               Open responsive dialog
             </Button>
+            <Button variant="secondary" onClick={() => setOpen("idea")}>
+              Delete idea (confirm)
+            </Button>
             <Button
               variant="secondary"
               onClick={() =>
@@ -191,13 +193,22 @@ export function ComponentsGallery() {
         </Card>
       </div>
 
-      <Dialog
+      {/* Confirm pattern (Remove competitor / Clear pull / Delete idea): ConfirmDialog, centred. */}
+      <ConfirmDialog
         open={open === "dialog"}
         onClose={close}
-        illustration={<BlipError />}
         title="Remove Found?"
         description="Found's saved posts will disappear from the dashboards and won't be pulled again. Ideas saved from its posts stay on the idea board."
-        primary={{ label: "Remove Found", variant: "danger", onClick: close }}
+        confirmLabel="Remove Found"
+        onConfirm={close}
+      />
+      <ConfirmDialog
+        open={open === "idea"}
+        onClose={close}
+        title="Delete idea?"
+        description="The idea, its note and comments are deleted. Calendar cards made from it stay."
+        confirmLabel="Delete idea"
+        onConfirm={close}
       />
       <BottomSheet
         open={open === "sheet"}
@@ -206,13 +217,13 @@ export function ComponentsGallery() {
         description="Pulls the latest public posts for 6 brands and replaces the pull from 6 Nov."
         primary={{ label: "Pull now", onClick: close }}
       />
-      <ResponsiveDialog
+      <ConfirmDialog
         open={open === "responsive"}
         onClose={close}
-        illustration={<BlipError />}
         title="Clear saved pull?"
         description="The latest pull's posts and thumbnails will be deleted. Ideas keep their saved copy."
-        primary={{ label: "Clear pull", variant: "danger", onClick: close }}
+        confirmLabel="Clear pull"
+        onConfirm={close}
       />
     </>
   );

@@ -44,8 +44,7 @@ export function RefreshDialog() {
     },
   });
 
-  if (!refreshOpen) return null;
-
+  // Mounted by PullProvider inside <ModalPresence open={refreshOpen}>, so it can slide out when closed.
   if (preview.isPending) {
     return (
       <ResponsiveDialog

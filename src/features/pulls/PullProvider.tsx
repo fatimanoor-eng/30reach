@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
+import { ModalPresence } from "../../components/ModalPresence";
 import { useToast } from "../../components/toast-context";
 import { formatNumber, plural } from "../../lib/format";
 import {
@@ -266,8 +267,13 @@ export function PullProvider({ children }: { children: ReactNode }) {
   return (
     <PullContext value={api}>
       {children}
-      <RefreshDialog />
-      <PullProgressDialog />
+      {/* ModalPresence keeps each one mounted while its sheet / drawer slides out. */}
+      <ModalPresence open={refreshOpen}>
+        <RefreshDialog />
+      </ModalPresence>
+      <ModalPresence open={state.kind === "running" && state.cardOpen}>
+        <PullProgressDialog />
+      </ModalPresence>
     </PullContext>
   );
 }

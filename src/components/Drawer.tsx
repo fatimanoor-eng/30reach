@@ -4,6 +4,9 @@ import { useNativeModal } from "./useNativeModal";
 
 /**
  * Drawer (DESIGN_SYSTEM › Drawer, Figma 07b): right side, 480 px, dimmed page, from 768 px up.
+ * Slides in from the right (250 ms, ease-out) over a fading backdrop and slides back out on close
+ * (styles/index.css › Modal motion; fade only with reduced motion). Wrap a conditionally rendered drawer
+ * in <ModalPresence> so it can finish sliding out before it unmounts.
  * On mobile it's a full-screen page. Header (title + close) and footer (actions) stay put; the body scrolls.
  * Native <dialog>: focus trap, Esc and inert page for free.
  */
@@ -37,6 +40,7 @@ export function Drawer({
       {...modal}
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
+      data-motion="drawer"
       className="m-0 h-dvh w-full bg-surface text-ink md:ml-auto md:w-120 md:shadow-xl"
     >
       <div className="flex h-full flex-col">

@@ -109,6 +109,12 @@
   --breakpoint-xl: 75rem; /* 1200 */
 }
 
+/* ---------- Motion ----------
+   Plain custom properties (not a Tailwind namespace). Drawer / bottom sheet slide + backdrop fade. */
+:root {
+  --motion-modal: 250ms;
+}
+
 /* Small uppercase mono label: <span class="mono-label">LAST PULLED</span> */
 @utility mono-label {
   font-family: var(--font-mono);

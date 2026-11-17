@@ -119,6 +119,8 @@ test("07b add: one handle found, one not found; then save without it", async ({ 
   const panel = page.getByRole("dialog", { name: "Add competitor" });
   await expect(panel).toBeVisible();
   if (isMobile(info.project.name)) {
+    // Measure once it has finished sliding in.
+    await panel.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
     const box = await panel.boundingBox();
     expect(box!.width).toBe(390); // full-screen page on mobile (DESIGN_SYSTEM › Drawer)
     expect(box!.height).toBe(844);
@@ -243,4 +245,53 @@ test("Fix handle link opens the panel pre-filled", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(panel).toBeHidden();
   await expect(page).toHaveURL(/\/competitors$/);
+});
+
+/** Names of the CSS animations running on the open <dialog> and its backdrop. */
+const dialogAnimations = (page: Page) =>
+  page.evaluate(() =>
+    (document.querySelector("dialog[open]")?.getAnimations({ subtree: true }) ?? [])
+      .filter((a) => a instanceof CSSAnimation)
+      .map((a) => (a as CSSAnimation).animationName)
+      .sort(),
+  );
+
+test("motion: drawer slides in / out, sheets slide up, backdrop fades", async ({ page }, info) => {
+  await setup(page);
+  await ready(page);
+  await page.getByRole("button", { name: "Add competitor" }).click();
+  const panel = page.getByRole("dialog", { name: "Add competitor" });
+  await expect(panel).toBeVisible();
+  expect(await dialogAnimations(page)).toEqual(["modal-drawer-in", "modal-fade-in"]);
+  await expect(panel).toHaveAttribute("data-motion", "drawer");
+
+  // Close: it stays in the page (sliding out) and only then goes away.
+  await panel.getByRole("button", { name: "Cancel" }).click();
+  await expect(panel).toHaveAttribute("data-closing", "");
+  expect(await page.evaluate(() => document.querySelector("dialog[data-closing]") !== null)).toBe(
+    true,
+  );
+  await expect(page.locator("dialog[data-motion='drawer']")).toHaveCount(0); // unmounted after exit
+
+  // Confirm: centred; on mobile it's a bottom sheet that slides up.
+  await page.getByRole("button", { name: "Remove Hims" }).filter({ visible: true }).click();
+  const confirm = page.getByRole("dialog", { name: "Remove Hims?" });
+  await expect(confirm.getByRole("heading", { name: "Remove Hims?" })).toHaveCSS(
+    "text-align",
+    "center",
+  );
+  if (isMobile(info.project.name)) {
+    expect(await dialogAnimations(page)).toEqual(["modal-fade-in", "modal-sheet-in"]);
+  }
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(confirm).toBeHidden();
+});
+
+test("motion: reduced motion fades only", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await setup(page);
+  await ready(page);
+  await page.getByRole("button", { name: "Add competitor" }).click();
+  await expect(page.getByRole("dialog", { name: "Add competitor" })).toBeVisible();
+  expect(await dialogAnimations(page)).toEqual(["modal-fade-in", "modal-fade-in"]);
 });

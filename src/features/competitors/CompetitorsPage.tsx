@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { PageHeader } from "../../app/PageHeader";
 import { Avatar } from "../../components/Avatar";
-import { BlipError, BlipIdle } from "../../components/blip/BlipPoses";
+import { BlipIdle } from "../../components/blip/BlipPoses";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { Chip } from "../../components/Chip";
 import { EmptyState } from "../../components/EmptyState";
 import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
-import { ResponsiveDialog } from "../../components/ResponsiveDialog";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { ModalPresence } from "../../components/ModalPresence";
 import { useToast } from "../../components/toast-context";
 import { useBrandSelection } from "../../lib/brand-selection-context";
 import { plural } from "../../lib/format";
@@ -38,7 +39,9 @@ export function CompetitorsPage() {
   const saved = useSavedPulls();
   const latestPosts = usePullPosts(saved.data?.latest?.id);
   const [params, setParams] = useSearchParams();
+  // `removing` stays set while the confirm closes, so its text doesn't change mid-animation.
   const [removing, setRemoving] = useState<Competitor | null>(null);
+  const [removeOpen, setRemoveOpen] = useState(false);
   const [removeBusy, setRemoveBusy] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -53,6 +56,10 @@ export function CompetitorsPage() {
   const focusParam = params.get("focus");
   const focus = focusParam === "instagram" || focusParam === "tiktok" ? focusParam : undefined;
   const panelOpen = adding || !!editing;
+  // The panel being shown, kept while it slides out (the URL is already cleared by then).
+  const panelKey = adding ? "new" : (editing?.id ?? null);
+  const [panel, setPanel] = useState<{ key: string; competitor: Competitor | null } | null>(null);
+  if (panelKey && panelKey !== panel?.key) setPanel({ key: panelKey, competitor: editing });
 
   const openPanel = (next: Record<string, string>) => setParams(next);
   const closePanel = () => setParams({}, { replace: true });
@@ -82,7 +89,7 @@ export function CompetitorsPage() {
       pose: "success",
     });
     setRemoveBusy(false);
-    setRemoving(null);
+    setRemoveOpen(false);
   };
 
   const header = (
@@ -181,6 +188,7 @@ export function CompetitorsPage() {
         onClick={() => {
           setRemoveError(null);
           setRemoving(c);
+          setRemoveOpen(true);
         }}
         disabled={pullBusy}
         title={pullBusy ? PULL_BUSY : undefined}
@@ -289,37 +297,37 @@ export function CompetitorsPage() {
         </div>
       </aside>
 
-      {panelOpen && (
-        <CompetitorPanel
-          key={editing?.id ?? "new"}
-          open
-          onClose={closePanel}
-          competitor={editing}
-          competitors={list}
-          clientId={client.data.id}
-          focus={focus}
-        />
-      )}
+      {/* ModalPresence: the drawer slides out before it unmounts. */}
+      <ModalPresence open={panelOpen}>
+        {panel && (
+          <CompetitorPanel
+            key={panel.key}
+            open
+            onClose={closePanel}
+            competitor={panel.competitor}
+            competitors={list}
+            clientId={client.data.id}
+            focus={focus}
+          />
+        )}
+      </ModalPresence>
 
-      <ResponsiveDialog
-        open={!!removing}
-        onClose={() => !removeBusy && setRemoving(null)}
-        illustration={<BlipError className="h-auto w-full" />}
+      <ConfirmDialog
+        open={removeOpen}
+        onClose={() => !removeBusy && setRemoveOpen(false)}
         title={`Remove ${removing?.name ?? ""}?`}
         description={`${removing?.name ?? "This brand"}’s saved posts will disappear from the dashboards and won’t be pulled again. Ideas saved from its posts stay on the idea board.`}
-        primary={{
-          label: removeBusy ? "Removing…" : `Remove ${removing?.name ?? ""}`,
-          variant: "danger",
-          disabled: removeBusy || pullBusy,
-          onClick: () => void confirmRemove(),
-        }}
+        confirmLabel={removeBusy ? "Removing…" : `Remove ${removing?.name ?? ""}`}
+        busy={removeBusy}
+        disabled={pullBusy}
+        onConfirm={() => void confirmRemove()}
       >
         {(removeError || pullBusy) && (
-          <p role="alert" className="text-small text-spark">
+          <p role="alert" className="text-center text-small text-spark">
             {removeError ?? `${PULL_BUSY}, then remove.`}
           </p>
         )}
-      </ResponsiveDialog>
+      </ConfirmDialog>
     </>
   );
 }

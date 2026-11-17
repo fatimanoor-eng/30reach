@@ -19,8 +19,10 @@ export function Dialog({
   align = "start",
   size = "md",
   footer,
+  illustrationSize,
 }: ModalProps) {
   const center = align === "center";
+  const big = (illustrationSize ?? (center ? "lg" : "sm")) === "lg";
   const titleId = useId();
   const descId = useId();
   const modal = useNativeModal(open, onClose);
@@ -34,7 +36,9 @@ export function Dialog({
     >
       <div className={`flex flex-col gap-3 p-7 ${center ? "text-center" : ""}`}>
         {illustration && (
-          <div className={center ? "mx-auto mb-1 w-28" : "mb-1 w-16"}>{illustration}</div>
+          <div className={`mb-1 ${big ? "w-28" : "w-16"} ${center ? "mx-auto" : ""}`}>
+            {illustration}
+          </div>
         )}
         <h2 id={titleId} className="text-heading">
           {title}
@@ -46,7 +50,9 @@ export function Dialog({
         )}
         {children}
         {(primary || cancelLabel || footer) && (
-          <div className="mt-3 flex items-center justify-end gap-2 text-left">
+          <div
+            className={`mt-3 flex items-center gap-2 text-left ${center && !footer ? "justify-center" : "justify-end"}`}
+          >
             {footer && <div className="mr-auto">{footer}</div>}
             {cancelLabel && (
               <Button variant="secondary" onClick={onClose}>
