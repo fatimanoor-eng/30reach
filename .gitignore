@@ -16,3 +16,6 @@ dist/
 test-results/
 playwright-report/
 blob-report/
+
+# Slice 1 spike output (raw API responses)
+.spike/
