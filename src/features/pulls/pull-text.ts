@@ -70,3 +70,12 @@ export function refreshIntro(preview: PullStartResponse): string {
     ? `This pulls the latest public posts for ${brands} and replaces the saved pull from ${last}.`
     : `This pulls the latest public posts for ${brands} from the last ${preview.windowDays} days.`;
 }
+
+/** Seconds per page call: Firecrawl ~10 s + the 3 s gap (free-plan pacing, one task at a time). */
+export const SECONDS_PER_PAGE = 13;
+
+/** "about 7 minutes" for ~60 credits (30 pages). Pages = credits ÷ 2. */
+export function durationText(expectedCredits: number): string {
+  const minutes = Math.max(1, Math.round((Math.ceil(expectedCredits / 2) * SECONDS_PER_PAGE) / 60));
+  return `about ${plural(minutes, "minute")}`;
+}

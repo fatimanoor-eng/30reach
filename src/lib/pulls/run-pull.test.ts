@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import type { FnResult, PullFinishResponse, PullTaskResponse, TaskRow } from "./api";
-import { progressOf, PullInterrupted, runPull, type RunDeps } from "./run-pull";
+import {
+  PAGE_GAP_MS,
+  progressOf,
+  PullInterrupted,
+  RATE_LIMIT_BACKOFF_MS,
+  runPull,
+  type RunDeps,
+} from "./run-pull";
 
 const row = (id: string, status: TaskRow["status"] = "queued"): TaskRow => ({
   id,
@@ -140,5 +147,70 @@ describe("runPull", () => {
     await runPull("p1", d, (p) => progress.push(p));
     expect(progress.at(-1)!.tasks.map((t) => t.status)).toEqual(["failed", "done"]);
     expect(d.pullFinish).toHaveBeenCalled();
+  });
+
+  it("runs one task at a time, with a gap between page calls (free-plan pacing)", async () => {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const sleeps: number[] = [];
+    const d = deps({
+      listTasks: async () => [row("a"), row("b"), row("c")],
+      sleep: async (ms) => void sleeps.push(ms),
+      pullTask: vi.fn(async (id: string): Promise<TaskResult> => {
+        maxInFlight = Math.max(maxInFlight, ++inFlight);
+        await Promise.resolve();
+        inFlight--;
+        return page(id, false, 1);
+      }),
+    });
+    await runPull("p1", d);
+    expect(maxInFlight).toBe(1);
+    expect(sleeps).toEqual([PAGE_GAP_MS, PAGE_GAP_MS]); // 3 calls → 2 gaps
+  });
+
+  it("on 429 waits for Retry-After, tells the UI, then carries on", async () => {
+    const sleeps: number[] = [];
+    const notices: number[] = [];
+    let first = true;
+    const d = deps({
+      listTasks: async () => [row("a")],
+      sleep: async (ms) => void sleeps.push(ms),
+      pullTask: vi.fn(async (id: string): Promise<TaskResult> => {
+        if (first) {
+          first = false;
+          return {
+            ok: false,
+            status: 429,
+            data: { error: "rate_limited", retryable: true, retryAfter: 12 },
+          };
+        }
+        return page(id, false, 1);
+      }),
+    });
+    await expect(runPull("p1", d, undefined, (n) => notices.push(n.waitMs))).resolves.toMatchObject(
+      {
+        status: "done",
+      },
+    );
+    expect(notices).toEqual([12_000]);
+    expect(sleeps).toEqual([12_000, PAGE_GAP_MS]);
+  });
+
+  it("on 429 without Retry-After backs off 10 s, 20 s, 40 s, then pauses (resumable)", async () => {
+    const sleeps: number[] = [];
+    const d = deps({
+      listTasks: async () => [row("a")],
+      sleep: async (ms) => void sleeps.push(ms),
+      pullTask: vi.fn(async (): Promise<TaskResult> => ({
+        ok: false,
+        status: 429,
+        data: { error: "rate_limited", retryable: true },
+      })),
+    });
+    const err = await runPull("p1", d).catch((e) => e);
+    expect(err).toBeInstanceOf(PullInterrupted);
+    expect(err.reason).toBe("rate_limited");
+    expect(sleeps.filter((ms) => ms !== PAGE_GAP_MS)).toEqual(RATE_LIMIT_BACKOFF_MS);
+    expect(d.pullFinish).not.toHaveBeenCalled();
   });
 });

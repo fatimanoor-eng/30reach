@@ -21,6 +21,7 @@ import {
 } from "../_shared/pull-logic.ts";
 import {
   FirecrawlHttpError,
+  FirecrawlRateLimited,
   json,
   readJson,
   requireTeam,
@@ -126,6 +127,13 @@ export default {
       body = await scrapePage(platform, handle, task.cursor);
     } catch (err) {
       await release({}); // retryable: the browser can call again
+      if (err instanceof FirecrawlRateLimited) {
+        // Free plan rate limit: tell the browser to slow down (not charged; page not fetched).
+        console.error(
+          `pull-task: Firecrawl rate limited (429, retry-after ${err.retryAfter ?? "none"})`,
+        );
+        return json({ error: "rate_limited", retryable: true, retryAfter: err.retryAfter }, 429);
+      }
       const status = err instanceof FirecrawlHttpError ? err.status : 0;
       console.error(`pull-task: Firecrawl failed (${status || (err as Error).name})`);
       return json(

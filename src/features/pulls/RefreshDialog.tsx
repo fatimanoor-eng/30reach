@@ -9,6 +9,7 @@ import { type Platform, pullStart, type PullStartResponse } from "../../lib/pull
 import { usePull } from "./pull-context";
 import {
   availablePlatforms,
+  durationText,
   fittingPlatforms,
   PLATFORM_LABEL,
   refreshIntro,
@@ -141,7 +142,8 @@ function ConfirmCost({ preview }: { preview: PullStartResponse }) {
         </dl>
 
         <p className="text-small text-muted">
-          Estimates are based on your last pull. A pull never spends more than the “up to” amount.
+          Takes {durationText(cost.expected)} — you can keep working while it runs. Estimates are
+          based on your last pull; a pull never spends more than the “up to” amount.
         </p>
       </div>
     </ResponsiveDialog>

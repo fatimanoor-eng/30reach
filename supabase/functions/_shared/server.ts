@@ -6,7 +6,7 @@ import {
   FIRECRAWL_CREDIT_USAGE_URL,
   parseCreditUsage,
 } from "../credits/logic.ts";
-import type { Platform } from "./pull-logic.ts";
+import { parseRetryAfter, type Platform } from "./pull-logic.ts";
 
 export { withSupabase } from "npm:@supabase/server@1.9.2";
 export type { SupabaseClient };
@@ -68,6 +68,13 @@ export class FirecrawlHttpError extends Error {
   }
 }
 
+/** Firecrawl answered 429. `retryAfter` = seconds from its Retry-After header, if it sent one. */
+export class FirecrawlRateLimited extends Error {
+  constructor(public retryAfter: number | null) {
+    super("Firecrawl rate limited (429)");
+  }
+}
+
 /**
  * ONE page of posts for one handle via Firecrawl → ScrapeCreators (2 credits; 0 if not found).
  * Request shapes from the Slice 1 spike (INTEGRATIONS.md §2a).
@@ -89,6 +96,10 @@ export async function scrapePage(platform: Platform, handle: string, cursor: str
     }),
     signal: AbortSignal.timeout(60_000),
   });
+  if (res.status === 429) {
+    await res.body?.cancel();
+    throw new FirecrawlRateLimited(parseRetryAfter(res.headers.get("retry-after")));
+  }
   if (!res.ok) throw new FirecrawlHttpError(res.status);
   return (await res.json()) as unknown;
 }

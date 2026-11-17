@@ -375,3 +375,18 @@ export function thumbnailPath(
   const ext = contentType.includes("webp") ? "webp" : contentType.includes("png") ? "png" : "jpg";
   return `${clientId}/${pullId}/${postId}.${ext}`;
 }
+
+/**
+ * Firecrawl's Retry-After header → seconds to wait (null if absent/unreadable). Accepts delta-seconds
+ * ("12") or an HTTP date. Capped at 120 s so a bad header can't stall a pull for long.
+ */
+export function parseRetryAfter(
+  header: string | null | undefined,
+  nowMs = Date.now(),
+): number | null {
+  if (!header) return null;
+  const value = header.trim();
+  const seconds = /^\d+(\.\d+)?$/.test(value) ? Number(value) : (Date.parse(value) - nowMs) / 1000;
+  if (!Number.isFinite(seconds)) return null;
+  return Math.min(120, Math.max(1, Math.ceil(seconds)));
+}

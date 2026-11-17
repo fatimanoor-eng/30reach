@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PullStartResponse } from "../../lib/pulls/api";
 import type { TaskProgress } from "../../lib/pulls/run-pull";
 import {
+  durationText,
   fittingPlatforms,
   mobileProgressLine,
   possessive,
@@ -98,5 +99,12 @@ describe("costs (05 / 05f)", () => {
     expect(refreshIntro(preview(588))).toBe(
       "This pulls the latest public posts for 6 brands from the last 30 days.",
     );
+  });
+});
+
+describe("durationText", () => {
+  it("estimates from expected pages at ~13 s each", () => {
+    expect(durationText(60)).toBe("about 7 minutes"); // 30 pages
+    expect(durationText(4)).toBe("about 1 minute"); // test pull
   });
 });

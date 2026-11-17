@@ -9,6 +9,7 @@ import {
   extractHashtags,
   finishStatus,
   instagramThumbnail,
+  parseRetryAfter,
   type MappedPost,
   parsePage,
   postColumns,
@@ -289,5 +290,19 @@ describe("postColumns", () => {
     expect(cols).not.toHaveProperty("thumbnail_source");
     expect(cols).not.toHaveProperty("pinned");
     expect(Object.keys(cols)).toHaveLength(17);
+  });
+});
+
+describe("parseRetryAfter (Firecrawl 429)", () => {
+  const now = Date.parse("2026-11-17T19:27:00Z");
+  it("reads seconds and HTTP dates", () => {
+    expect(parseRetryAfter("12", now)).toBe(12);
+    expect(parseRetryAfter("1.2", now)).toBe(2);
+    expect(parseRetryAfter("Tue, 17 Nov 2026 19:27:30 GMT", now)).toBe(30);
+  });
+  it("caps at 120 s and ignores missing or junk values", () => {
+    expect(parseRetryAfter("600", now)).toBe(120);
+    expect(parseRetryAfter(null, now)).toBeNull();
+    expect(parseRetryAfter("soon", now)).toBeNull();
   });
 });
