@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "data": {
+    "creditsCost": 0,
+    "alexandria": [
+      {
+        "provider": "scrapecreators",
+        "capability": "instagram/user-posts",
+        "error": {
+          "code": "not_found",
+          "message": "ScrapeCreators found no public page for this input.",
+          "status": 404
+        }
+      }
+    ]
+  }
+}

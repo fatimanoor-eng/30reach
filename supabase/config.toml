@@ -428,3 +428,19 @@ enabled = true
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/credits/index.ts"
+
+# Pull pipeline (Slice 5) — same rules as credits: signed-in team users only.
+[functions.pull-start]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/pull-start/index.ts"
+
+[functions.pull-task]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/pull-task/index.ts"
+
+[functions.pull-finish]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/pull-finish/index.ts"

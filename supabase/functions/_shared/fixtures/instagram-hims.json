@@ -1,0 +1,149 @@
+{
+  "success": true,
+  "data": {
+    "creditsCost": 2,
+    "alexandria": [
+      {
+        "provider": "scrapecreators",
+        "capability": "instagram/user-posts",
+        "creditsCost": 2,
+        "data": {
+          "next_max_id": "sc:next-page-token",
+          "more_available": true,
+          "num_results": 12,
+          "user": {
+            "username": "hims",
+            "follower_count": 288374
+          },
+          "items": [
+            {
+              "id": "4031018660560221016_6243461613",
+              "pk": "4031018660560221016",
+              "code": "DfxDh1RqbNY",
+              "url": "https://www.instagram.com/p/DfxDh1RqbNY/",
+              "taken_at": 1794754971,
+              "media_type": 2,
+              "product_type": "clips",
+              "carousel_media_count": null,
+              "like_count": 48,
+              "comment_count": 0,
+              "play_count": 5024,
+              "ig_play_count": 5024,
+              "is_paid_partnership": false,
+              "coauthor_producers": [],
+              "like_and_view_counts_disabled": false,
+              "video_duration": 10.069,
+              "caption": {
+                "text": "For the ones who just get it. #ImHim"
+              },
+              "owner": {
+                "username": "hims"
+              },
+              "display_uri": "https://scontent.example/ig/DfxDh1RqbNY.jpg?oe=6929A5B0"
+            },
+            {
+              "id": "4020931760065776147_6243461613",
+              "pk": "4020931760065776147",
+              "code": "DfNOCHIzooT",
+              "url": "https://www.instagram.com/p/DfNOCHIzooT/",
+              "taken_at": 1793552479,
+              "media_type": 2,
+              "product_type": "clips",
+              "carousel_media_count": null,
+              "like_count": 93,
+              "comment_count": 8,
+              "play_count": 9234,
+              "ig_play_count": 9234,
+              "is_paid_partnership": false,
+              "coauthor_producers": [],
+              "like_and_view_counts_disabled": false,
+              "video_duration": 6.058,
+              "caption": {
+                "text": "Be prepared. Be strong. Be confident. Be him."
+              },
+              "owner": {
+                "username": "hims"
+              },
+              "display_uri": "https://scontent.example/ig/DfNOCHIzooT.jpg?oe=6929A5B0"
+            },
+            {
+              "id": "4017537372667879079_6243461613",
+              "pk": "4017537372667879079",
+              "code": "DfBKPRhuZ6n",
+              "url": "https://www.instagram.com/p/DfBKPRhuZ6n/",
+              "taken_at": 1793147824,
+              "media_type": 2,
+              "product_type": "clips",
+              "carousel_media_count": null,
+              "like_count": 203,
+              "comment_count": 17,
+              "play_count": 12105,
+              "ig_play_count": 12105,
+              "is_paid_partnership": false,
+              "coauthor_producers": [],
+              "like_and_view_counts_disabled": false,
+              "video_duration": 30.037,
+              "caption": {
+                "text": "Ready to be Him?"
+              },
+              "owner": {
+                "username": "hims"
+              },
+              "display_uri": "https://scontent.example/ig/DfBKPRhuZ6n.jpg?oe=6929A5B0"
+            },
+            {
+              "id": "4032030191635625117_6243461613",
+              "pk": "4032030191635625117",
+              "code": "Df0phjAF3Sd",
+              "url": "https://www.instagram.com/p/Df0phjAF3Sd/",
+              "taken_at": 1794875482,
+              "media_type": 8,
+              "product_type": "carousel_container",
+              "carousel_media_count": 8,
+              "like_count": 38,
+              "comment_count": 1,
+              "play_count": null,
+              "ig_play_count": null,
+              "is_paid_partnership": false,
+              "coauthor_producers": [],
+              "like_and_view_counts_disabled": false,
+              "video_duration": null,
+              "caption": {
+                "text": "A peptide stack isn’t a copy-paste routine. Here’s what to consider before building one. 👉 \n\n𝘛𝘩𝘦 𝘪𝘯𝘧𝘰𝘳𝘮𝘢𝘵𝘪𝘰𝘯 𝘱𝘳𝘰𝘷𝘪𝘥𝘦𝘥 𝘩𝘦𝘳𝘦 𝘪𝘴 𝘕𝘖𝘛 𝘔𝘌𝘋𝘐𝘊𝘈𝘓 𝘈𝘋𝘝𝘐𝘊𝘌 𝘢𝘯𝘥 𝘪𝘴 𝘧𝘰𝘳 𝘪𝘯𝘧𝘰𝘳𝘮𝘢𝘵𝘪𝘰𝘯𝘢𝘭 𝘱𝘶𝘳𝘱𝘰𝘴𝘦𝘴 𝘰𝘯𝘭𝘺. 𝘗𝘭𝘦𝘢𝘴𝘦 𝘤𝘰𝘯𝘵𝘢𝘤𝘵 𝘺𝘰𝘶𝘳 𝘱𝘳𝘰𝘷𝘪𝘥𝘦𝘳 𝘪𝘧 𝘺𝘰𝘶 𝘩𝘢𝘷𝘦 𝘢𝘯𝘺 𝘧𝘶𝘳𝘵𝘩𝘦𝘳 𝘲𝘶𝘦𝘴𝘵𝘪𝘰𝘯𝘴 𝘳𝘦𝘨𝘢𝘳𝘥𝘪𝘯𝘨 𝘺𝘰𝘶𝘳 𝘤𝘰𝘯𝘥𝘪𝘵𝘪𝘰𝘯 𝘰𝘳 𝘵𝘳𝘦𝘢𝘵𝘮𝘦𝘯𝘵."
+              },
+              "owner": {
+                "username": "hims"
+              },
+              "display_uri": "https://scontent.example/ig/Df0phjAF3Sd.jpg?oe=6929A5B0"
+            },
+            {
+              "id": "4029805431124108141_6243461613",
+              "pk": "4029805431124108141",
+              "code": "DfsvrBUF6Nt",
+              "url": "https://www.instagram.com/p/DfsvrBUF6Nt/",
+              "taken_at": 1794610273,
+              "media_type": 1,
+              "product_type": "feed",
+              "carousel_media_count": null,
+              "like_count": 46,
+              "comment_count": 15,
+              "play_count": null,
+              "ig_play_count": null,
+              "is_paid_partnership": false,
+              "coauthor_producers": [],
+              "like_and_view_counts_disabled": false,
+              "video_duration": null,
+              "caption": {
+                "text": "Drop your Him name in the comments. We're trying to see something. 👀"
+              },
+              "owner": {
+                "username": "hims"
+              },
+              "display_uri": "https://scontent.example/ig/DfsvrBUF6Nt.jpg?oe=6929A5B0"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "success": true,
+  "data": {
+    "creditsCost": 2,
+    "alexandria": [
+      {
+        "provider": "scrapecreators",
+        "capability": "tiktok/user-videos",
+        "creditsCost": 2,
+        "data": {
+          "max_cursor": 1792193040141,
+          "has_more": 1,
+          "aweme_list": [
+            {
+              "aweme_id": "7708914298323766558",
+              "url": "https://www.tiktok.com/@hims/photo/7708914298323766558",
+              "create_time": 1794871487,
+              "desc": "Tag your friend who would pick #7. #hairregrowth #hairtok #hairloss ",
+              "is_top": 0,
+              "aweme_type": 150,
+              "is_ads": false,
+              "is_paid_partnership": false,
+              "branded_content_accounts": null,
+              "statistics": {
+                "digg_count": 1,
+                "comment_count": 0,
+                "play_count": 65,
+                "share_count": 1,
+                "collect_count": 0
+              },
+              "text_extra": [
+                {
+                  "hashtag_name": "7"
+                },
+                {
+                  "hashtag_name": "hairregrowth"
+                },
+                {
+                  "hashtag_name": "hairtok"
+                },
+                {
+                  "hashtag_name": "hairloss"
+                }
+              ],
+              "author": {
+                "unique_id": "hims",
+                "follower_count": 475428
+              },
+              "video": {
+                "duration": 0,
+                "cover": {
+                  "url_list": [
+                    "https://p16.example/tt/7708914298323766558.webp?x-expires=1796205600"
+                  ]
+                }
+              },
+              "image_post_info": {
+                "image_post_cover": {
+                  "display_image": {
+                    "url_list": [
+                      "https://p16.example/tt/7708914298323766558-photo.webp?x-expires=1796205600"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "aweme_id": "7708397612944133390",
+              "url": "https://www.tiktok.com/@hims/video/7708397612944133390",
+              "create_time": 1794751214,
+              "desc": "For the ones who just get it. #ImHim",
+              "is_top": 0,
+              "aweme_type": 0,
+              "is_ads": false,
+              "is_paid_partnership": false,
+              "branded_content_accounts": null,
+              "statistics": {
+                "digg_count": 0,
+                "comment_count": 2,
+                "play_count": 73,
+                "share_count": 1,
+                "collect_count": 0
+              },
+              "text_extra": [
+                {
+                  "hashtag_name": "imhim"
+                }
+              ],
+              "author": {
+                "unique_id": "hims",
+                "follower_count": 475428
+              },
+              "video": {
+                "duration": 10070,
+                "cover": {
+                  "url_list": [
+                    "https://p16.example/tt/7708397612944133390.webp?x-expires=1796205600"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
