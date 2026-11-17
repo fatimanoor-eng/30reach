@@ -16,7 +16,6 @@ import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { useToast } from "../../components/toast-context";
 import { sampleBrands, sampleCredits } from "../../lib/sample-data";
-import { SelectionSummary } from "../SelectionSummary";
 
 /**
  * DEV ONLY (route /dev/components, not in production builds).
@@ -78,7 +77,6 @@ export function ComponentsGallery() {
           info="Pick up to 3 brands to compare. Selection is shared with Overview, Instagram and TikTok."
         >
           <BrandPills brands={sampleBrands} />
-          <SelectionSummary />
         </Section>
 
         <Section title="Chip">

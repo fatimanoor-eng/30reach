@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { creditsFraction, formatShortDate, plural } from "./format";
+import { creditsFraction, formatCompact, formatShortDate, plural } from "./format";
 
 describe("plural", () => {
   it.each([
@@ -43,4 +43,15 @@ describe("creditsFraction", () => {
     expect(creditsFraction(-5, 1000)).toBe(0);
     expect(creditsFraction(50, 0)).toBe(1);
   });
+});
+
+describe("formatCompact", () => {
+  it.each([
+    [640, "640"],
+    [3100, "3.1K"],
+    [18_412, "18.4K"],
+    [212_000, "212K"],
+    [1_250_000, "1.3M"],
+    [999, "999"],
+  ])("%i → %s", (n, expected) => expect(formatCompact(n)).toBe(expected));
 });

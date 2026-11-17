@@ -18,7 +18,9 @@ function renderAt(path: string) {
 describe("App shell", () => {
   it("redirects / to Overview", async () => {
     const router = renderAt("/");
-    expect(await screen.findByRole("heading", { level: 1, name: "Overview" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Run your first pull" }),
+    ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/overview");
   });
 
@@ -42,17 +44,29 @@ describe("App shell", () => {
     ).toBeInTheDocument();
   });
 
-  it("brand selection is shared between Overview and Instagram", async () => {
-    const router = renderAt("/overview");
-    fireEvent.click(await screen.findByRole("button", { name: /Hims$/ }));
-    expect(screen.getByText(/Selection: Hims/)).toBeInTheDocument();
-    await router.navigate("/instagram");
-    expect(await screen.findByText(/Selection: Hims/)).toBeInTheDocument();
+  it("brand selection is shared between Instagram and TikTok (and Overview)", async () => {
+    const router = renderAt("/instagram");
+    const hims = await screen.findByRole("button", { name: "Hims" });
+    fireEvent.click(hims);
+    expect(hims).toHaveAttribute("aria-pressed", "true");
+    await router.navigate("/tiktok");
+    expect(await screen.findByRole("button", { name: "Hims" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("Overview without a saved pull shows the first-run checklist (03)", async () => {
+    renderAt("/overview");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Run your first pull" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("3 brands: Hers, Hims, Ro")).toBeInTheDocument();
   });
 
   it('"/" opens Ask Blip, but not while typing', async () => {
     renderAt("/overview");
-    await screen.findByRole("heading", { level: 1, name: "Overview" });
+    await screen.findByRole("heading", { level: 1, name: /^(Overview|Run your first pull)$/ });
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -68,7 +82,7 @@ describe("App shell", () => {
     window.__mqMatches = true;
     try {
       const router = renderAt("/more");
-      await screen.findByRole("heading", { level: 1, name: "Overview" });
+      await screen.findByRole("heading", { level: 1, name: /^(Overview|Run your first pull)$/ });
       expect(router.state.location.pathname).toBe("/overview");
     } finally {
       window.__mqMatches = false;

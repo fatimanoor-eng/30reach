@@ -1,10 +1,18 @@
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
+import { Tooltip } from "./Tooltip";
 
-export type SegmentOption<T extends string> = { value: T; label: ReactNode };
+export type SegmentOption<T extends string> = {
+  value: T;
+  label: ReactNode;
+  /** Shown but not selectable (e.g. "90 days" until 90-day pulls exist). */
+  disabled?: boolean;
+  /** Explains a disabled option ("Needs a 90-day pull, coming later"). */
+  tooltip?: string;
+};
 
 /**
  * Segmented control: date range (7/30/90 days), platform switch.
- * Radio-group semantics: one tab stop, arrow keys move the selection.
+ * Radio-group semantics: one tab stop, arrow keys move the selection (skipping disabled options).
  */
 export function SegmentedControl<T extends string>({
   options,
@@ -30,7 +38,11 @@ export function SegmentedControl<T extends string>({
           : 0;
     if (!delta) return;
     e.preventDefault();
-    const next = (index + delta + options.length) % options.length;
+    let next = index;
+    for (let step = 0; step < options.length; step++) {
+      next = (next + delta + options.length) % options.length;
+      if (!options[next].disabled) break;
+    }
     onChange(options[next].value);
     refs.current[next]?.focus();
   }
@@ -43,7 +55,10 @@ export function SegmentedControl<T extends string>({
     >
       {options.map((option, i) => {
         const selected = option.value === value;
-        return (
+        const button = (tip?: {
+          "aria-describedby": string;
+          onToggle: (e: { currentTarget: Element }) => void;
+        }) => (
           <button
             key={option.value}
             ref={(el) => {
@@ -52,15 +67,28 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="radio"
             aria-checked={selected}
+            aria-disabled={option.disabled || undefined}
+            aria-describedby={tip?.["aria-describedby"] || undefined}
             tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(option.value)}
+            onClick={(e) => (option.disabled ? tip?.onToggle(e) : onChange(option.value))}
             onKeyDown={(e) => onKeyDown(e, i)}
-            className={`min-h-11 rounded-md px-3 text-body-sm whitespace-nowrap transition-colors md:min-h-8 ${
-              selected ? "bg-surface text-ink" : "text-muted hover:text-ink"
+            className={`min-h-11 min-w-11 rounded-md px-3 text-body-sm whitespace-nowrap transition-colors md:min-h-8 md:min-w-0 ${
+              selected
+                ? "bg-surface text-ink"
+                : option.disabled
+                  ? "cursor-not-allowed text-muted/60"
+                  : "text-muted hover:text-ink"
             }`}
           >
             {option.label}
           </button>
+        );
+        return option.tooltip ? (
+          <Tooltip key={option.value} content={option.tooltip} side="bottom">
+            {(tip) => button(tip)}
+          </Tooltip>
+        ) : (
+          button()
         );
       })}
     </div>

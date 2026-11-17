@@ -40,3 +40,25 @@ export function creditsFraction(remaining: number, plan: number): number {
   if (!Number.isFinite(plan) || plan <= 0) return 1;
   return Math.min(1, remaining / plan);
 }
+
+/** Compact counts for stats: 640 → "640", 3,100 → "3.1K", 18,400 → "18.4K", 212,000 → "212K", 1.25M → "1.3M". */
+export function formatCompact(n: number): string {
+  const abs = Math.abs(n);
+  const unit = (div: number, suffix: string) => {
+    const v = n / div;
+    const text =
+      Math.abs(v) >= 100 ? Math.round(v).toString() : (Math.round(v * 10) / 10).toString();
+    return `${text}${suffix}`;
+  };
+  if (abs >= 1_000_000) return unit(1_000_000, "M");
+  if (abs >= 1_000) return unit(1_000, "K");
+  return formatNumber(Math.round(n));
+}
+
+const clock = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+/** "16:20" (local time). */
+export function formatClock(input: string | number | Date): string {
+  const d = input instanceof Date ? input : new Date(input);
+  return Number.isNaN(d.getTime()) ? "" : clock.format(d);
+}

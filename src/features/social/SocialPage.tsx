@@ -4,8 +4,7 @@ import { BrandPills } from "../../components/BrandPills";
 import { Card } from "../../components/Card";
 import { EmptyState } from "../../components/EmptyState";
 import { SegmentedControl } from "../../components/SegmentedControl";
-import { sampleBrands } from "../../lib/sample-data";
-import { SelectionSummary } from "../SelectionSummary";
+import { useCompetitors } from "../../lib/useCompetitors";
 
 type Platform = "instagram" | "tiktok";
 const titles: Record<Platform, string> = { instagram: "Instagram", tiktok: "TikTok" };
@@ -16,6 +15,7 @@ const titles: Record<Platform, string> = { instagram: "Instagram", tiktok: "TikT
  */
 export function SocialPage({ platform }: { platform: Platform }) {
   const navigate = useNavigate();
+  const competitors = useCompetitors();
 
   return (
     <>
@@ -30,8 +30,7 @@ export function SocialPage({ platform }: { platform: Platform }) {
         ]}
       />
       <PageHeader title={titles[platform]} />
-      <BrandPills brands={sampleBrands} />
-      <SelectionSummary />
+      <BrandPills brands={competitors.data ?? []} />
       <Card className="mt-6">
         <EmptyState
           label="Coming in Slice 7"

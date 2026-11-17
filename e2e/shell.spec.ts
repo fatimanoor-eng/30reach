@@ -48,8 +48,8 @@ test("the right navigation shows at each size", async ({ page }, info) => {
   }
 });
 
-test("brand pills: 3 max, selection carries to Instagram", async ({ page }) => {
-  await ready(page, "/overview");
+test("brand pills: 3 max, selection carries from Instagram to TikTok", async ({ page }, info) => {
+  await ready(page, "/instagram");
   const pills = page.getByRole("group", { name: "Brands" });
   for (const name of ["Hims", "Ro", "Hers"])
     await pills.getByRole("button", { name, exact: true }).click();
@@ -57,15 +57,18 @@ test("brand pills: 3 max, selection carries to Instagram", async ({ page }) => {
     "aria-disabled",
     "true",
   );
-  await expect(page.getByText("Selection: Compare Hims vs Ro vs Hers")).toBeVisible();
 
-  await ready(page, "/overview");
-  await pills.getByRole("button", { name: "Hims", exact: true }).click();
-  await page
-    .getByRole("link", { name: /Instagram|Social/ })
-    .first()
-    .click();
-  await expect(page.getByText("Selection: Hims")).toBeVisible();
+  // In-app navigation keeps the shared selection (a full reload would reset it).
+  if (info.project.name === "mobile-390") {
+    await page.getByRole("radio", { name: "TikTok" }).click(); // Social tab's platform switch
+  } else {
+    await page.getByRole("link", { name: "TikTok" }).first().click();
+  }
+  await expect(page).toHaveURL(/\/tiktok$/);
+  await expect(pills.getByRole("button", { name: "Hims", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 });
 
 test("dialog / sheet and toast", async ({ page }, info) => {

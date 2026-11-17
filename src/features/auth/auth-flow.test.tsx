@@ -16,6 +16,8 @@ function renderAt(path: string, auth: AuthValue) {
   return router;
 }
 
+/** The app's Overview route: the dashboard, or 03 First run when nothing has been pulled yet. */
+const OVERVIEW = /^(Overview|Run your first pull)$/;
 const h1 = (name: string | RegExp) => screen.findByRole("heading", { level: 1, name });
 
 afterEach(() => {
@@ -46,7 +48,7 @@ describe("protected routes", () => {
 
   it("team → the app", async () => {
     renderAt("/overview", fakeAuth("team"));
-    expect(await h1("Overview")).toBeInTheDocument();
+    expect(await h1(OVERVIEW)).toBeInTheDocument();
   });
 });
 
@@ -60,7 +62,7 @@ describe("sign in (01)", () => {
 
   it("a signed-in team member skips it", async () => {
     const router = renderAt("/sign-in", fakeAuth("team"));
-    await h1("Overview");
+    await h1(OVERVIEW);
     expect(router.state.location.pathname).toBe("/overview");
   });
 });
@@ -71,14 +73,14 @@ describe("/welcome (01b)", () => {
     const router = renderAt("/welcome", fakeAuth("team"));
     expect(await h1("Welcome in, Fatima!")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Open 30reach" }));
-    await h1("Overview");
+    await h1(OVERVIEW);
     expect(router.state.location.pathname).toBe("/overview");
     expect(sessionStorage.getItem(FRESH_SIGN_IN_KEY)).toBeNull();
   });
 
   it("goes straight to Overview when not fresh", async () => {
     const router = renderAt("/welcome", fakeAuth("team"));
-    await h1("Overview");
+    await h1(OVERVIEW);
     expect(router.state.location.pathname).toBe("/overview");
   });
 

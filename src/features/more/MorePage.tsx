@@ -6,25 +6,27 @@ import { CreditsMeter } from "../../components/CreditsMeter";
 import { MQ_TABLET_UP, useMediaQuery } from "../../lib/useMediaQuery";
 import { useAuth } from "../../lib/auth/auth-context";
 import { useCurrentUser } from "../../lib/auth/useCurrentUser";
-import { sampleBrands } from "../../lib/sample-data";
+import { useCompetitors } from "../../lib/useCompetitors";
 import { plural } from "../../lib/format";
 import { useCredits } from "../../lib/useCredits";
-
-const rows = [
-  {
-    to: "/competitors",
-    icon: Users,
-    title: "Competitors",
-    text: `${plural(sampleBrands.length, "brand")} · add, edit, remove`,
-  },
-  { to: "/settings", icon: SlidersVertical, title: "Settings", text: "Team, usage, data" },
-];
 
 /** Mobile "More" tab (Figma M12): Competitors, Settings, credits, account. Tablet/desktop use the nav. */
 export function MorePage() {
   const tabletUp = useMediaQuery(MQ_TABLET_UP);
   const me = useCurrentUser();
   const credits = useCredits();
+  const competitors = useCompetitors();
+  const rows = [
+    {
+      to: "/competitors",
+      icon: Users,
+      title: "Competitors",
+      text: competitors.data
+        ? `${plural(competitors.data.length, "brand")} · add, edit, remove`
+        : "Add, edit, remove",
+    },
+    { to: "/settings", icon: SlidersVertical, title: "Settings", text: "Team, usage, data" },
+  ];
   const { signOut } = useAuth();
   if (tabletUp) return <Navigate to="/overview" replace />;
 

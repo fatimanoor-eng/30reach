@@ -37,9 +37,9 @@ const tasks = (doneCount = 0) =>
       id: `t-${platform}-${brand}`,
       platform,
       status: pi * 6 + bi < doneCount ? "done" : "queued",
-      pages: 0,
-      posts_found: 0,
-      credits_used: 0,
+      pages: pi * 6 + bi < doneCount ? 2 : 0,
+      posts_found: pi * 6 + bi < doneCount ? 19 : 0,
+      credits_used: pi * 6 + bi < doneCount ? 4 : 0,
       error_code: null,
       competitor_id: `c-${brand}`,
       competitors: { name: brand },
@@ -79,9 +79,11 @@ async function openRefresh(page: Page) {
   await page.goto("/overview");
   await page.locator("h1").first().waitFor();
   await page.evaluate(() => document.fonts.ready);
+  // No saved pull in these stubs → Overview is 03 First run ("Pull data now"); with data it's "Refresh".
   await page
-    .getByRole("button", { name: "Refresh", exact: true })
+    .getByRole("button", { name: /^(Refresh|Pull data now)$/ })
     .filter({ visible: true })
+    .first()
     .click();
 }
 
@@ -108,7 +110,9 @@ test("05 / M03 confirm cost", async ({ page }) => {
 });
 
 test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, info) => {
+  test.setTimeout(60_000); // remaining tasks run one at a time with the real 3 s gap
   await setup(page);
+  await page.route("**/rest/v1/pull_tasks**", (r) => r.fulfill(json(tasks(5)))); // 5 of 12 done
   const startBodies: Record<string, unknown>[] = [];
   await page.route("**/functions/v1/pull-start**", (r) => {
     const body = r.request().postDataJSON();
@@ -119,7 +123,7 @@ test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, inf
       ),
     );
   });
-  const release = gatePullTask(page, 5); // 5 of 12 tasks finish, then hold → 42%
+  const release = gatePullTask(page, 0); // hold the 6th task → 42%
   await page.route("**/functions/v1/pull-finish**", (r) =>
     r.fulfill(
       json({
@@ -141,7 +145,7 @@ test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, inf
   await expect(card).toBeVisible();
   await expect(card.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "42");
   if (info.project.name === "mobile-390") {
-    await expect(card.getByText("Instagram 5 of 6 brands · TikTok 0 of 6 brands")).toBeVisible();
+    await expect(card.getByText("Instagram 5 of 6 brands · TikTok waiting")).toBeVisible();
   } else {
     await expect(card.getByRole("row", { name: /Found/ })).toBeVisible();
     await expect(card.getByText("Credits used so far · 20")).toBeVisible();
@@ -162,10 +166,13 @@ test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, inf
 
   release();
   const toast = page.getByRole("status");
-  await expect(toast).toContainText("Pull complete");
+  await expect(toast).toContainText("Pull complete", { timeout: 40_000 }); // 7 tasks × 3 s gap
   await expect(toast).toContainText("228 posts · 64 credits used · 957 left");
   await expect(
-    page.getByRole("button", { name: "Refresh", exact: true }).filter({ visible: true }),
+    page
+      .getByRole("button", { name: /^(Refresh|Pull data now)$/ })
+      .filter({ visible: true })
+      .first(),
   ).toBeVisible();
   await expect(page).toHaveScreenshot("pull-complete.png");
 });
@@ -192,6 +199,7 @@ test("05f not enough credits", async ({ page }) => {
 test("05g finished with problems → Fix handle", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
   await setup(page);
+  await page.route("**/rest/v1/pull_tasks**", (r) => r.fulfill(json(tasks(11)))); // 1 task left
   await page.route("**/functions/v1/pull-start**", (r) => {
     const body = r.request().postDataJSON();
     return r.fulfill(
@@ -236,4 +244,101 @@ test("resume after a reload", async ({ page }, info) => {
   await expect(toast).toContainText("Your last pull didn’t finish");
   await expect(toast).toContainText("50% done · nothing is lost");
   await expect(page.getByRole("button", { name: "Resume pull · 50%" })).toBeVisible();
+});
+
+test("Firecrawl 429 → slow-down toast, then carries on by itself", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  await setup(page);
+  await page.route("**/rest/v1/pull_tasks**", (r) => r.fulfill(json(tasks(11))));
+  await page.route("**/functions/v1/pull-start**", (r) => {
+    const body = r.request().postDataJSON();
+    return r.fulfill(
+      json(
+        body.preview ? preview(1021) : { ...preview(1021), status: "started", pullId: "pull-1" },
+      ),
+    );
+  });
+  let calls = 0;
+  await page.route("**/functions/v1/pull-task**", (r) => {
+    const { taskId } = r.request().postDataJSON();
+    return r.fulfill(
+      ++calls === 1
+        ? json({ error: "rate_limited", retryable: true, retryAfter: 1 }, 429)
+        : json({
+            taskId,
+            status: "done",
+            more: false,
+            pages: 1,
+            postsFound: 9,
+            creditsUsed: 2,
+            errorCode: null,
+          }),
+    );
+  });
+  await page.route("**/functions/v1/pull-finish**", (r) =>
+    r.fulfill(
+      json({
+        status: "done",
+        isTest: false,
+        postsFound: 9,
+        creditsUsed: 2,
+        credits: null,
+        problems: [],
+        deleted: 0,
+      }),
+    ),
+  );
+  await openRefresh(page);
+  await page.getByRole("button", { name: "Pull now" }).click();
+  await expect(page.getByRole("status")).toContainText("Firecrawl asked us to slow down");
+  await expect(page.getByRole("status")).toContainText("Resuming in 1 s");
+  await expect(page.getByRole("status")).toContainText("Pull complete", { timeout: 15_000 });
+  expect(calls).toBe(2);
+});
+
+test("05d offers “See what’s new” once a previous real pull exists", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  await setup(page);
+  await page.route("**/rest/v1/pull_tasks**", (r) => r.fulfill(json(tasks(11)))); // 1 task left
+  // Two saved real pulls → 05e is possible.
+  await page.route("**/rest/v1/pulls**", (r) =>
+    r.fulfill(
+      json(
+        r.request().url().includes("status=eq.running")
+          ? null
+          : [
+              { id: "pull-new", started_at: "2026-11-17T10:00:00Z", status: "done" },
+              { id: "pull-old", started_at: "2026-11-06T10:00:00Z", status: "done" },
+            ],
+      ),
+    ),
+  );
+  await page.route("**/functions/v1/pull-start**", (r) => {
+    const body = r.request().postDataJSON();
+    return r.fulfill(
+      json(
+        body.preview ? preview(1021) : { ...preview(1021), status: "started", pullId: "pull-new" },
+      ),
+    );
+  });
+  gatePullTask(page, 99);
+  await page.route("**/functions/v1/pull-finish**", (r) =>
+    r.fulfill(
+      json({
+        status: "done",
+        isTest: false,
+        postsFound: 169,
+        creditsUsed: 48,
+        credits: null,
+        problems: [],
+        deleted: 1,
+      }),
+    ),
+  );
+  await openRefresh(page);
+  await page.getByRole("button", { name: "Pull now" }).click();
+  const toast = page.getByRole("status");
+  await expect(toast).toContainText("Pull complete");
+  await toast.getByRole("button", { name: "See what’s new" }).click();
+  await expect(page).toHaveURL(/\/overview$/);
 });

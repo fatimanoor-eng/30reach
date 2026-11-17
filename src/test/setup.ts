@@ -49,7 +49,14 @@ vi.mock("../lib/supabase", () => {
     clients: { row: { id: "client-1", name: "OBU Health" }, list: [] },
     pulls: { row: null, list: [] }, // no running pull
     pull_tasks: { row: null, list: [] },
-    competitors: { row: null, list: [] },
+    competitors: {
+      row: null,
+      list: [
+        { id: "c-hers", name: "Hers", initials: "He" },
+        { id: "c-hims", name: "Hims", initials: "Hi" },
+        { id: "c-ro", name: "Ro", initials: "Ro" },
+      ],
+    },
     posts: { row: null, list: [] },
   };
   const from = (table: string) => {

@@ -29,7 +29,8 @@ export function BrandPills({ brands }: { brands: Brand[] }) {
     <div
       role="group"
       aria-label="Brands"
-      className="-mx-4 flex [scrollbar-width:none] items-center gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0"
+      // `relative`: absolutely positioned children stay inside the scroller (see TopPostsCard).
+      className="relative -mx-4 flex [scrollbar-width:none] items-center gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0"
     >
       <button
         type="button"

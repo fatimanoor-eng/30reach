@@ -77,6 +77,20 @@ export async function stubSupabase(
     route.fulfill(ok({ id: "client-1", name: "OBU Health" })),
   );
   await page.route("**/rest/v1/pulls**", (route) => route.fulfill(ok(null)));
+  await page.route("**/rest/v1/competitors**", (route) =>
+    route.fulfill(
+      ok(
+        [
+          ["c-found", "Found", "Fo"],
+          ["c-hers", "Hers", "He"],
+          ["c-hims", "Hims", "Hi"],
+          ["c-lifemd", "LifeMD", "LM"],
+          ["c-ro", "Ro", "Ro"],
+          ["c-ww", "WeightWatchers", "WW"],
+        ].map(([id, name, initials]) => ({ id, name, initials })),
+      ),
+    ),
+  );
   await page.route("**/rest/v1/pull_tasks**", (route) => route.fulfill(ok([])));
   await page.route("**/rest/v1/profiles**", (route) =>
     route.fulfill({
