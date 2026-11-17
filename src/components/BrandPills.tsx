@@ -12,6 +12,12 @@ const avatarTone: Record<CompareColor, "white" | "pop" | "blue"> = {
   blue: "blue",
 };
 
+/**
+ * Pill avatar: 28 px (not 24) with tighter tracking (−0.05em), so wide initials like "WW" keep ~4 px
+ * of space each side (was ~1 px). Text stays at the 11 px minimum (text-label); it can't shrink further.
+ */
+const PILL_AVATAR = "size-7 tracking-tighter";
+
 const pillBase =
   "inline-flex h-11 shrink-0 items-center gap-2 rounded-full border pr-3 pl-1.5 text-body-sm transition-colors md:h-9";
 const pillOff = "border-line bg-surface text-ink hover:border-ink/30";
@@ -38,7 +44,7 @@ export function BrandPills({ brands }: { brands: Brand[] }) {
         onClick={clear}
         className={`${pillBase} ${all ? pillOn : pillOff}`}
       >
-        <Avatar initials="All" tone="all" />
+        <Avatar initials="All" tone="all" className={PILL_AVATAR} />
         All brands
       </button>
 
@@ -61,7 +67,11 @@ export function BrandPills({ brands }: { brands: Brand[] }) {
                 onClick={(e) => (blocked ? tip.onToggle(e) : toggle(brand.id))}
                 className={`${pillBase} ${color ? pillOn : pillOff} ${blocked ? "cursor-not-allowed opacity-40 hover:border-line" : ""}`}
               >
-                <Avatar initials={brand.initials} tone={color ? avatarTone[color] : "brand"} />
+                <Avatar
+                  initials={brand.initials}
+                  tone={color ? avatarTone[color] : "brand"}
+                  className={PILL_AVATAR}
+                />
                 {brand.name}
                 {color ? (
                   <Check size={16} aria-hidden="true" />
