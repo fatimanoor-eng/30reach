@@ -53,13 +53,21 @@
   --text-title--line-height: 1.15;
   --text-title--font-weight: 500;
 
+  --text-heading: 1.5rem; /* 24 — dialog / sheet titles (07c, M03) */
+  --text-heading--line-height: 1.2;
+  --text-heading--font-weight: 500;
+
   --text-card: 1.125rem; /* 18 (range 17–20) */
   --text-card--line-height: 1.25;
   --text-card--font-weight: 500;
 
-  --text-kpi: 2rem; /* 32 (range 26–36) */
+  --text-kpi: 2.25rem; /* 36 desktop (range 26–36) */
   --text-kpi--line-height: 1.1;
   --text-kpi--font-weight: 500;
+
+  --text-kpi-sm: 1.625rem; /* 26 mobile */
+  --text-kpi-sm--line-height: 1.1;
+  --text-kpi-sm--font-weight: 500;
 
   --text-body: 0.9375rem; /* 15 (range 14–15) */
   --text-body--line-height: 1.45;

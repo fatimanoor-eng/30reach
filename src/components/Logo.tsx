@@ -39,3 +39,15 @@ export function Logo({ title = "30reach", ...props }: LogoProps) {
     </svg>
   );
 }
+
+/** Just the "30" pixel mark (tablet icon rail). Same paths as the full logo, cropped viewBox. */
+export function LogoMark({ title = "30reach", ...props }: LogoProps) {
+  return (
+    <svg viewBox="0 4 148.68 106.2" fill="currentColor" role="img" aria-label={title} {...props}>
+      <path d="M63.8205 88.9635H0.00356506V110.2H63.8205V88.9635Z" />
+      <path d="M63.8206 46.4835H0V67.7199H63.8206V46.4835Z" />
+      <path d="M127.459 4.01815H85.0234V25.2326H63.8204L63.8206 67.7199L85.0453 68.5L85.0417 25.2618H127.459V67.7199H127.444V88.9562H85.0453V67.7199H63.8241V88.9672H85.0453V110.2H127.451V88.9672H148.665V69.5535H148.68V25.2618H127.459V4.01815Z" />
+      <path d="M63.8206 4H0V25.2363H63.8206V4Z" />
+    </svg>
+  );
+}

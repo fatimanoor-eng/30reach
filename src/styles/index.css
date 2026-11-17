@@ -16,4 +16,28 @@
     outline: 2px solid var(--color-ink);
     outline-offset: 2px;
   }
+
+  /* On dark surfaces (sidebar, rail, app bar, toasts) the ring is white. */
+  .on-dark :focus-visible {
+    outline-color: var(--color-white);
+  }
+
+  /* Icons: 1.75 stroke everywhere (DESIGN_SYSTEM › Icons). CSS beats the SVG attribute. */
+  svg.lucide,
+  svg.icon {
+    stroke-width: 1.75;
+  }
+
+  /* Native <dialog>: no default border/padding, our own backdrop. */
+  dialog {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    max-width: none;
+    max-height: none;
+  }
+  dialog::backdrop {
+    background: color-mix(in srgb, var(--color-ink) 45%, transparent);
+  }
 }

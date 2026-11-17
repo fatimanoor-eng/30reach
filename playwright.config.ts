@@ -2,7 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 /**
  * Responsive screenshot checks at the three required sizes (CLAUDE.md rule 10).
- * Runs against a production build (`vite preview`) so we test what Cloudflare serves.
+ * Runs against the dev server because the component gallery (/dev/components) only exists in
+ * development builds. The production build is checked separately by scripts/check-prod-bundle.mjs.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -12,7 +13,7 @@ export default defineConfig({
     baseURL: "http://localhost:4173",
   },
   expect: {
-    toHaveScreenshot: { maxDiffPixelRatio: 0.01 },
+    toHaveScreenshot: { maxDiffPixelRatio: 0.002 },
   },
   projects: [
     {
@@ -35,7 +36,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run build && npm run preview -- --port 4173 --strictPort",
+    command: "npm run dev -- --port 4173 --strictPort",
     url: "http://localhost:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
