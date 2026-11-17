@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>30reach</title>
+  <rect width="32" height="32" rx="6" fill="#0b0b0c"/>
+  <path fill="#f4eb02" shape-rendering="crispEdges" d="M2 6h12v4h-12zM18 6h8v4h-8zM14 10h4v4h-4zM26 10h4v4h-4zM2 14h16v4h-16zM26 14h4v4h-4zM14 18h4v4h-4zM26 18h4v4h-4zM2 22h12v4h-12zM18 22h8v4h-8z"/>
+</svg>
