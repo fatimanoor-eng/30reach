@@ -1,0 +1,12 @@
+{
+  // Cloudflare Worker serving the static Vite build (no Worker script).
+  "name": "30reach",
+  "compatibility_date": "2026-11-17",
+  "assets": {
+    "directory": "./dist/",
+    // SPA fallback: real files in dist/ are served as-is; any other path (e.g. /overview on
+    // refresh or a direct link) gets index.html with 200 so React Router can handle it.
+    // Replaces public/_redirects, which loops on Workers (error 100324).
+    "not_found_handling": "single-page-application"
+  }
+}
