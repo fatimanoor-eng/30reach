@@ -52,6 +52,19 @@ vi.mock("../lib/supabase", () => {
     AUTH_STORAGE_KEY: "30reach-auth",
     supabase: {
       from: () => query,
+      functions: {
+        invoke: async () => ({
+          data: {
+            remaining: 588,
+            plan: 1000,
+            periodStart: "2026-11-01T00:00:00Z",
+            resetsAt: "2026-12-01T12:00:00Z",
+            updatedAt: "2026-11-17T14:02:00Z",
+            stale: false,
+          },
+          error: null,
+        }),
+      },
       auth: {
         onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
         signInWithOAuth: async () => ({ error: null }),

@@ -4,7 +4,8 @@ import { BlipIdle } from "../components/blip/BlipPoses";
 import { LogoMark } from "../components/Logo";
 import { Tooltip } from "../components/Tooltip";
 import { useCurrentUser } from "../lib/auth/useCurrentUser";
-import { sampleClient, sampleCredits } from "../lib/sample-data";
+import { sampleClient } from "../lib/sample-data";
+import { creditsSummary, useCredits } from "../lib/useCredits";
 import { navSections } from "./nav";
 
 const railButton =
@@ -22,7 +23,7 @@ export function IconRail({
   className?: string;
 }) {
   const me = useCurrentUser();
-  const pct = (sampleCredits.remaining / sampleCredits.plan) * 100;
+  const credits = useCredits();
 
   return (
     <aside
@@ -92,28 +93,55 @@ export function IconRail({
 
         <Tooltip
           side="right"
-          content={`${sampleCredits.remaining} of ${sampleCredits.plan.toLocaleString("en-US")} credits left · resets ${sampleCredits.resetsOn}`}
+          content={
+            credits.status === "error"
+              ? `${creditsSummary(credits)} · click to retry`
+              : creditsSummary(credits)
+          }
         >
-          {(t) => (
-            <div
-              tabIndex={0}
-              role="meter"
-              aria-label="Firecrawl credits left"
-              aria-valuemin={0}
-              aria-valuemax={sampleCredits.plan}
-              aria-valuenow={sampleCredits.remaining}
-              aria-describedby={t["aria-describedby"]}
-              className="flex flex-col items-center gap-1.5 rounded-control px-2 py-1"
-            >
-              <div className="relative h-14 w-1 overflow-hidden rounded-full bg-sidebar-line">
-                <div
-                  className="absolute inset-x-0 bottom-0 rounded-full bg-flash"
-                  style={{ height: `${pct}%` }}
-                />
+          {(t) => {
+            const ready = credits.status === "ready" ? credits.credits : null;
+            const pct = ready
+              ? Math.max(0, Math.min(100, (ready.remaining / ready.plan) * 100))
+              : 0;
+            const meter = (
+              <>
+                <div className="relative h-14 w-1 overflow-hidden rounded-full bg-sidebar-line">
+                  <div
+                    className="absolute inset-x-0 bottom-0 rounded-full bg-flash transition-[height] duration-300"
+                    style={{ height: `${pct}%` }}
+                  />
+                </div>
+                <span className="font-mono text-label">{ready ? ready.remaining : "—"}</span>
+              </>
+            );
+            return credits.status === "error" ? (
+              <button
+                type="button"
+                onClick={credits.retry}
+                aria-label="Couldn't load Firecrawl credits. Retry"
+                aria-describedby={t["aria-describedby"]}
+                className="flex flex-col items-center gap-1.5 rounded-control px-2 py-1 hover:bg-sidebar-2"
+              >
+                {meter}
+              </button>
+            ) : (
+              <div
+                tabIndex={0}
+                role="meter"
+                aria-label="Firecrawl credits left"
+                aria-valuemin={0}
+                aria-valuemax={ready?.plan ?? 0}
+                aria-valuenow={ready?.remaining ?? 0}
+                aria-valuetext={creditsSummary(credits)}
+                aria-busy={credits.status === "loading" || undefined}
+                aria-describedby={t["aria-describedby"]}
+                className="flex flex-col items-center gap-1.5 rounded-control px-2 py-1"
+              >
+                {meter}
               </div>
-              <span className="font-mono text-label">{sampleCredits.remaining}</span>
-            </div>
-          )}
+            );
+          }}
         </Tooltip>
 
         <Tooltip side="right" content={`${me.name} · Settings`}>

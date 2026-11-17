@@ -21,4 +21,12 @@ export const sampleBrands: Brand[] = [
   { id: "lifemd", name: "LifeMD", initials: "LM" },
 ];
 
-export const sampleCredits = { remaining: 588, plan: 1000, resetsOn: "1 Dec" };
+/** Shape of the `credits` Edge Function response — dev gallery only. */
+export const sampleCredits = {
+  remaining: 588,
+  plan: 1000,
+  periodStart: "2026-11-01T00:00:00Z",
+  resetsAt: "2026-12-01T12:00:00Z",
+  updatedAt: "2026-11-17T14:02:00Z",
+  stale: false,
+};

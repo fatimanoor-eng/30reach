@@ -159,9 +159,19 @@ export function ComponentsGallery() {
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div className="rounded-card bg-sidebar p-4">
-              <CreditsMeter {...sampleCredits} />
+              <CreditsMeter state={{ status: "ready", credits: sampleCredits }} />
             </div>
-            <CreditsMeter {...sampleCredits} variant="card" />
+            <CreditsMeter state={{ status: "ready", credits: sampleCredits }} variant="card" />
+            <div className="rounded-card bg-sidebar p-4">
+              <CreditsMeter state={{ status: "loading" }} />
+            </div>
+            <div className="rounded-card bg-sidebar p-4">
+              <CreditsMeter state={{ status: "error", retry: () => {} }} />
+            </div>
+            <CreditsMeter
+              state={{ status: "ready", credits: { ...sampleCredits, stale: true } }}
+              variant="card"
+            />
           </div>
         </Section>
 

@@ -5,7 +5,8 @@ import { BlipIdle } from "../components/blip/BlipPoses";
 import { CreditsMeter } from "../components/CreditsMeter";
 import { Logo } from "../components/Logo";
 import { useCurrentUser } from "../lib/auth/useCurrentUser";
-import { sampleClient, sampleCredits } from "../lib/sample-data";
+import { sampleClient } from "../lib/sample-data";
+import { useCredits } from "../lib/useCredits";
 import { navSections } from "./nav";
 
 /** Desktop sidebar, 248 px (Figma 6897:126). Shown from 1200 px. */
@@ -17,6 +18,7 @@ export function Sidebar({
   className?: string;
 }) {
   const me = useCurrentUser();
+  const credits = useCredits();
   return (
     <aside
       aria-label="Sidebar"
@@ -78,7 +80,7 @@ export function Sidebar({
         </button>
 
         <div className="px-1">
-          <CreditsMeter {...sampleCredits} />
+          <CreditsMeter state={credits} />
         </div>
 
         <div className="flex items-center gap-3 border-t border-sidebar-line px-1 pt-4">

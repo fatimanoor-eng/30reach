@@ -20,6 +20,11 @@ export default tseslint.config(
       globals: globals.browser,
     },
   },
+  // Supabase Edge Functions run on Deno.
+  {
+    files: ["supabase/functions/**/*.ts"],
+    languageOptions: { globals: { ...globals.browser, Deno: "readonly" } },
+  },
   // Turns off style rules that Prettier handles. Keep last.
   prettier,
 );

@@ -6,7 +6,8 @@ import { CreditsMeter } from "../../components/CreditsMeter";
 import { MQ_TABLET_UP, useMediaQuery } from "../../lib/useMediaQuery";
 import { useAuth } from "../../lib/auth/auth-context";
 import { useCurrentUser } from "../../lib/auth/useCurrentUser";
-import { sampleBrands, sampleCredits } from "../../lib/sample-data";
+import { sampleBrands } from "../../lib/sample-data";
+import { useCredits } from "../../lib/useCredits";
 
 const rows = [
   {
@@ -22,6 +23,7 @@ const rows = [
 export function MorePage() {
   const tabletUp = useMediaQuery(MQ_TABLET_UP);
   const me = useCurrentUser();
+  const credits = useCredits();
   const { signOut } = useAuth();
   if (tabletUp) return <Navigate to="/overview" replace />;
 
@@ -44,7 +46,7 @@ export function MorePage() {
           ))}
         </ul>
 
-        <CreditsMeter {...sampleCredits} variant="card" />
+        <CreditsMeter state={credits} variant="card" />
 
         <div className="flex items-center gap-3 rounded-card border border-line bg-surface p-4">
           <Avatar initials={me.initials} tone="user" size="lg" />

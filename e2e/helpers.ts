@@ -52,6 +52,21 @@ export async function stubSupabase(
   await page.route("**/auth/v1/**", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: "{}" }),
   );
+  // Credits Edge Function: fixed reading so screenshots don't depend on the real balance.
+  await page.route("**/functions/v1/credits**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        remaining: 588,
+        plan: 1000,
+        periodStart: "2026-11-01T00:00:00Z",
+        resetsAt: "2026-12-01T12:00:00Z",
+        updatedAt: "2026-11-17T14:02:00Z",
+        stale: false,
+      }),
+    }),
+  );
   await page.route("**/rest/v1/profiles**", (route) =>
     route.fulfill({
       status: 200,
