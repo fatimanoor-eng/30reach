@@ -1,0 +1,137 @@
+import { Check } from "lucide-react";
+import { BlipScanning } from "../../components/blip/BlipPoses";
+import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
+import { ResponsiveDialog } from "../../components/ResponsiveDialog";
+import type { Platform } from "../../lib/pulls/api";
+import type { TaskProgress } from "../../lib/pulls/run-pull";
+import { MQ_TABLET_UP, useMediaQuery } from "../../lib/useMediaQuery";
+import { usePull } from "./pull-context";
+import { mobileProgressLine, PLATFORM_LABEL } from "./pull-text";
+
+const ICON = { instagram: InstagramIcon, tiktok: TikTokIcon };
+
+/**
+ * 05b Pulling — in progress (card) / M04 (sheet). Old data stays visible underneath.
+ * "Keep working" hides it; the pull continues and the Refresh button shows progress (05c).
+ */
+export function PullProgressDialog() {
+  const { state, hideCard } = usePull();
+  const tabletUp = useMediaQuery(MQ_TABLET_UP);
+  if (state.kind !== "running" || !state.cardOpen) return null;
+
+  const tasks = state.progress?.tasks ?? [];
+  const fraction = state.progress?.fraction ?? 0;
+  const used = state.progress?.creditsUsed ?? 0;
+
+  return (
+    <ResponsiveDialog
+      open
+      onClose={hideCard}
+      align="center"
+      size="lg"
+      illustration={<BlipScanning />}
+      title="Blip is pulling fresh posts…"
+      description={
+        tabletUp
+          ? "This can take a little while. Keep using 30reach, we’ll let you know when it’s done."
+          : undefined
+      }
+      primary={{ label: "Keep working", variant: "secondary", onClick: hideCard }}
+      cancelLabel={null}
+      footer={
+        tabletUp ? <p className="mono-label text-muted">Credits used so far · {used}</p> : undefined
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <div
+          role="progressbar"
+          aria-label="Pull progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(fraction * 100)}
+          className="h-1.5 overflow-hidden rounded-full bg-soft"
+        >
+          <div
+            className="h-full rounded-full bg-ink transition-[width] duration-500"
+            style={{ width: `${fraction * 100}%` }}
+          />
+        </div>
+        {tabletUp ? (
+          <BrandGrid tasks={tasks} />
+        ) : (
+          <p className="text-center font-mono text-small text-muted" aria-live="polite">
+            {tasks.length ? mobileProgressLine(tasks) : "Starting…"}
+          </p>
+        )}
+      </div>
+    </ResponsiveDialog>
+  );
+}
+
+/** Brand × platform grid: ✓ done · "pulling" · "waiting" · "not found" / "failed" in red. */
+function BrandGrid({ tasks }: { tasks: TaskProgress[] }) {
+  const platforms = (["instagram", "tiktok"] as Platform[]).filter((p) =>
+    tasks.some((t) => t.platform === p),
+  );
+  const brands = [...new Set(tasks.map((t) => t.brand))];
+  if (!tasks.length) return <p className="font-mono text-small text-muted">Starting…</p>;
+
+  return (
+    // Border lives on a wrapper: tables (border-collapse) don't draw rounded borders.
+    <div className="overflow-hidden rounded-tile border border-line">
+      <table className="w-full text-left text-body-sm">
+        <caption className="sr-only">Pull progress by brand and platform</caption>
+        <thead className="sr-only">
+          <tr>
+            <th scope="col">Brand</th>
+            {platforms.map((p) => (
+              <th key={p} scope="col">
+                {PLATFORM_LABEL[p]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {brands.map((brand) => (
+            <tr key={brand}>
+              <th scope="row" className="px-4 py-2.5 font-normal">
+                {brand}
+              </th>
+              {platforms.map((p) => (
+                <td key={p} className="w-32 px-3 py-2.5">
+                  <Cell
+                    task={tasks.find((t) => t.brand === brand && t.platform === p)}
+                    platform={p}
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Cell({ task, platform }: { task?: TaskProgress; platform: Platform }) {
+  const Icon = ICON[platform];
+  if (!task) return <span className="text-muted">—</span>;
+  const status =
+    task.status === "done" ? (
+      <Check size={16} aria-label="done" />
+    ) : task.status === "running" ? (
+      <span className="font-mono text-label">pulling</span>
+    ) : task.status === "queued" ? (
+      <span className="font-mono text-label text-muted">waiting</span>
+    ) : (
+      <span className="font-mono text-label text-spark">
+        {task.errorCode === "not_found" ? "not found" : "failed"}
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-2">
+      <Icon size={16} aria-label={PLATFORM_LABEL[platform]} className="text-muted" />
+      {status}
+    </span>
+  );
+}

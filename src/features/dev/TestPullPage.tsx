@@ -16,6 +16,7 @@ import {
   pullTask,
 } from "../../lib/pulls/api";
 import { type PullProgress, PullInterrupted, runPull } from "../../lib/pulls/run-pull";
+import { formatNumber, formatShortDate, plural } from "../../lib/format";
 import { supabase } from "../../lib/supabase";
 import { CREDITS_QUERY_KEY } from "../../lib/useCredits";
 
@@ -207,14 +208,16 @@ export function TestPullPage() {
           {preview.data && est && (
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 font-mono text-small">
               <dt className="text-muted">Expected</dt>
-              <dd>~{est.expected} credits</dd>
+              <dd>~{plural(est.expected, "credit")}</dd>
               <dt className="text-muted">At most</dt>
               <dd>
-                {est.max} credits ({preview.data.pageCap} pages × 2)
+                {plural(est.max, "credit")} ({plural(preview.data.pageCap, "page")} × 2)
               </dd>
               <dt className="text-muted">Credits left</dt>
               <dd>
-                {preview.data.credits?.remaining ?? "—"} of {preview.data.credits?.plan ?? "—"}
+                {preview.data.credits
+                  ? `${formatNumber(preview.data.credits.remaining)} of ${formatNumber(preview.data.credits.plan)}`
+                  : "—"}
               </dd>
               <dt className="text-muted">Window</dt>
               <dd>last {preview.data.windowDays} days</dd>
@@ -240,7 +243,7 @@ export function TestPullPage() {
                 !preview.data || preview.data.status !== "preview" || phase.kind === "running"
               }
             >
-              Run test pull (up to {maxCredits || "…"} credits)
+              Run test pull (up to {maxCredits ? plural(maxCredits, "credit") : "… credits"})
             </Button>
           </div>
         </Card>
@@ -252,8 +255,8 @@ export function TestPullPage() {
                 <p>Pulling… {Math.round((phase.progress?.fraction ?? 0) * 100)}%</p>
                 {phase.progress?.tasks.map((t) => (
                   <p key={t.id}>
-                    {t.brand} · {t.platform} · {t.status} · {t.pages} page(s) · {t.postsFound} posts
-                    · {t.creditsUsed} credits
+                    {t.brand} · {t.platform} · {t.status} · {plural(t.pages, "page")} ·{" "}
+                    {plural(t.postsFound, "post")} · {plural(t.creditsUsed, "credit")}
                   </p>
                 ))}
               </div>
@@ -268,11 +271,11 @@ export function TestPullPage() {
                 <dt className="text-muted">Status</dt>
                 <dd>{phase.result.status}</dd>
                 <dt className="text-muted">Posts saved</dt>
-                <dd>{phase.result.postsFound}</dd>
+                <dd>{plural(phase.result.postsFound, "post")}</dd>
                 <dt className="text-muted">Credits used</dt>
-                <dd>{phase.result.creditsUsed}</dd>
+                <dd>{plural(phase.result.creditsUsed, "credit")}</dd>
                 <dt className="text-muted">Credits left</dt>
-                <dd>{phase.result.credits?.remaining ?? "—"}</dd>
+                <dd>{phase.result.credits ? formatNumber(phase.result.credits.remaining) : "—"}</dd>
                 {phase.result.problems.map((p) => (
                   <dd key={`${p.brand}${p.platform}`} className="col-span-2 text-spark">
                     {p.brand} {p.platform}: {p.code}
@@ -291,7 +294,7 @@ export function TestPullPage() {
         onClose={() => setConfirming(false)}
         title={`Run a test pull for ${target?.name ?? "this brand"} on ${platform === "instagram" ? "Instagram" : "TikTok"}?`}
         description={`This spends real Firecrawl credits: about ${est?.expected ?? "?"}, at most ${maxCredits}. Posts from the last 30 days are saved as a test pull.`}
-        primary={{ label: `Spend up to ${maxCredits} credits`, onClick: start }}
+        primary={{ label: `Spend up to ${plural(maxCredits, "credit")}`, onClick: start }}
       />
     </>
   );
@@ -324,7 +327,7 @@ function TestPosts({ pullId }: { pullId: string }) {
 
   return (
     <Card
-      title={`Latest test pull · ${posts.data?.length ?? "…"} posts`}
+      title={`Latest test pull · ${posts.data ? plural(posts.data.length, "post") : "…"}`}
       info="Also in Supabase → Table Editor → posts (filter pull_id) and Storage → post-thumbs."
     >
       {posts.isError && (
@@ -349,10 +352,11 @@ function TestPosts({ pullId }: { pullId: string }) {
             )}
             <div className="flex flex-col gap-1 p-2 font-mono text-label">
               <span>
-                {p.format} · {p.posted_at ? new Date(p.posted_at).toLocaleDateString("en-GB") : "—"}
+                {p.format} · {formatShortDate(p.posted_at) ?? "—"}
               </span>
               <span>
-                {p.likes ?? "—"} likes · {p.comments ?? "—"} comments · {p.views ?? "—"} views
+                {countOrDash(p.likes, "like")} · {countOrDash(p.comments, "comment")} ·{" "}
+                {countOrDash(p.views, "view")}
               </span>
               <span className="truncate text-muted">
                 {p.hashtags?.map((h: string) => `#${h}`).join(" ") || "no hashtags"}
@@ -366,4 +370,9 @@ function TestPosts({ pullId }: { pullId: string }) {
       </ul>
     </Card>
   );
+}
+
+/** "1 like" / "12 likes"; "— views" when the platform has no count (e.g. Instagram images). */
+function countOrDash(n: number | null, word: string) {
+  return n === null ? `— ${word}s` : plural(n, word);
 }

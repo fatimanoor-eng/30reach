@@ -1,0 +1,239 @@
+import { expect, test, type Page, type Route } from "@playwright/test";
+import { noSidewaysScroll, signInAs, stubSupabase } from "./helpers";
+
+/*
+ * Slice 5 pull UI with every Supabase / Edge Function call answered locally — 0 Firecrawl credits.
+ * 05 confirm · 05b/M04 pulling · 05c progress button · 05d complete · 05f not enough · 05g problems · resume.
+ */
+
+const BRANDS = ["Found", "Hers", "Hims", "LifeMD", "Ro", "WeightWatchers"];
+const json = (body: unknown, status = 200) => ({
+  status,
+  contentType: "application/json",
+  body: JSON.stringify(body),
+});
+
+const preview = (remaining: number, status: "preview" | "insufficient" = "preview") => ({
+  status,
+  estimate: {
+    perPlatform: {
+      instagram: { tasks: 6, expected: 36, max: 48 },
+      tiktok: { tasks: 6, expected: 24, max: 48 },
+    },
+    expected: 60,
+    max: 96,
+  },
+  credits: { remaining, plan: 1000, periodStart: null, resetsAt: "2026-12-01T12:00:00Z" },
+  lastPullAt: null,
+  brands: 6,
+  pageCap: 4,
+  windowDays: 30,
+  isTest: false,
+});
+
+const tasks = (doneCount = 0) =>
+  ["instagram", "tiktok"].flatMap((platform, pi) =>
+    BRANDS.map((brand, bi) => ({
+      id: `t-${platform}-${brand}`,
+      platform,
+      status: pi * 6 + bi < doneCount ? "done" : "queued",
+      pages: 0,
+      posts_found: 0,
+      credits_used: 0,
+      error_code: null,
+      competitor_id: `c-${brand}`,
+      competitors: { name: brand },
+    })),
+  );
+
+async function setup(page: Page) {
+  await stubSupabase(page);
+  await signInAs(page);
+  await page.route("**/rest/v1/pull_tasks**", (r) => r.fulfill(json(tasks())));
+}
+
+/** Holds pull-task calls after the first `free` ones until release() — for a stable mid-pull state. */
+function gatePullTask(page: Page, free: number) {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  let calls = 0;
+  void page.route("**/functions/v1/pull-task**", async (route: Route) => {
+    const { taskId } = route.request().postDataJSON();
+    if (++calls > free) await gate;
+    await route.fulfill(
+      json({
+        taskId,
+        status: "done",
+        more: false,
+        pages: 2,
+        postsFound: 19,
+        creditsUsed: 4,
+        errorCode: null,
+      }),
+    );
+  });
+  return () => release();
+}
+
+async function openRefresh(page: Page) {
+  await page.goto("/overview");
+  await page.locator("h1").first().waitFor();
+  await page.evaluate(() => document.fonts.ready);
+  await page
+    .getByRole("button", { name: "Refresh", exact: true })
+    .filter({ visible: true })
+    .click();
+}
+
+test("05 / M03 confirm cost", async ({ page }) => {
+  await setup(page);
+  await page.route("**/functions/v1/pull-start**", (r) => r.fulfill(json(preview(1021))));
+  await openRefresh(page);
+
+  const dialog = page.getByRole("dialog", { name: "Refresh competitor data?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("~36 credits")).toBeVisible();
+  await expect(dialog.getByText("~24 credits")).toBeVisible();
+  await expect(dialog.getByText("up to 96 credits")).toBeVisible();
+  await expect(dialog.getByText("1,021 of 1,000")).toBeVisible(); // more than the plan: real number
+  await expect(dialog.getByText("about 961")).toBeVisible();
+
+  // Unticking TikTok updates the cost.
+  await dialog.getByLabel("TikTok").uncheck();
+  await expect(dialog.getByText("up to 48 credits")).toBeVisible();
+  await dialog.getByLabel("TikTok").check();
+
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot("refresh-confirm.png");
+});
+
+test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, info) => {
+  await setup(page);
+  const startBodies: Record<string, unknown>[] = [];
+  await page.route("**/functions/v1/pull-start**", (r) => {
+    const body = r.request().postDataJSON();
+    startBodies.push(body);
+    return r.fulfill(
+      json(
+        body.preview ? preview(1021) : { ...preview(1021), status: "started", pullId: "pull-1" },
+      ),
+    );
+  });
+  const release = gatePullTask(page, 5); // 5 of 12 tasks finish, then hold → 42%
+  await page.route("**/functions/v1/pull-finish**", (r) =>
+    r.fulfill(
+      json({
+        status: "done",
+        isTest: false,
+        postsFound: 228,
+        creditsUsed: 64,
+        credits: { remaining: 957, plan: 1000, periodStart: null, resetsAt: null },
+        problems: [],
+        deleted: 0,
+      }),
+    ),
+  );
+
+  await openRefresh(page);
+  await page.getByRole("button", { name: "Pull now" }).click();
+
+  const card = page.getByRole("dialog", { name: "Blip is pulling fresh posts…" });
+  await expect(card).toBeVisible();
+  await expect(card.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "42");
+  if (info.project.name === "mobile-390") {
+    await expect(card.getByText("Instagram 5 of 6 brands · TikTok 0 of 6 brands")).toBeVisible();
+  } else {
+    await expect(card.getByRole("row", { name: /Found/ })).toBeVisible();
+    await expect(card.getByText("Credits used so far · 20")).toBeVisible();
+  }
+  expect(startBodies.at(-1)).toMatchObject({
+    clientId: "client-1",
+    platforms: ["instagram", "tiktok"],
+  });
+  await expect(page).toHaveScreenshot("pulling-card.png");
+
+  // Keep working → progress moves to the Refresh button (05c) / ring (mobile).
+  await card.getByRole("button", { name: "Keep working" }).click();
+  await expect(card).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "Pulling… 42%" }).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(page).toHaveScreenshot("pulling-button.png");
+
+  release();
+  const toast = page.getByRole("status");
+  await expect(toast).toContainText("Pull complete");
+  await expect(toast).toContainText("228 posts · 64 credits used · 957 left");
+  await expect(
+    page.getByRole("button", { name: "Refresh", exact: true }).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(page).toHaveScreenshot("pull-complete.png");
+});
+
+test("05f not enough credits", async ({ page }) => {
+  await setup(page);
+  await page.route("**/functions/v1/pull-start**", (r) =>
+    r.fulfill(json(preview(64, "insufficient"))),
+  );
+  await openRefresh(page);
+
+  const dialog = page.getByRole("dialog", { name: "Not enough credits for a full pull" });
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByText(/needs up to 96 credits, and you have 64 left until 1 Dec/),
+  ).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Pull Instagram only" })).toBeVisible();
+  await dialog.getByLabel(/Wait for the reset/).check();
+  await expect(dialog.getByRole("button", { name: "OK" })).toBeVisible();
+  await dialog.getByLabel(/Pull Instagram only/).check();
+  await expect(page).toHaveScreenshot("not-enough-credits.png");
+});
+
+test("05g finished with problems → Fix handle", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  await setup(page);
+  await page.route("**/functions/v1/pull-start**", (r) => {
+    const body = r.request().postDataJSON();
+    return r.fulfill(
+      json(
+        body.preview ? preview(1021) : { ...preview(1021), status: "started", pullId: "pull-1" },
+      ),
+    );
+  });
+  gatePullTask(page, 99);
+  await page.route("**/functions/v1/pull-finish**", (r) =>
+    r.fulfill(
+      json({
+        status: "partial",
+        isTest: false,
+        postsFound: 201,
+        creditsUsed: 62,
+        credits: null,
+        problems: [{ brand: "Found", platform: "tiktok", code: "not_found" }],
+        deleted: 1,
+      }),
+    ),
+  );
+  await openRefresh(page);
+  await page.getByRole("button", { name: "Pull now" }).click();
+
+  const toast = page.getByRole("status");
+  await expect(toast).toContainText("Pull finished with 1 problem");
+  await expect(toast).toContainText("Found’s TikTok handle wasn’t found. Everything else updated.");
+  await expect(page).toHaveScreenshot("pull-problems.png");
+  await toast.getByRole("button", { name: "Fix handle" }).click();
+  await expect(page).toHaveURL(/\/competitors$/);
+});
+
+test("resume after a reload", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  await setup(page);
+  await page.route("**/rest/v1/pulls**", (r) => r.fulfill(json({ id: "pull-9" })));
+  await page.route("**/rest/v1/pull_tasks**", (r) => r.fulfill(json(tasks(6))));
+  await page.goto("/overview");
+
+  const toast = page.getByRole("status");
+  await expect(toast).toContainText("Your last pull didn’t finish");
+  await expect(toast).toContainText("50% done · nothing is lost");
+  await expect(page.getByRole("button", { name: "Resume pull · 50%" })).toBeVisible();
+});

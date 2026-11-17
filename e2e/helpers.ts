@@ -67,6 +67,17 @@ export async function stubSupabase(
       }),
     }),
   );
+  // Client + "no running pull" by default (tests can override: the last registered route wins).
+  const ok = (body: unknown) => ({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify(body),
+  });
+  await page.route("**/rest/v1/clients**", (route) =>
+    route.fulfill(ok({ id: "client-1", name: "OBU Health" })),
+  );
+  await page.route("**/rest/v1/pulls**", (route) => route.fulfill(ok(null)));
+  await page.route("**/rest/v1/pull_tasks**", (route) => route.fulfill(ok([])));
   await page.route("**/rest/v1/profiles**", (route) =>
     route.fulfill({
       status: 200,

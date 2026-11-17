@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "./auth/auth-context";
+import { formatNumber, formatShortDate, plural } from "./format";
 import { supabase } from "./supabase";
 
 /** Response of the `credits` Edge Function (supabase/functions/credits). */
@@ -48,14 +49,11 @@ export function useCredits(): CreditsState {
   return { status: "loading" };
 }
 
-const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 const hourMinute = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 
-/** "2026-12-17T10:11:51Z" → "17 Dec" (local time). */
+/** Reset date in the design's short format ("17 Dec"; year only if not this year). */
 export function formatResetDate(iso: string | null): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : dayMonth.format(d);
+  return formatShortDate(iso);
 }
 
 /** "2026-11-17T14:02:00Z" → "14:02" (local time). */
@@ -71,7 +69,7 @@ export function creditsSummary(state: CreditsState): string {
   const { remaining, plan, resetsAt, stale, updatedAt } = state.credits;
   const reset = formatResetDate(resetsAt);
   return [
-    `${remaining.toLocaleString("en-US")} of ${plan.toLocaleString("en-US")} credits left`,
+    `${plural(remaining, "credit")} left of ${formatNumber(plan)}`,
     stale ? `as of ${formatTime(updatedAt)}` : null,
     reset ? `resets ${reset}` : null,
   ]

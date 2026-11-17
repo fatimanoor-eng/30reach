@@ -18,7 +18,10 @@ export function BottomSheet({
   children,
   primary,
   cancelLabel = "Cancel",
+  align = "start",
+  footer,
 }: ModalProps) {
+  const center = align === "center";
   const titleId = useId();
   const descId = useId();
   const modal = useNativeModal(open, onClose);
@@ -57,20 +60,29 @@ export function BottomSheet({
           onPointerCancel={onPointerUp}
         >
           <div aria-hidden="true" className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
-          {illustration && <div className="mb-3 w-16">{illustration}</div>}
-          <h2 id={titleId} className="text-heading">
+          {illustration && (
+            <div className={center ? "mx-auto mb-3 w-28" : "mb-3 w-16"}>{illustration}</div>
+          )}
+          <h2 id={titleId} className={`text-heading ${center ? "text-center" : ""}`}>
             {title}
           </h2>
         </div>
         {description && (
-          <p id={descId} className="mt-2 text-body-sm text-muted">
+          <p id={descId} className={`mt-2 text-body-sm text-muted ${center ? "text-center" : ""}`}>
             {description}
           </p>
         )}
         {children && <div className="mt-4">{children}</div>}
+        {footer && <div className="mt-4">{footer}</div>}
         <div className="mt-5 flex flex-col gap-1">
           {primary && (
-            <Button variant={primary.variant ?? "primary"} fullWidth onClick={primary.onClick}>
+            <Button
+              variant={primary.variant ?? "primary"}
+              icon={primary.icon}
+              disabled={primary.disabled}
+              fullWidth
+              onClick={primary.onClick}
+            >
               {primary.label}
             </Button>
           )}

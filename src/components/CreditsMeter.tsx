@@ -1,3 +1,4 @@
+import { creditsFraction, formatNumber } from "../lib/format";
 import { creditsSummary, formatResetDate, formatTime, type CreditsState } from "../lib/useCredits";
 
 /**
@@ -15,7 +16,8 @@ export function CreditsMeter({
 }) {
   const card = variant === "card";
   const ready = state.status === "ready" ? state.credits : null;
-  const pct = ready ? Math.max(0, Math.min(100, (ready.remaining / ready.plan) * 100)) : 0;
+  // Bar caps at 100% — Firecrawl can report more credits than the plan (bonus credits).
+  const pct = ready ? creditsFraction(ready.remaining, ready.plan) * 100 : 0;
   const reset = ready ? formatResetDate(ready.resetsAt) : null;
 
   return (
@@ -25,16 +27,14 @@ export function CreditsMeter({
     >
       <div className="flex items-baseline justify-between gap-2">
         <span className="mono-label text-sidebar-text">Firecrawl credits</span>
-        <span className="mono-label">
-          {ready ? ready.remaining.toLocaleString("en-US") : "—"} left
-        </span>
+        <span className="mono-label">{ready ? formatNumber(ready.remaining) : "—"} left</span>
       </div>
 
       <div
         role="meter"
         aria-label="Firecrawl credits left"
         aria-valuemin={0}
-        aria-valuemax={ready?.plan ?? 0}
+        aria-valuemax={ready ? Math.max(ready.plan, ready.remaining) : 0}
         aria-valuenow={ready?.remaining ?? 0}
         aria-valuetext={creditsSummary(state)}
         className={`mt-2 h-1 overflow-hidden rounded-full ${card ? "bg-sidebar-2" : "bg-sidebar-line"}`}
@@ -48,7 +48,7 @@ export function CreditsMeter({
       <div className={`mt-2 text-sidebar-text ${card ? "text-small" : "text-label"}`}>
         {state.status === "ready" && ready && (
           <p>
-            of {ready.plan.toLocaleString("en-US")} ·{" "}
+            of {formatNumber(ready.plan)} ·{" "}
             {ready.stale ? `as of ${formatTime(ready.updatedAt)}` : "live"}
             {reset ? ` · resets ${reset}` : ""}
           </p>

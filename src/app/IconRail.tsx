@@ -5,6 +5,7 @@ import { LogoMark } from "../components/Logo";
 import { Tooltip } from "../components/Tooltip";
 import { useCurrentUser } from "../lib/auth/useCurrentUser";
 import { sampleClient } from "../lib/sample-data";
+import { creditsFraction } from "../lib/format";
 import { creditsSummary, useCredits } from "../lib/useCredits";
 import { navSections } from "./nav";
 
@@ -101,9 +102,7 @@ export function IconRail({
         >
           {(t) => {
             const ready = credits.status === "ready" ? credits.credits : null;
-            const pct = ready
-              ? Math.max(0, Math.min(100, (ready.remaining / ready.plan) * 100))
-              : 0;
+            const pct = ready ? creditsFraction(ready.remaining, ready.plan) * 100 : 0;
             const meter = (
               <>
                 <div className="relative h-14 w-1 overflow-hidden rounded-full bg-sidebar-line">
@@ -131,7 +130,7 @@ export function IconRail({
                 role="meter"
                 aria-label="Firecrawl credits left"
                 aria-valuemin={0}
-                aria-valuemax={ready?.plan ?? 0}
+                aria-valuemax={ready ? Math.max(ready.plan, ready.remaining) : 0}
                 aria-valuenow={ready?.remaining ?? 0}
                 aria-valuetext={creditsSummary(credits)}
                 aria-busy={credits.status === "loading" || undefined}

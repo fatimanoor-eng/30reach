@@ -22,6 +22,18 @@ describe("CreditsMeter", () => {
     expect(meter).toHaveAttribute("aria-valuemax", "1000");
   });
 
+  it("more credits than the plan: real number shown, bar capped at full", () => {
+    const { container } = render(
+      <CreditsMeter state={{ status: "ready", credits: { ...credits, remaining: 1021 } }} />,
+    );
+    expect(screen.getByText("1,021 left")).toBeInTheDocument();
+    expect(screen.getByText(/of 1,000/)).toBeInTheDocument();
+    expect(container.querySelector<HTMLElement>("[role=meter] > div")!.style.width).toBe("100%");
+    const meter = screen.getByRole("meter");
+    expect(meter).toHaveAttribute("aria-valuenow", "1021");
+    expect(meter).toHaveAttribute("aria-valuemax", "1021"); // valid ARIA: now ≤ max
+  });
+
   it("stale: says when the reading is from instead of 'live'", () => {
     render(<CreditsMeter state={{ status: "ready", credits: { ...credits, stale: true } }} />);
     expect(screen.queryByText(/live/)).not.toBeInTheDocument();

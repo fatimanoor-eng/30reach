@@ -42,16 +42,31 @@ if (!proto.close) {
 // Never talk to the real Supabase project from unit tests: replace the client module.
 // Profile reads resolve to a fixed admin row; auth calls are no-ops.
 vi.mock("../lib/supabase", () => {
-  const query = {
-    select: () => query,
-    eq: () => query,
-    maybeSingle: async () => ({ data: { role: "admin", full_name: "Fatima Noor" }, error: null }),
+  // Per-table answers. Every query method chains; .single()/.maybeSingle() return the row,
+  // awaiting the query itself returns the list.
+  const tables: Record<string, { row: unknown; list: unknown[] }> = {
+    profiles: { row: { role: "admin", full_name: "Fatima Noor" }, list: [] },
+    clients: { row: { id: "client-1", name: "OBU Health" }, list: [] },
+    pulls: { row: null, list: [] }, // no running pull
+    pull_tasks: { row: null, list: [] },
+    competitors: { row: null, list: [] },
+    posts: { row: null, list: [] },
+  };
+  const from = (table: string) => {
+    const t = tables[table] ?? { row: null, list: [] };
+    const query: Record<string, unknown> = {
+      single: async () => ({ data: t.row, error: null }),
+      maybeSingle: async () => ({ data: t.row, error: null }),
+      then: (resolve: (v: unknown) => unknown) => resolve({ data: t.list, error: null }),
+    };
+    for (const m of ["select", "eq", "neq", "in", "order", "limit", "or"]) query[m] = () => query;
+    return query;
   };
   return {
     supabaseConfigured: true,
     AUTH_STORAGE_KEY: "30reach-auth",
     supabase: {
-      from: () => query,
+      from,
       functions: {
         invoke: async () => ({
           data: {

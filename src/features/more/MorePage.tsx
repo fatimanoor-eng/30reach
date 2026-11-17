@@ -7,6 +7,7 @@ import { MQ_TABLET_UP, useMediaQuery } from "../../lib/useMediaQuery";
 import { useAuth } from "../../lib/auth/auth-context";
 import { useCurrentUser } from "../../lib/auth/useCurrentUser";
 import { sampleBrands } from "../../lib/sample-data";
+import { plural } from "../../lib/format";
 import { useCredits } from "../../lib/useCredits";
 
 const rows = [
@@ -14,7 +15,7 @@ const rows = [
     to: "/competitors",
     icon: Users,
     title: "Competitors",
-    text: `${sampleBrands.length} brands · add, edit, remove`,
+    text: `${plural(sampleBrands.length, "brand")} · add, edit, remove`,
   },
   { to: "/settings", icon: SlidersVertical, title: "Settings", text: "Team, usage, data" },
 ];

@@ -13,7 +13,8 @@ export default defineConfig({
     baseURL: "http://localhost:4173",
   },
   expect: {
-    toHaveScreenshot: { maxDiffPixelRatio: 0.002 },
+    // animations: "disabled" freezes CSS animations (e.g. the spinning refresh icon) for stable shots.
+    toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: "disabled" },
   },
   projects: [
     {
