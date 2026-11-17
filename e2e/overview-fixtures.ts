@@ -32,12 +32,14 @@ export function makePosts(
     withThumbs?: boolean;
     /** Extra hashtag on every 4th post (k % 4 === 1) — e.g. a tag only the latest pull has. */
     extraTag?: string;
+    /** Override how many posts a brand gets (default 8 − brand index). */
+    counts?: Record<string, number>;
   } = {},
 ) {
   const posts = [];
   let n = 0;
   for (const [bi, brand] of BRANDS.entries()) {
-    for (let k = 0; k < 8 - bi; k++) {
+    for (let k = 0; k < (opts.counts?.[brand.id] ?? 8 - bi); k++) {
       n++;
       const platform = k % 3 === 2 ? "tiktok" : "instagram";
       const daysBack = (k * 3 + bi) % 28; // spread over ~4 weeks

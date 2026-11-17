@@ -3,6 +3,7 @@ import { Card } from "../../components/Card";
 import { compareColor, type CompareColor } from "../../lib/brand-selection";
 import { useBrandSelection } from "../../lib/brand-selection-context";
 import { formatCompact, plural } from "../../lib/format";
+import { SMALL_SAMPLE } from "./metrics";
 import type { LeaderRow } from "./metrics";
 
 const FILL: Record<CompareColor, string> = { ink: "bg-ink", pop: "bg-pop", blue: "bg-blue" };
@@ -42,6 +43,16 @@ export function LeaderboardCard({
       </span>
     );
   };
+
+  const sampleHint = (row: LeaderRow) =>
+    row.smallSample ? (
+      <span
+        title={`Fewer than ${SMALL_SAMPLE} posts in this range — averages can swing a lot`}
+        className="ml-2 rounded-sm bg-soft px-1 font-mono text-label whitespace-nowrap text-muted"
+      >
+        small sample
+      </span>
+    ) : null;
 
   const bar = (row: LeaderRow, className = "") => (
     <div className={`h-1.5 overflow-hidden rounded-full bg-soft ${className}`} aria-hidden="true">
@@ -88,6 +99,7 @@ export function LeaderboardCard({
                   {row.brand.name}
                 </button>
                 {delta(row.brand.id)}
+                {sampleHint(row)}
               </td>
               <td className="py-2.5">{row.posts}</td>
               <td className="py-2.5">{row.posts ? formatCompact(row.avgLikes) : "—"}</td>
@@ -122,6 +134,7 @@ export function LeaderboardCard({
                 <span className="block text-body">
                   {row.brand.name}
                   {delta(row.brand.id)}
+                  {sampleHint(row)}
                 </span>
                 {bar(row, "mt-1.5 w-full max-w-44")}
               </span>
@@ -144,7 +157,7 @@ export function LeaderboardCard({
 
       <p className="mt-4 hidden font-mono text-label text-muted md:block">
         <span className="uppercase">How to read this</span> · Avg engagement = likes + comments per
-        post. Longer bar = bigger share.
+        post. Longer bar = bigger share. Small sample = fewer than 10 posts.
       </p>
     </Card>
   );

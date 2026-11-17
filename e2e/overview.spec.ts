@@ -19,7 +19,7 @@ const PREVIOUS = { id: "pull-old", started_at: "2026-11-06T10:00:00Z", status: "
 async function setup(
   page: Page,
   pulls: (typeof LATEST)[],
-  opts: { boost?: Record<string, number> } = {},
+  opts: { boost?: Record<string, number>; counts?: Record<string, number> } = {},
 ) {
   await page.clock.setFixedTime(NOW);
   await stubSupabase(page);
@@ -34,6 +34,7 @@ async function setup(
       boost: { "c-hims": 1.6, ...opts.boost },
       withThumbs: true,
       extraTag: "menopause", // only in the latest pull → "new tag #menopause"
+      counts: opts.counts,
     }),
     [PREVIOUS.id]: makePosts(PREVIOUS.id, new Date(PREVIOUS.started_at), {
       prefix: "old-",
@@ -202,4 +203,38 @@ test("leaderboard row selects that brand's pill", async ({ page }, info) => {
   await expect(
     page.getByRole("group", { name: "Brands" }).getByRole("button", { name: "Ro", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
+});
+
+test("KPI tiles: values never cut off, all the same height", async ({ page }, info) => {
+  // WeightWatchers is most active → the longest value lands in a tile.
+  await setup(page, [LATEST], { counts: { "c-ww": 14 } });
+  await ready(page);
+  await expect(
+    page.getByText("WeightWatchers", { exact: true }).filter({ visible: true }).first(),
+  ).toBeVisible();
+
+  const tiles = page.locator(".\\@container");
+  await expect(tiles).toHaveCount(4);
+  const report = await tiles.evaluateAll((els) =>
+    els.map((el) => {
+      const value = el.querySelector<HTMLElement>("[title]")!;
+      return {
+        text: value.textContent,
+        cutOff: value.scrollWidth > value.clientWidth + 1,
+        height: Math.round(el.getBoundingClientRect().height),
+      };
+    }),
+  );
+  expect(
+    report.filter((r) => r.cutOff),
+    "KPI values cut off",
+  ).toEqual([]);
+  expect(report.map((r) => r.text)).toContain("WeightWatchers");
+  expect(new Set(report.map((r) => r.height)).size, `heights ${report.map((r) => r.height)}`).toBe(
+    1,
+  );
+  // Best time: short value; meridiem in the caption (or the mobile suffix).
+  expect(report[3].text).toMatch(/^[A-Z][a-z]{2} \d{1,2}–\d{1,2}$/);
+  await expect(page).toHaveScreenshot(`kpis-long-values.png`, { fullPage: false });
+  void info;
 });

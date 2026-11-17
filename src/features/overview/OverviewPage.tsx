@@ -184,6 +184,7 @@ function Dashboard({
                 shortLabel={k.shortLabel}
                 value={k.value}
                 caption={k.caption}
+                mobileSuffix={k.mobileSuffix}
               />
             ))}
           </div>

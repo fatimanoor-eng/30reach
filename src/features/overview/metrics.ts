@@ -58,7 +58,11 @@ export type LeaderRow = {
   avgEngagement: number;
   /** Share of all engagement in the filter, 0–1. */
   share: number;
+  /** Fewer than SMALL_SAMPLE posts in the range — averages can swing a lot. */
+  smallSample: boolean;
 };
+
+export const SMALL_SAMPLE = 10;
 
 /** Sorted by avg engagement = (likes + comments) / posts. Brands without posts come last. */
 export function leaderboard(posts: OverviewPost[], brands: BrandRef[]): LeaderRow[] {
@@ -78,6 +82,7 @@ export function leaderboard(posts: OverviewPost[], brands: BrandRef[]): LeaderRo
         avgComments: n ? sum("comments") / n : 0,
         avgEngagement: n ? eng / n : 0,
         share: total ? eng / total : 0,
+        smallSample: own.length > 0 && own.length < SMALL_SAMPLE,
       };
     })
     .sort(
@@ -97,7 +102,14 @@ export const FORMAT_LABEL: Record<NonNullable<OverviewPost["format"]>, string> =
   video: "Videos",
 };
 
-export type Kpi = { label: string; shortLabel?: string; value: string; caption: string };
+export type Kpi = {
+  label: string;
+  shortLabel?: string;
+  value: string;
+  caption: string;
+  /** Small text after the value on mobile, where captions are hidden (e.g. "am" for Best time). */
+  mobileSuffix?: string;
+};
 
 const PLATFORM_TEXT: Record<PlatformFilter, string> = {
   both: "both platforms",
@@ -110,31 +122,51 @@ const perDay = (n: number, days: number) => {
   return `${rate % 1 === 0 ? rate.toFixed(0) : rate.toFixed(1)} a day`;
 };
 
-/** Best format by avg engagement (≥ 2 posts per format), vs the weakest one. */
+/** A format needs this many posts before its average is compared (23.8× came from 2 images). */
+export const MIN_FORMAT_POSTS = 3;
+
+/**
+ * Best format by avg engagement, among formats with ≥ 3 posts.
+ * 2+ such formats → "N× the engagement of <weakest>". Only 1 → compared with the average of all other
+ * posts (if there are ≥ 3), else no ratio.
+ */
 export function bestFormat(posts: OverviewPost[]): Kpi {
+  const label = "Best format";
   const groups = new Map<string, number[]>();
   for (const p of posts.filter(countable)) {
     if (!p.format) continue;
     groups.set(p.format, [...(groups.get(p.format) ?? []), engagement(p)]);
   }
-  const avgs = [...groups]
-    .filter(([, list]) => list.length >= 2)
-    .map(([format, list]) => ({ format, avg: list.reduce((a, b) => a + b, 0) / list.length }))
+  const avg = (list: number[]) => list.reduce((a, b) => a + b, 0) / list.length;
+  const eligible = [...groups]
+    .filter(([, list]) => list.length >= MIN_FORMAT_POSTS)
+    .map(([format, list]) => ({ format, avg: avg(list), n: list.length }))
     .sort((a, b) => b.avg - a.avg);
-  if (avgs.length === 0)
-    return { label: "Best format", value: "—", caption: "Not enough posts yet" };
-  const best = avgs[0];
-  const worst = avgs.at(-1)!;
-  const label = FORMAT_LABEL[best.format as keyof typeof FORMAT_LABEL];
-  if (avgs.length === 1 || worst.avg === 0) {
-    return { label: "Best format", value: label, caption: "The only format with enough posts" };
+  if (eligible.length === 0) return { label, value: "—", caption: "Not enough posts yet" };
+
+  const best = eligible[0];
+  const name = FORMAT_LABEL[best.format as keyof typeof FORMAT_LABEL];
+  const ratio = (a: number, b: number) => Math.round((a / b) * 10) / 10;
+
+  if (eligible.length >= 2) {
+    const worst = eligible.at(-1)!;
+    if (worst.avg > 0) {
+      return {
+        label,
+        value: name,
+        caption: `${ratio(best.avg, worst.avg)}× the engagement of ${FORMAT_LABEL[worst.format as keyof typeof FORMAT_LABEL].toLowerCase()}`,
+      };
+    }
   }
-  const ratio = Math.round((best.avg / worst.avg) * 10) / 10;
-  return {
-    label: "Best format",
-    value: label,
-    caption: `${ratio}× the engagement of ${FORMAT_LABEL[worst.format as keyof typeof FORMAT_LABEL].toLowerCase()}`,
-  };
+  const others = [...groups].filter(([f]) => f !== best.format).flatMap(([, list]) => list);
+  if (others.length >= MIN_FORMAT_POSTS && avg(others) > 0) {
+    return {
+      label,
+      value: name,
+      caption: `${ratio(best.avg, avg(others))}× the engagement of other formats`,
+    };
+  }
+  return { label, value: name, caption: `Based on ${plural(best.n, "post")}` };
 }
 
 const EASTERN = new Intl.DateTimeFormat("en-US", {
@@ -157,6 +189,16 @@ export function slotLabel(weekday: string, start: number): string {
   return a.suffix === b.suffix
     ? `${weekday} ${a.twelve}–${b.twelve} ${b.suffix}`
     : `${weekday} ${a.twelve} ${a.suffix}–${b.twelve} ${b.suffix}`;
+}
+
+/**
+ * Short form for the KPI tile so all tiles stay one line: value "Mon 10–12", meridiem "am" (of the
+ * slot's start) goes in the caption / mobile suffix.
+ */
+export function slotShort(weekday: string, start: number): { value: string; meridiem: string } {
+  const a = hourLabel(start);
+  const b = hourLabel(start + 2);
+  return { value: `${weekday} ${a.twelve}–${b.twelve}`, meridiem: a.suffix };
 }
 
 /** Best 2-hour slot in US Eastern by avg engagement; a slot needs ≥ 2 posts (no single viral post). */
@@ -182,11 +224,13 @@ export function bestTime(posts: OverviewPost[]): Kpi {
       caption: "Not enough posts yet",
     };
   const [weekday, start] = best.key.split("|");
+  const short = slotShort(weekday, Number(start));
   return {
     label: "Best time to post",
     shortLabel: "Best time",
-    value: slotLabel(weekday, Number(start)),
-    caption: "US Eastern, by avg engagement",
+    value: short.value,
+    caption: `${short.meridiem} · US Eastern`,
+    mobileSuffix: short.meridiem,
   };
 }
 
