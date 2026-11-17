@@ -8,6 +8,7 @@ import {
   estimate,
   extractHashtags,
   finishStatus,
+  browserImage,
   instagramThumbnail,
   parseRetryAfter,
   type MappedPost,
@@ -112,7 +113,8 @@ describe("parsePage — TikTok (spike fixture, Hims)", () => {
     expect(photo.shares).toBe(1);
     expect(photo.saves).toBe(0);
     expect(photo.thumbnail_source).toContain("-photo.webp");
-    expect(page.posts[1].thumbnail_source).toMatch(/\.webp/);
+    // Video covers list HEIC first; we must take the JPEG (Slice 6: no TikTok video had a thumbnail).
+    expect(page.posts[1].thumbnail_source).toMatch(/~tplv-cover\.jpeg\?/);
   });
 
   it("uses max_cursor while has_more", () => {
@@ -304,5 +306,16 @@ describe("parseRetryAfter (Firecrawl 429)", () => {
     expect(parseRetryAfter("600", now)).toBe(120);
     expect(parseRetryAfter(null, now)).toBeNull();
     expect(parseRetryAfter("soon", now)).toBeNull();
+  });
+});
+
+describe("browserImage (TikTok cover lists)", () => {
+  it("prefers WebP, then JPEG, never HEIC", () => {
+    expect(browserImage(["https://a/x.heic?s=1", "https://a/x.jpeg?s=1"])).toBe(
+      "https://a/x.jpeg?s=1",
+    );
+    expect(browserImage(["https://a/x.jpeg", "https://a/x.webp"])).toBe("https://a/x.webp");
+    expect(browserImage(["https://a/x.heic", "https://a/y.heic"])).toBeNull();
+    expect(browserImage(null)).toBeNull();
   });
 });

@@ -50,7 +50,9 @@
                 "duration": 0,
                 "cover": {
                   "url_list": [
-                    "https://p16.example/tt/7708914298323766558.webp?x-expires=1796205600"
+                    "https://p16.example/tt/7708914298323766558~tplv-cover.heic?x-expires=1796205600",
+                    "https://p19.example/tt/7708914298323766558~tplv-cover.heic?x-expires=1796205600",
+                    "https://p16.example/tt/7708914298323766558~tplv-cover.jpeg?x-expires=1796205600"
                   ]
                 }
               },
@@ -58,7 +60,8 @@
                 "image_post_cover": {
                   "display_image": {
                     "url_list": [
-                      "https://p16.example/tt/7708914298323766558-photo.webp?x-expires=1796205600"
+                      "https://p16.example/tt/7708914298323766558-photo.webp?x-expires=1796205600",
+                      "https://p16.example/tt/7708914298323766558-photo.jpeg?x-expires=1796205600"
                     ]
                   }
                 }
@@ -94,7 +97,9 @@
                 "duration": 10070,
                 "cover": {
                   "url_list": [
-                    "https://p16.example/tt/7708397612944133390.webp?x-expires=1796205600"
+                    "https://p16.example/tt/7708397612944133390~tplv-cover.heic?x-expires=1796205600",
+                    "https://p19.example/tt/7708397612944133390~tplv-cover.heic?x-expires=1796205600",
+                    "https://p16.example/tt/7708397612944133390~tplv-cover.jpeg?x-expires=1796205600"
                   ]
                 }
               }

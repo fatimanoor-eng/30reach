@@ -140,6 +140,28 @@ export function mapInstagramItem(item: unknown, pinned: boolean): MappedPost | n
   };
 }
 
+/**
+ * First URL in a TikTok url_list that browsers (and the post-thumbs bucket) accept: WebP, then JPEG.
+ * Video covers list HEIC first (image/heic — found in Slice 6: no TikTok video had a thumbnail), with a
+ * JPEG of the same cover later in the list. HEIC and unknown types are skipped.
+ */
+export function browserImage(list: unknown): string | null {
+  if (!Array.isArray(list)) return null;
+  const urls = list.map(str).filter((u): u is string => !!u);
+  const ext = (u: string) => {
+    try {
+      return new URL(u).pathname.toLowerCase().match(/\.(\w+)$/)?.[1] ?? "";
+    } catch {
+      return "";
+    }
+  };
+  return (
+    urls.find((u) => ext(u) === "webp") ??
+    urls.find((u) => ext(u) === "jpeg" || ext(u) === "jpg") ??
+    null
+  );
+}
+
 export function mapTikTokItem(item: unknown): MappedPost | null {
   const v = obj(item);
   const id = v.aweme_id != null ? String(v.aweme_id) : null;
@@ -155,7 +177,7 @@ export function mapTikTokItem(item: unknown): MappedPost | null {
     : [];
   const photoCover = obj(obj(obj(v.image_post_info).image_post_cover).display_image).url_list;
   const videoCover = obj(obj(v.video).cover).url_list;
-  const firstUrl = (list: unknown) => (Array.isArray(list) ? str(list[0]) : null);
+  const originCover = obj(obj(v.video).origin_cover).url_list;
   return {
     platform: "tiktok",
     external_id: id,
@@ -177,7 +199,8 @@ export function mapTikTokItem(item: unknown): MappedPost | null {
     is_paid: v.is_paid_partnership === true || v.is_ads === true,
     is_collab: Array.isArray(v.branded_content_accounts) && v.branded_content_accounts.length > 0,
     raw: { aweme_type: num(v.aweme_type), duration: num(obj(v.video).duration) },
-    thumbnail_source: firstUrl(photoCover) ?? firstUrl(videoCover),
+    thumbnail_source:
+      browserImage(photoCover) ?? browserImage(videoCover) ?? browserImage(originCover),
     pinned: v.is_top === 1 || v.is_top === true,
   };
 }
