@@ -5,7 +5,7 @@ import { BlipIdle } from "../components/blip/BlipPoses";
 import { CreditsMeter } from "../components/CreditsMeter";
 import { Logo } from "../components/Logo";
 import { useCurrentUser } from "../lib/auth/useCurrentUser";
-import { sampleClient } from "../lib/sample-data";
+import { ClientName } from "./ClientName";
 import { useCredits } from "../lib/useCredits";
 import { navSections } from "./nav";
 
@@ -35,7 +35,9 @@ export function Sidebar({
       <div className="mt-6 flex items-center justify-between rounded-control bg-sidebar-2 px-3 py-2.5">
         <div>
           <p className="mono-label text-sidebar-text">Client</p>
-          <p className="text-body-sm">{sampleClient.name}</p>
+          <p className="text-body-sm">
+            <ClientName skeletonClassName="bg-sidebar-line" />
+          </p>
         </div>
         <ChevronDown size={16} className="text-sidebar-text" aria-hidden="true" />
       </div>

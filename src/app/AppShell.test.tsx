@@ -38,6 +38,14 @@ describe("App shell", () => {
     expect(await screen.findByRole("heading", { level: 1, name: title })).toBeInTheDocument();
   });
 
+  it("shows the client name from the database (sidebar, rail, top bar, breadcrumb)", async () => {
+    renderAt("/settings");
+    // jsdom has no CSS, so the sidebar, mobile top bar and breadcrumb all render it.
+    expect((await screen.findAllByText("Northwind Clinic")).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByLabelText("Client: Northwind Clinic")).toBeInTheDocument(); // icon rail
+    expect(screen.getByText("NO")).toBeInTheDocument(); // rail avatar initials
+  });
+
   it("unknown routes show Page not found", async () => {
     renderAt("/nope");
     expect(

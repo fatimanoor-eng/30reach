@@ -1,7 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import { Link } from "react-router";
 import { Logo } from "../components/Logo";
-import { sampleClient } from "../lib/sample-data";
+import { ClientName } from "./ClientName";
 
 /** Mobile black app bar: logo + client switcher (Figma M02). Below 768 px. */
 export function MobileAppBar({ className = "" }: { className?: string }) {
@@ -19,7 +19,7 @@ export function MobileAppBar({ className = "" }: { className?: string }) {
         </Link>
         {/* Single client for now — the menu comes later. */}
         <div className="flex h-9 items-center gap-1.5 rounded-full bg-sidebar-2 pr-2.5 pl-3.5 text-body-sm">
-          {sampleClient.name}
+          <ClientName skeletonClassName="bg-sidebar-line" />
           <ChevronDown size={16} className="text-sidebar-text" aria-hidden="true" />
         </div>
       </div>

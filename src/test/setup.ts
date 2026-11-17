@@ -46,7 +46,8 @@ vi.mock("../lib/supabase", () => {
   // awaiting the query itself returns the list.
   const tables: Record<string, { row: unknown; list: unknown[] }> = {
     profiles: { row: { role: "admin", full_name: "Fatima Noor" }, list: [] },
-    clients: { row: { id: "client-1", name: "OBU Health" }, list: [] },
+    // Deliberately not "OBU Health": proves the shell shows the database name, not sample data.
+    clients: { row: { id: "client-1", name: "Northwind Clinic" }, list: [] },
     pulls: { row: null, list: [] }, // no running pull
     pull_tasks: { row: null, list: [] },
     competitors: {

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { sampleClient } from "../lib/sample-data";
+import { useClient } from "../lib/useClient";
 
 /**
  * Page header: mono breadcrumb (tablet/desktop) + page title.
@@ -18,7 +18,9 @@ export function PageHeader({
   crumbs?: string[];
   actions?: ReactNode;
 }) {
-  const trail = [sampleClient.name, ...(crumbs.length ? crumbs : [title])];
+  const client = useClient();
+  // Client name from the database; left out of the trail until it has loaded.
+  const trail = [...(client.data ? [client.data.name] : []), ...(crumbs.length ? crumbs : [title])];
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4 md:mb-8">
       <div>

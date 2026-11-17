@@ -1,15 +1,9 @@
 /**
- * SAMPLE DATA ONLY — replaced by Supabase queries from Slice 2 on.
- * Numbers mirror the Figma mocks (which are fake too).
+ * SAMPLE DATA — only for the dev component gallery (/dev/components) and unit tests.
+ * The app reads clients, competitors and credits from Supabase; never import this in app screens.
  */
 
-export type Brand = {
-  id: string;
-  name: string;
-  initials: string;
-};
-
-export const sampleClient = { id: "obu-health", name: "OBU Health", initials: "OB" };
+import type { Brand } from "./brand-selection";
 
 /** Pill order as in Figma 04 / 06a. */
 export const sampleBrands: Brand[] = [

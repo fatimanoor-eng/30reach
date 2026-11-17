@@ -1,7 +1,12 @@
 import { Check, Plus } from "lucide-react";
-import { compareColor, isBlocked, MAX_COMPARE, type CompareColor } from "../lib/brand-selection";
+import {
+  type Brand,
+  compareColor,
+  isBlocked,
+  MAX_COMPARE,
+  type CompareColor,
+} from "../lib/brand-selection";
 import { useBrandSelection } from "../lib/brand-selection-context";
-import type { Brand } from "../lib/sample-data";
 import { Avatar } from "./Avatar";
 import { Tooltip } from "./Tooltip";
 

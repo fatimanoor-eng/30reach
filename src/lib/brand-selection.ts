@@ -6,6 +6,9 @@
  * - Max 3: a 4th pick is blocked (UI shows the other pills as disabled).
  */
 
+/** A competitor as the brand pills need it (from the `competitors` table). */
+export type Brand = { id: string; name: string; initials: string };
+
 export const MAX_COMPARE = 3;
 
 export type SelectionMode = "all" | "single" | "compare";
