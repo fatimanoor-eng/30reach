@@ -18,8 +18,9 @@ export function Card({
   return (
     <section className={`rounded-card border border-line bg-surface p-4 md:p-6 ${className}`}>
       {(title || action) && (
-        <header className="mb-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <header className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          {/* shrink-0: a wide action (e.g. two links) wraps below instead of squeezing the title */}
+          <div className="flex shrink-0 items-center gap-2">
             {title && <h2 className="text-card">{title}</h2>}
             {info && <InfoTip text={info} label={`About ${title ?? "this card"}`} />}
           </div>

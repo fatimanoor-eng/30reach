@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Card } from "../../components/Card";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import type { CompareColor } from "../../lib/brand-selection";
@@ -16,6 +16,8 @@ const linkButton =
  * Collapsed: the top few by likes + comments — desktop as rows (Overview) or a grid (Social), mobile
  * as cards that scroll sideways. "See all" expands the card in place to every post in the current
  * filters with a Top / Newest sort; on mobile the expanded list is vertical. "Show less" collapses it.
+ * Expanded state can be controlled (Instagram / TikTok keep it in the URL: ?posts=all). Overview
+ * doesn't expand: it passes `links` instead (header on tablet/desktop, stacked under the cards on mobile).
  */
 export function PostsCard({
   title,
@@ -29,6 +31,10 @@ export function PostsCard({
   colorFor,
   fallback,
   footer,
+  expanded: expandedProp,
+  onExpandedChange,
+  links,
+  scrollIntoViewOnMount = false,
 }: {
   title: string;
   info?: string;
@@ -45,8 +51,20 @@ export function PostsCard({
   fallback?: "platform" | "soft";
   /** small "how to read this" line under the posts (tablet/desktop), given the current sort */
   footer?: (sort: PostSort, expanded: boolean) => string;
+  /** controlled expanded state (optional) */
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
+  /** replaces "See all": the card never expands */
+  links?: ReactNode;
+  /** arrived via a link to the expanded list: bring the card into view once */
+  scrollIntoViewOnMount?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expandedState, setExpandedState] = useState(false);
+  const expanded = !links && (expandedProp ?? expandedState);
+  const setExpanded = (v: boolean) => {
+    setExpandedState(v);
+    onExpandedChange?.(v);
+  };
   const [sort, setSort] = useState<PostSort>("top");
   const headerButton = useRef<HTMLButtonElement>(null);
   const listId = useId();
@@ -59,7 +77,14 @@ export function PostsCard({
     visible.map((p) => p.thumbnail_path).filter((p): p is string => !!p),
   );
   const brandName = (id: string) => brands.find((b) => b.id === id)?.name ?? "Unknown brand";
-  const canExpand = posts.length > collapsedCount || posts.length > mobileCount;
+  const canExpand =
+    !links && (expanded || posts.length > collapsedCount || posts.length > mobileCount);
+
+  // Only on arrival (mount), not when "See all" is pressed on the page.
+  const scrollOnArrival = useRef(scrollIntoViewOnMount);
+  useEffect(() => {
+    if (scrollOnArrival.current) headerButton.current?.scrollIntoView({ block: "start" });
+  }, []);
 
   const item = (p: OverviewPost, layout: "row" | "card" | "grid") => (
     <PostItem
@@ -94,7 +119,9 @@ export function PostsCard({
       title={title}
       info={info}
       action={
-        canExpand ? (
+        links ? (
+          <div className="hidden items-center gap-4 md:flex">{links}</div>
+        ) : canExpand ? (
           <button
             ref={headerButton}
             type="button"
@@ -150,6 +177,7 @@ export function PostsCard({
             <div className="relative -mx-4 flex snap-x [scrollbar-width:none] gap-3 overflow-x-auto px-4 pb-1 md:hidden">
               {collapsed.slice(0, mobileCount).map((p) => item(p, "card"))}
             </div>
+            {links && <div className="mt-3 flex flex-col md:hidden">{links}</div>}
           </>
         )}
       </div>

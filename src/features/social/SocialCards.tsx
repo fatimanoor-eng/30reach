@@ -1,3 +1,4 @@
+import { useSearchParams } from "react-router";
 import { Card } from "../../components/Card";
 import type { Platform } from "../../lib/pulls/api";
 import { formatCompact, plural } from "../../lib/format";
@@ -28,6 +29,19 @@ export function SocialTopPosts({
   brands: BrandRef[];
   platform: Platform;
 }) {
+  // Expanded lives in the URL (?posts=all) so Overview's "All Instagram posts →" can open it.
+  const [params, setParams] = useSearchParams();
+  const expanded = params.get("posts") === "all";
+  const setExpanded = (open: boolean) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (open) next.set("posts", "all");
+        else next.delete("posts");
+        return next;
+      },
+      { replace: true },
+    );
   return (
     <PostsCard
       title={`Top posts on ${PLATFORM_NAME[platform]}`}
@@ -42,6 +56,9 @@ export function SocialTopPosts({
       collapsedCount={4}
       mobileCount={8}
       fallback="soft"
+      expanded={expanded}
+      onExpandedChange={setExpanded}
+      scrollIntoViewOnMount={expanded}
     />
   );
 }

@@ -186,24 +186,43 @@ test("platform switch navigates and keeps brands + date range", async ({ page },
   }
 });
 
-test("See all expands Overview top posts in place", async ({ page }, info) => {
+test("Top posts links open the platform page with all posts expanded", async ({ page }, info) => {
+  const mobile = info.project.name === "mobile-390";
   await setup(page, [LATEST]);
-  await ready(page);
+  await ready(page, "/overview?days=7");
+  await page.getByRole("group", { name: "Brands" }).getByRole("button", { name: "Hims" }).click();
   const card = page
     .locator("section")
-    .filter({ has: page.getByRole("heading", { name: "Top posts" }) });
-  await card.getByRole("button", { name: "See all" }).click();
-  await expect(card.getByRole("radio", { name: "Top", checked: true })).toBeVisible();
-  const count = await card.locator("article").filter({ visible: true }).count();
-  await expect(card.getByText(`${count} posts`)).toBeVisible();
-  expect(count).toBeGreaterThan(6);
+    .filter({ has: page.getByRole("heading", { name: "Top posts", exact: true }) });
+  await expect(card.getByRole("button", { name: /See all|Show less/ })).toHaveCount(0);
+  const ig = card.getByRole("link", { name: "All Instagram posts" }).filter({ visible: true });
+  const tt = card.getByRole("link", { name: "All TikTok posts" }).filter({ visible: true });
+  await expect(ig).toHaveCount(1);
+  await expect(tt).toHaveCount(1);
+  if (mobile) {
+    // Stacked under the sideways cards.
+    const cards = await card.locator("article").filter({ visible: true }).last().boundingBox();
+    const [a, b] = [await ig.boundingBox(), await tt.boundingBox()];
+    expect(a!.y).toBeGreaterThan(cards!.y + cards!.height - 1);
+    expect(b!.y).toBeGreaterThan(a!.y);
+    await tapTargetsOk(page);
+  }
   await noSidewaysScroll(page);
-  if (info.project.name === "mobile-390") await tapTargetsOk(page);
-  await card.getByRole("button", { name: "Show less" }).first().click();
-  await expect(card.getByRole("button", { name: "See all" })).toHaveAttribute(
-    "aria-expanded",
-    "false",
-  );
+
+  await ig.click(); // Hims has Instagram posts in the last 7 days of this fixture
+  await expect(page).toHaveURL(/\/instagram\?days=7&posts=all$/);
+  const social = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Top posts on Instagram" }) });
+  const showLess = social.getByRole("button", { name: "Show less" }).first();
+  await expect(showLess).toHaveAttribute("aria-expanded", "true");
+  await expect(showLess).toBeInViewport();
+  // Not hidden under the sticky mobile app bar.
+  expect((await showLess.boundingBox())!.y).toBeGreaterThan(mobile ? 64 : 0);
+  await expect(
+    page.getByRole("group", { name: "Brands" }).getByRole("button", { name: "Hims" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveScreenshot("overview-to-instagram-all.png");
 });
 
 test("dismissing what's new hides it until the next pull", async ({ page }, info) => {

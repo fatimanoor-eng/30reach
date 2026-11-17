@@ -39,12 +39,25 @@ const PATH: Record<PlatformPage, string> = {
 export function usePlatformNav() {
   const navigate = useNavigate();
   const { search } = useLocation();
-  return (to: PlatformPage) => {
-    const params = new URLSearchParams(search);
-    params.delete("platform"); // old ?platform= links from before this was navigation
-    const qs = params.toString();
-    navigate(`${PATH[to]}${qs ? `?${qs}` : ""}`);
-  };
+  // Drops ?posts=all: the expanded post list belongs to the page you're leaving.
+  return (to: PlatformPage) => navigate(platformHref(to, search));
+}
+
+/**
+ * Link to a platform page with the current query string (date range) kept, plus extra params —
+ * e.g. { posts: "all" } opens Top posts expanded. Brand selection is in context, so it carries over.
+ */
+export function platformHref(
+  to: PlatformPage,
+  search: string,
+  extra: Record<string, string> = {},
+): string {
+  const params = new URLSearchParams(search);
+  params.delete("platform");
+  params.delete("posts");
+  for (const [k, v] of Object.entries(extra)) params.set(k, v);
+  const qs = params.toString();
+  return `${PATH[to]}${qs ? `?${qs}` : ""}`;
 }
 
 export const NINETY_DAYS_TOOLTIP = "Needs a 90-day pull, coming later";

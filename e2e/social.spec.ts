@@ -187,6 +187,7 @@ test("See all expands top posts in place, sorts, and collapses", async ({ page }
     "true",
   );
   await expect(card.getByText("40 posts")).toBeVisible();
+  await expect(page).toHaveURL(/[?&]posts=all/);
   await expect(card.locator("article").filter({ visible: true })).toHaveCount(40);
 
   if (mobile) {
@@ -217,4 +218,5 @@ test("See all expands top posts in place, sorts, and collapses", async ({ page }
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(toggle).toBeFocused();
   await expect(card.getByText("40 posts")).toHaveCount(0);
+  await expect(page).not.toHaveURL(/posts=all/);
 });
