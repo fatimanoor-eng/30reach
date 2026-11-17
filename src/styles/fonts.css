@@ -1,0 +1,30 @@
+/*
+ * Self-hosted fonts (SIL Open Font License 1.1 — licences in public/fonts/).
+ * BDO Grotesk: https://github.com/LCTipografi/BDO-Grotesk (Fonts/Webfont)
+ * Departure Mono: https://github.com/rektdeckard/departure-mono (release v1.500)
+ * Only the weights the design system uses are shipped (400, 500).
+ */
+
+@font-face {
+  font-family: "BDO Grotesk";
+  src: url("/fonts/BDOGrotesk-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BDO Grotesk";
+  src: url("/fonts/BDOGrotesk-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Departure Mono";
+  src: url("/fonts/DepartureMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

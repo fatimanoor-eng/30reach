@@ -1,6 +1,7 @@
 # 30reach — docs pack
 
 Put these files at the root of the new repo:
+
 - `CLAUDE.md` → repo root (Claude Code reads it automatically)
 - `docs/` → `docs/`
 - `assets/blip/` → `assets/blip/` (animation references)

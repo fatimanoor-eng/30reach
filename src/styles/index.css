@@ -1,0 +1,19 @@
+@import "tailwindcss";
+@import "./fonts.css";
+@import "./tokens.css";
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-bg font-sans text-body text-ink antialiased;
+  }
+
+  /* Visible focus ring: 2 px ink outline, 2 px offset (DESIGN_SYSTEM › Accessibility) */
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+}

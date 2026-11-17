@@ -6,3 +6,13 @@ dist/
 .env
 .env.*
 !.env.example
+# OS / editor
+.DS_Store
+
+# local env files (Vite)
+*.local
+
+# Playwright output (snapshots in e2e/ ARE committed)
+test-results/
+playwright-report/
+blob-report/

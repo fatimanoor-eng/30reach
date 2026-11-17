@@ -1,0 +1,98 @@
+/*
+ * Design tokens from docs/DESIGN_SYSTEM.md, as Tailwind 4 theme variables.
+ * Each variable becomes utilities, e.g. --color-ink → bg-ink / text-ink / border-ink,
+ * --text-display → text-display, --radius-card → rounded-card.
+ *
+ * Tailwind's default colours, fonts and text sizes are switched off (`initial`) so only
+ * our tokens exist — that's how we avoid hard-coded colours and anything below 11 px.
+ */
+
+@theme {
+  /* ---------- Colours ---------- */
+  --color-*: initial;
+
+  --color-ink: #0b0b0c; /* text, primary buttons, selected pills */
+  --color-black: #000000; /* sign-in brand panel */
+  --color-white: #ffffff;
+  --color-sidebar: #0a0a0a; /* desktop sidebar, mobile app bar */
+  --color-sidebar-2: #1c1c1c; /* active nav item, client switcher */
+  --color-sidebar-line: #262626; /* lines on dark */
+  --color-sidebar-text: #9a9a9a; /* inactive nav text on dark */
+  --color-bg: #f2f2ee; /* app background */
+  --color-surface: #ffffff; /* cards, sheets, dialogs */
+  --color-soft: #e9e9e3; /* tracks, segmented controls, thumbnails */
+  --color-line: #e2e2dc; /* borders, dividers */
+  --color-muted: #6a7782; /* secondary text (B30 Steel) — never go lighter */
+  --color-flash: #f4eb02; /* B30 Flash */
+  --color-pop: #f8678f; /* B30 Pop */
+  --color-breeze: #b0e9fd; /* B30 Breeze */
+  --color-bloom: #fad7ff; /* B30 Bloom */
+  --color-fresh: #0c5238; /* B30 Fresh */
+  --color-spark: #f95050; /* B30 Spark */
+  --color-blue: #3457ba; /* B30 Blue */
+  --color-amber: #e39a00; /* stale data dot */
+  --color-amber-text: #b26b00; /* stale data text */
+
+  /* ---------- Fonts ---------- */
+  --font-*: initial;
+  --font-sans:
+    "BDO Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono: "Departure Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ---------- Type scale (min 11 px) ----------
+     Where DESIGN_SYSTEM gives a range, this is the default; slices can add a step if needed. */
+  --text-*: initial;
+
+  --text-display: 2.5rem; /* 40 */
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 500;
+
+  --text-title: 1.875rem; /* 30 */
+  --text-title--line-height: 1.15;
+  --text-title--font-weight: 500;
+
+  --text-card: 1.125rem; /* 18 (range 17–20) */
+  --text-card--line-height: 1.25;
+  --text-card--font-weight: 500;
+
+  --text-kpi: 2rem; /* 32 (range 26–36) */
+  --text-kpi--line-height: 1.1;
+  --text-kpi--font-weight: 500;
+
+  --text-body: 0.9375rem; /* 15 (range 14–15) */
+  --text-body--line-height: 1.45;
+
+  --text-body-sm: 0.875rem; /* 14 */
+  --text-body-sm--line-height: 1.45;
+
+  --text-small: 0.8125rem; /* 13 (range 12–13) */
+  --text-small--line-height: 1.4;
+
+  --text-label: 0.6875rem; /* 11 — Departure Mono, uppercase */
+  --text-label--line-height: 1.3;
+  --text-label--letter-spacing: 0.02em;
+
+  /* ---------- Radius ---------- */
+  --radius-control: 8px; /* buttons, inputs */
+  --radius-tile: 10px; /* KPI tiles */
+  --radius-card: 12px; /* cards */
+  --radius-dialog: 16px; /* dialogs */
+  --radius-sheet: 24px; /* mobile sheets */
+  /* pills/chips: rounded-full */
+
+  /* ---------- Breakpoints ----------
+     mobile < 768 · tablet 768–1199 · desktop ≥ 1200 */
+  --breakpoint-md: 48rem; /* 768 */
+  --breakpoint-xl: 75rem; /* 1200 */
+}
+
+/* Small uppercase mono label: <span class="mono-label">LAST PULLED</span> */
+@utility mono-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  letter-spacing: var(--text-label--letter-spacing);
+  text-transform: uppercase;
+}
