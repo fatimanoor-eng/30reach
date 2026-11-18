@@ -299,3 +299,26 @@ test("calendar — mobile swipes to the next week", async ({ page }) => {
   await expect(page.getByText("Week of 28 Dec")).toBeVisible();
   await expect(page.getByText("Realistic goals for 2027")).toBeVisible();
 });
+
+test("calendar — month arrows stay put and Today jumps back", async ({ page }) => {
+  test.skip(!isDesktop(page), "month arrows are on tablet and desktop; phones swipe weeks");
+  await setup(page);
+  await open(page, "/calendar"); // today = 17 Nov 2026
+  const today = page.getByRole("button", { name: "Today" });
+  await expect(page.getByRole("heading", { name: "November 2026" })).toBeVisible();
+  await expect(today).toBeDisabled();
+
+  const next = page.getByRole("button", { name: /^Next month/ });
+  const before = await next.boundingBox();
+  await next.click(); // December 2026 → wider title than "May 2027"
+  await expect(page.getByRole("heading", { name: "December 2026" })).toBeVisible();
+  expect(await next.boundingBox()).toEqual(before);
+  for (let i = 0; i < 5; i++) await next.click();
+  await expect(page.getByRole("heading", { name: "May 2027" })).toBeVisible();
+  expect(await next.boundingBox()).toEqual(before);
+
+  await expect(today).toBeEnabled();
+  await today.click();
+  await expect(page.getByRole("heading", { name: "November 2026" })).toBeVisible();
+  await expect(today).toBeDisabled();
+});

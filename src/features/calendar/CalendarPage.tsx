@@ -110,6 +110,7 @@ export function CalendarPage() {
   }, [missingCard, toast, setParams]);
 
   const nextMonthFirst = isoDay(year, month + 1, 1);
+  const onTodaysMonth = focus.slice(0, 7) === today.slice(0, 7);
   const planLabel = `Plan ${monthName(nextMonthFirst)}`;
 
   const planButton = (mobile: boolean) => (
@@ -146,8 +147,8 @@ export function CalendarPage() {
     <PageHeader
       title={monthYear(focus)}
       crumbs={["Calendar"]}
-      titleAddon={
-        <div className="flex items-center">
+      titleLeading={
+        <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
             aria-label={`Previous month, ${monthYear(isoDay(year, month - 1, 1))}`}
@@ -163,6 +164,15 @@ export function CalendarPage() {
             className="inline-flex size-10 items-center justify-center rounded-full hover:bg-soft"
           >
             <ChevronRight size={20} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => goTo(today)}
+            disabled={onTodaysMonth}
+            title={onTodaysMonth ? "Already showing this month" : undefined}
+            className="ml-1 inline-flex h-8 items-center rounded-control border border-line bg-surface px-3 text-small font-medium hover:bg-soft disabled:cursor-default disabled:opacity-40 disabled:hover:bg-surface"
+          >
+            Today
           </button>
         </div>
       }

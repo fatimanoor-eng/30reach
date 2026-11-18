@@ -135,6 +135,11 @@ describe("holidays (Nager.Date fixtures)", () => {
     expect(new Set(h2026.map((e) => e.id)).size).toBe(h2026.length);
   });
 
+  it("shows US spelling: Labor Day, not Labour Day", () => {
+    expect(named(h2026, "Labor Day").start).toBe("2026-09-07");
+    expect(h2026.some((e) => e.name === "Labour Day")).toBe(false);
+  });
+
   it("non-fixed holidays keep Nager's date", () => {
     expect(named(h2026, "Thanksgiving Day").start).toBe(thanksgiving(2026));
     expect(named(h2026, "Memorial Day").start).toBe("2026-05-25");

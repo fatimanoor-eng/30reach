@@ -20,10 +20,13 @@ const FIXED_DATE: { match: RegExp; month: number; day: number }[] = [
   { match: /^christmas day$/i, month: 11, day: 25 },
 ];
 
+/** Nager uses British spellings for some US holidays; show the US name. */
+const US_NAME: Record<string, string> = { "Labour Day": "Labor Day" };
+
 /**
  * Nager rows for `year` → holiday events. Keeps nationwide holidays only (`global: true`; state-only
  * days like Lincoln's Birthday are dropped), moves fixed-date holidays to their real date and
- * removes duplicates (Nager lists some days twice).
+ * removes duplicates (Nager lists some days twice). Names use US spelling ("Labor Day").
  */
 export function holidayEvents(year: number, rows: HolidayRow[]): CalendarEvent[] {
   const seen = new Set<string>();
@@ -33,10 +36,11 @@ export function holidayEvents(year: number, rows: HolidayRow[]): CalendarEvent[]
       continue;
     const fixed = FIXED_DATE.find((f) => f.match.test(row.name.trim()));
     const date = fixed ? isoDay(year, fixed.month, fixed.day) : row.date;
-    const key = `${date}|${row.name}`;
+    const name = US_NAME[row.name.trim()] ?? row.name.trim();
+    const key = `${date}|${name}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    events.push(makeEvent("holiday", row.name.trim(), date));
+    events.push(makeEvent("holiday", name, date));
   }
   return events;
 }
