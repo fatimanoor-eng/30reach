@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 /**
  * Loading skeletons in each page's real layout (DESIGN_SYSTEM › States).
@@ -7,10 +7,18 @@ import type { ReactNode } from "react";
  *   which the toast uses): hidden for its first 150 ms (index.css › Loading skeletons), then shown.
  * • SkeletonCard / SkeletonKpis — white card and KPI tile shapes with bones inside.
  */
-export function Bone({ className = "" }: { className?: string }) {
+export function Bone({
+  className = "",
+  style,
+}: {
+  className?: string;
+  /** e.g. a measured height */
+  style?: CSSProperties;
+}) {
   return (
     <div
       aria-hidden="true"
+      style={style}
       className={`rounded-control bg-soft motion-safe:animate-pulse ${className}`}
     />
   );

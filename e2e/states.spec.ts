@@ -92,7 +92,7 @@ test("skeleton — no pulse with reduced motion", async ({ page }) => {
   await page.goto("/ideas");
   const skeleton = page.locator('[aria-busy="true"][aria-label="Loading ideas"]');
   await expect(skeleton).toBeVisible();
-  const bone = skeleton.locator("> div").first();
+  const bone = skeleton.locator(".bg-soft").first();
   expect(await bone.evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
 });
 
@@ -102,7 +102,7 @@ test("skeleton — pulses normally", async ({ page }) => {
   await page.goto("/ideas");
   const bone = page
     .locator('[aria-busy="true"][aria-label="Loading ideas"]')
-    .locator("> div")
+    .locator(".bg-soft")
     .first();
   expect(await bone.evaluate((el) => getComputedStyle(el).animationName)).toBe("pulse");
 });

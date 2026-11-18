@@ -15,7 +15,8 @@ import {
   platformFromUrl,
   plannedLabel,
   tabCounts,
-  tileSize,
+  tileColumns,
+  rowSpan,
   imageShape,
   type Idea,
 } from "./idea-rules";
@@ -171,45 +172,37 @@ describe("planned badge", () => {
   });
 });
 
-describe("bento tiles", () => {
+describe("bento board", () => {
   const shot = (w: number | null, h: number | null) =>
     idea("s", { kind: "screenshot", image_path: "c/s.webp", image_width: w, image_height: h });
 
   it("knows the image's shape", () => {
     expect(imageShape(1600, 900)).toBe("wide");
-    expect(imageShape(739, 1600)).toBe("tall");
+    expect(imageShape(900, 1600)).toBe("tall");
     expect(imageShape(1000, 1000)).toBe("square");
     expect(imageShape(1100, 1000)).toBe("square"); // nearly square isn't "wide"
     expect(imageShape(null, 900)).toBeNull();
   });
 
-  it("landscape images are 2×1, portrait ones 1×2", () => {
-    expect(tileSize(shot(1600, 900))).toBe("2x1");
-    expect(tileSize(shot(739, 1600))).toBe("1x2");
+  it("landscape pictures span 2 columns; portrait, square and unknown span 1", () => {
+    expect(tileColumns(shot(1600, 900))).toBe(2); // 16:9
+    expect(tileColumns(shot(900, 1600))).toBe(1); // 9:16
+    expect(tileColumns(shot(1000, 1000))).toBe(1); // 1:1
+    expect(tileColumns(shot(null, null))).toBe(1);
   });
 
-  it("square images and images of unknown size are 1×2 (room for the picture and the text)", () => {
-    expect(tileSize(shot(1000, 1000))).toBe("1x2");
-    expect(tileSize(shot(null, null))).toBe("1x2");
+  it("notes, links, AI ideas and posts without a picture span 1", () => {
+    expect(tileColumns(idea("n", { kind: "note" }))).toBe(1);
+    expect(tileColumns(idea("l", { kind: "link", link_url: "https://x.com" }))).toBe(1);
+    expect(tileColumns(idea("a", { kind: "ai" }))).toBe(1);
+    expect(tileColumns(idea("p", { kind: "post", image_width: 1600, image_height: 900 }))).toBe(1);
   });
 
-  it("notes, links, AI ideas and posts without a picture are 1×1", () => {
-    expect(tileSize(idea("n", { kind: "note" }))).toBe("1x1");
-    expect(tileSize(idea("l", { kind: "link", link_url: "https://x.com" }))).toBe("1x1");
-    expect(tileSize(idea("a", { kind: "ai" }))).toBe("1x1");
-    expect(tileSize(idea("p", { kind: "post" }))).toBe("1x1");
-    const post = idea("p", {
-      kind: "post",
-      image_path: "c/p.webp",
-      image_width: 480,
-      image_height: 600,
-    });
-    expect(tileSize(post)).toBe("1x2");
-  });
-
-  it("the feature tile is 2×2 whatever it holds", () => {
-    expect(tileSize(idea("n", { kind: "note" }), true)).toBe("2x2");
-    expect(tileSize(shot(1600, 900), true)).toBe("2x2");
+  it("row span covers the tile's height plus the gap below it", () => {
+    expect(rowSpan(300, 8, 16)).toBe(40); // 316 / 8 = 39.5 → 40
+    expect(rowSpan(184, 8, 16)).toBe(25); // exactly 200 → 25
+    expect(rowSpan(0, 8, 16)).toBe(2);
+    expect(rowSpan(0, 8, 0)).toBe(1); // never 0
   });
 });
 

@@ -1,8 +1,8 @@
 import { useQuery, type QueryKey } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabase";
 import { useClient } from "../../lib/useClient";
-import { imageExtension } from "./compress-image";
-import type { Idea, IdeaKind, IdeaPlatform } from "./idea-rules";
+import { compressImage, imageExtension, type Compressed } from "./compress-image";
+import type { Idea, IdeaKind, IdeaPlatform, SourceSnapshot } from "./idea-rules";
 
 export const IDEA_BUCKET = "idea-images";
 
@@ -60,6 +60,9 @@ export type NewIdea = {
   image?: Blob | null;
   imageWidth?: number | null;
   imageHeight?: number | null;
+  /** Saved from a competitor's post (06d): the post, and a copy of what it said. */
+  source_post_id?: string | null;
+  source_snapshot?: SourceSnapshot | null;
 };
 
 /**
@@ -90,6 +93,8 @@ export async function createIdea(clientId: string, idea: NewIdea): Promise<{ id:
     image_path: imagePath,
     image_width: imagePath ? (idea.imageWidth ?? null) : null,
     image_height: imagePath ? (idea.imageHeight ?? null) : null,
+    source_post_id: idea.source_post_id ?? null,
+    source_snapshot: idea.source_snapshot ?? null,
   });
   if (error) {
     if (imagePath) await supabase.storage.from(IDEA_BUCKET).remove([imagePath]);
@@ -194,4 +199,20 @@ export async function planIdea(args: {
   }
   const card = data as { id: string; date: string };
   return { id: card.id, date: card.date };
+}
+
+/**
+ * A copy of a post's thumbnail for an idea (CLAUDE.md rule 7: old pulls and their thumbnails are
+ * deleted, so the idea keeps its own). Reads the signed thumbnail URL and compresses it like any
+ * other image. Null if there's no thumbnail or it can't be read: the idea is then saved without one.
+ */
+export async function copyThumbnail(url: string | undefined): Promise<Compressed | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return await compressImage(await res.blob());
+  } catch {
+    return null;
+  }
 }

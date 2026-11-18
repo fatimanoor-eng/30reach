@@ -94,13 +94,16 @@ test("06a / M05 Instagram — all brands", async ({ page }, info) => {
 
   await checks(page, mobile, "social-instagram.png");
 
-  // Save as idea → Slice 10 toast (after the screenshot: the click scrolls the page).
+  // Save as idea → the 06d dialog / M10 sheet (after the screenshot: the click scrolls the page).
   await page
     .getByRole("button", { name: "Save as idea" })
     .filter({ visible: true })
     .first()
     .click();
-  await expect(page.getByText("Saving ideas arrives in Slice 10")).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "Save to idea board" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
 });
 
 test("06a TikTok — views shown, same layout", async ({ page }, info) => {

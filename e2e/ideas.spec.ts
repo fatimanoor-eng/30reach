@@ -47,8 +47,8 @@ const idea = (id: string, kind: string, extra: Partial<Row> = {}): Row => ({
 const SEED: Row[] = [
   idea("i1", "screenshot", {
     note: "“Day in my life on a plan” videos are everywhere this week. Try an OBU clinician version.",
-    image_path: "client-1/i1.webp", // portrait phone screenshot → 1×2
-    image_width: 739,
+    image_path: "client-1/i1.webp", // 9:16 phone screenshot → 1 column
+    image_width: 900,
     image_height: 1600,
     platform: "tiktok",
     tags: ["Trend", "Video"],
@@ -63,7 +63,7 @@ const SEED: Row[] = [
   }),
   idea("i3", "screenshot", {
     note: "Love this carousel cover: big number, tiny subtitle. Use for “5 swaps” post.",
-    image_path: "client-1/i3.webp", // landscape → 2×1
+    image_path: "client-1/i3.webp", // 16:9 → 2 columns
     image_width: 1600,
     image_height: 900,
     platform: "instagram",
@@ -87,7 +87,7 @@ const SEED: Row[] = [
   }),
   idea("i6", "post", {
     note: "3 things nobody tells you about starting treatment",
-    image_path: "client-1/i6.webp", // copied thumbnail (Slice 10c), portrait → 1×2
+    image_path: "client-1/i6.webp", // copied thumbnail (Slice 10c), 4:5 → 1 column
     image_width: 480,
     image_height: 600,
     platform: "instagram",
@@ -112,7 +112,7 @@ const SEED: Row[] = [
   }),
   idea("i8", "screenshot", {
     note: "Comment section full of “is this covered by insurance?” Worth a FAQ post.",
-    image_path: "client-1/i8.webp", // square → 1×2
+    image_path: "client-1/i8.webp", // 1:1 → 1 column
     image_width: 1000,
     image_height: 1000,
     platform: "instagram",
@@ -125,7 +125,7 @@ const SEED: Row[] = [
 const svg = (w: number, h: number, fill: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="${fill}"/></svg>`;
 const IMAGES: Record<string, string> = {
-  "client-1/i1.webp": svg(370, 800, "#b0e9fd"),
+  "client-1/i1.webp": svg(450, 800, "#b0e9fd"),
   "client-1/i3.webp": svg(800, 450, "#f4eb02"),
   "client-1/i8.webp": svg(500, 500, "#d1e0d4"),
   "client-1/i6.webp": svg(480, 600, "#f8678f"),
@@ -367,40 +367,99 @@ test("ideas — board like Figma 14b / M09", async ({ page }, info) => {
   await expect(page).toHaveScreenshot(`ideas-board-${info.project.name}.png`, { fullPage: true });
 });
 
-test("ideas — bento tiles are sized from their content", async ({ page }) => {
+/**
+ * Bento checks: no two tiles overlap; tiles stacked in a column are at least the gap apart; and
+ * each tile spans the fewest 8 px rows that fit its real height plus the gap (so the space below
+ * it is the gap, plus less than one row). Larger holes can appear above a 2-column tile: it starts
+ * where both columns are free, and `dense` only fills a hole when a later tile fits it.
+ */
+async function checkBento(page: Page) {
+  const tiles = await page.locator("[data-columns]").evaluateAll((els) =>
+    els.map((el) => {
+      const r = el.getBoundingClientRect();
+      const grid = getComputedStyle(el.parentElement!);
+      return {
+        x: r.x,
+        y: r.y,
+        w: r.width,
+        h: r.height,
+        span: Number(getComputedStyle(el).gridRowEnd.replace("span ", "")),
+        unit: parseFloat(grid.gridAutoRows),
+        gap: parseFloat(grid.columnGap),
+      };
+    }),
+  );
+  for (const [i, a] of tiles.entries()) {
+    expect(a.unit).toBe(8);
+    // Fewest rows that hold the tile and the gap below it.
+    expect(a.span * a.unit).toBeGreaterThanOrEqual(a.h + a.gap - 0.5);
+    expect(a.span * a.unit).toBeLessThan(a.h + a.gap + a.unit + 0.5);
+    for (const b of tiles.slice(i + 1)) {
+      const overlapX = a.x < b.x + b.w - 1 && b.x < a.x + a.w - 1;
+      const overlapY = a.y < b.y + b.h - 1 && b.y < a.y + a.h - 1;
+      expect(overlapX && overlapY, "tiles overlap").toBe(false);
+      if (overlapX && b.y >= a.y) expect(b.y - (a.y + a.h)).toBeGreaterThanOrEqual(a.gap - 0.5);
+    }
+  }
+  return { gap: tiles[0].gap };
+}
+
+test("ideas — bento: spans by shape, pictures never cropped, heights from content", async ({
+  page,
+}) => {
   await setup(page);
   await open(page);
-  const tile = (text: string) => page.locator("[data-tile]").filter({ hasText: text });
-  const box = async (text: string) => (await tile(text).boundingBox())!;
-  const rowH = isDesktop(page) ? 180 : 150;
+  const tile = (text: string) => page.locator("[data-columns]").filter({ hasText: text });
+  const wide = tile("Love this carousel cover"); // 16:9
+  const tall = tile("Day in my life"); // 9:16
+  const square = tile("covered by insurance"); // 1:1
+  await expect(wide).toHaveAttribute("data-columns", "2");
+  await expect(tall).toHaveAttribute("data-columns", "1");
+  await expect(square).toHaveAttribute("data-columns", "1");
+  await expect(tile("Brand using a soft yellow")).toHaveAttribute("data-columns", "1");
 
-  // Landscape → 2×1, portrait and square → 1×2, notes and links → 1×1.
-  await expect(tile("Love this carousel cover")).toHaveAttribute("data-tile", "2x1");
-  await expect(tile("Day in my life")).toHaveAttribute("data-tile", "1x2");
-  await expect(tile("covered by insurance")).toHaveAttribute("data-tile", "1x2");
-  await expect(tile("Brand using a soft yellow")).toHaveAttribute("data-tile", "1x1");
-  expect(Math.round((await box("Brand using a soft yellow")).height)).toBe(rowH);
-  const wide = await box("Love this carousel cover");
-  const one = await box("Brand using a soft yellow");
-  expect(wide.width).toBeGreaterThan(one.width * 2);
-  expect(Math.round(wide.height)).toBe(rowH);
-
-  // The newest idea (Blip's, today) is the 2×2 feature on desktop only.
-  const feature = tile("Weekly clinician Q&A");
-  if ((page.viewportSize()?.width ?? 0) >= 1200) {
-    await expect(feature).toHaveAttribute("data-tile", "2x2");
-    const f = await box("Weekly clinician Q&A");
-    expect(Math.round(f.height)).toBe(rowH * 2 + 16);
-  } else {
-    await expect(feature).toHaveAttribute("data-tile", "1x1");
-    await expect(page.locator('[data-tile="2x2"]')).toHaveCount(0);
+  // Each picture is shown at its own ratio: nothing cropped.
+  for (const [t, ratio] of [
+    [wide, 16 / 9],
+    [tall, 9 / 16],
+    [square, 1],
+  ] as const) {
+    const img = t.locator("img");
+    await expect(img).toBeVisible();
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.naturalWidth))
+      .toBeGreaterThan(0);
+    const { box, natural } = await img.evaluate((el: HTMLImageElement) => ({
+      box: el.clientWidth / el.clientHeight,
+      natural: el.naturalWidth / el.naturalHeight,
+    }));
+    expect(Math.abs(box - ratio) / ratio).toBeLessThan(0.02);
+    expect(Math.abs(natural - ratio) / ratio).toBeLessThan(0.02);
   }
 
-  // Long text ends in an ellipsis inside the tile instead of spilling out.
-  for (const el of await page.locator("[data-tile]").all()) {
-    const spills = await el.evaluate((t) => t.scrollHeight > t.clientHeight + 1);
-    expect(spills, await el.innerText()).toBe(false);
-  }
+  // The 2-column tile is two columns plus the gap wide.
+  const { gap } = await checkBento(page);
+  const w2 = (await wide.boundingBox())!.width;
+  const w1 = (await tall.boundingBox())!.width;
+  expect(Math.abs(w2 - (2 * w1 + gap))).toBeLessThan(2);
+
+  // No 2×2 feature tile any more: nothing wider than 2 columns.
+  await expect(page.locator('[data-columns="2"]')).toHaveCount(1);
+
+  // Text is clamped with an ellipsis.
+  const clamp = await tile("Day in my life")
+    .locator("p.font-medium")
+    .evaluate((el) => getComputedStyle(el).webkitLineClamp);
+  expect(clamp).toBe("3");
+
+  // Resize: spans are measured again and still don't overlap.
+  const size = page.viewportSize()!;
+  await page.setViewportSize({ width: Math.round(size.width * 0.85), height: size.height });
+  await page.waitForTimeout(200);
+  await checkBento(page);
+  await page.setViewportSize(size);
+  await page.waitForTimeout(200);
+  await checkBento(page);
 });
 
 test("ideas — planned badge opens its calendar card", async ({ page }) => {

@@ -16,11 +16,11 @@ import { LoadError } from "../../components/LoadError";
 import { ModalPresence } from "../../components/ModalPresence";
 import { useToast } from "../../components/toast-context";
 import { Bone, Skeleton } from "../../components/Skeleton";
-import { MQ_DESKTOP_UP, useMediaQuery } from "../../lib/useMediaQuery";
 import { AddIdeaSheet } from "./AddIdeaSheet";
 import { CaptureBar } from "./CaptureBar";
 import { useCapture } from "./capture-context";
 import { DraftCard } from "./DraftCard";
+import { BentoGrid, BentoItem } from "./BentoGrid";
 import { IdeaCard } from "./IdeaCard";
 import { IdeaDetail } from "./IdeaDetail";
 import {
@@ -29,8 +29,7 @@ import {
   normaliseUrl,
   tabCounts,
   TABS,
-  TILE_SPAN,
-  tileSize,
+  tileColumns,
   type Idea,
   type IdeaTab,
 } from "./idea-rules";
@@ -80,12 +79,17 @@ function IdeaTabs({
   );
 }
 
-/**
- * Bento grid: fixed-height rows, 2 / 3 / 4 columns, `dense` so smaller tiles fill the gaps a big
- * one leaves. The page order (newest first) stays the reading order for keyboards and screen readers.
- */
-const GRID =
-  "grid grid-flow-row-dense grid-cols-2 auto-rows-(--bento-row-sm) gap-2.5 md:grid-cols-3 md:auto-rows-(--bento-row) md:gap-4 xl:grid-cols-4";
+/** Loading tiles: [columns, rows of 8 px] — a landscape picture, portrait pictures, notes, links. */
+const SKELETON_TILES: [1 | 2, number][] = [
+  [1, 46],
+  [2, 30],
+  [1, 20],
+  [1, 24],
+  [1, 40],
+  [1, 22],
+  [2, 28],
+  [1, 34],
+];
 
 function hasFiles(e: DragEvent) {
   return [...e.dataTransfer.types].includes("Files");
@@ -109,9 +113,6 @@ export function IdeasPage() {
   const dragDepth = useRef(0);
   // "2 days ago" is worked out once per visit (not on every render).
   const [now] = useState(Date.now);
-
-  // Desktop only: the newest idea shown gets the 2×2 feature tile.
-  const desktop = useMediaQuery(MQ_DESKTOP_UP);
 
   const all = useMemo(() => ideas.data ?? [], [ideas.data]);
   const counts = useMemo(() => tabCounts(all), [all]);
@@ -213,15 +214,16 @@ export function IdeasPage() {
   if (ideas.isError) {
     body = <LoadError title="Ideas didn’t load" onRetry={() => void ideas.refetch()} />;
   } else if (ideas.isPending) {
-    // The real bento sizes: 2×2 feature (desktop; 1×2 below), 1×1, 1×2, 2×1.
+    // The board's shapes: a landscape picture (2 columns), portrait pictures, notes and links.
     body = (
-      <Skeleton label="Loading ideas" className={GRID}>
-        {(["2x2", "1x1", "1x2", "1x1", "2x1", "1x1", "1x2", "1x1"] as const).map((size, i) => (
-          <Bone
-            key={i}
-            className={`h-full rounded-card ${size === "2x2" ? "row-span-2 xl:col-span-2" : TILE_SPAN[size]}`}
-          />
-        ))}
+      <Skeleton label="Loading ideas">
+        <BentoGrid>
+          {SKELETON_TILES.map(([columns, rows], i) => (
+            <BentoItem key={i} columns={columns} rows={rows}>
+              <Bone className="rounded-card" style={{ height: rows * 8 - 16 }} />
+            </BentoItem>
+          ))}
+        </BentoGrid>
       </Skeleton>
     );
   } else if (!all.length && !capture.drafts.length) {
@@ -247,22 +249,18 @@ export function IdeasPage() {
       <>
         {drafts}
         {shown.length > 0 && (
-          <div className={GRID}>
-            {shown.map((idea, i) => {
-              const size = tileSize(idea, desktop && i === 0);
-              return (
-                <div key={idea.id} className={TILE_SPAN[size]}>
-                  <IdeaCard
-                    idea={idea}
-                    size={size}
-                    imageUrl={imageFor(idea)}
-                    now={now}
-                    onOpen={(plan) => openDetail(idea.id, plan)}
-                  />
-                </div>
-              );
-            })}
-          </div>
+          <BentoGrid>
+            {shown.map((idea) => (
+              <BentoItem key={idea.id} columns={tileColumns(idea)}>
+                <IdeaCard
+                  idea={idea}
+                  imageUrl={imageFor(idea)}
+                  now={now}
+                  onOpen={(plan) => openDetail(idea.id, plan)}
+                />
+              </BentoItem>
+            ))}
+          </BentoGrid>
         )}
         {!shown.length && (
           <p className="py-10 text-center text-body-sm text-muted">

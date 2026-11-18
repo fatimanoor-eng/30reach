@@ -128,9 +128,9 @@
    Plain custom properties (not a Tailwind namespace). Drawer / bottom sheet slide + backdrop fade. */
 :root {
   --motion-modal: 250ms;
-  /* Idea board bento grid (14b / M09): fixed row height; tiles span 1–2 rows. */
-  --bento-row-sm: 150px; /* phones */
-  --bento-row: 180px; /* tablet + desktop */
+  /* Idea board bento grid (14b / M09): small row unit; each tile spans as many rows as its
+     content needs (BentoGrid.tsx). */
+  --bento-unit: 8px;
 }
 
 /* Small uppercase mono label: <span class="mono-label">LAST PULLED</span> */

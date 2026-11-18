@@ -238,12 +238,83 @@ test("dismissing what's new hides it until the next pull", async ({ page }, info
   await expect(bar).toHaveCount(0);
 });
 
-test("Save as idea says coming soon; Open post opens the original", async ({ page }, info) => {
+test("Save as idea — 06d / M10 dialog, post attached, thumbnail copied", async ({ page }, info) => {
+  await setup(page, [LATEST]);
+  // Every post gets a thumbnail here (the fixtures give one only to each brand's first two).
+  const posts = makePosts(LATEST.id, new Date(LATEST.started_at), { withThumbs: true }).map(
+    (p, i) => ({ ...p, thumbnail_path: `client-1/${LATEST.id}/thumb-${i}.jpg` }),
+  );
+  await page.route("**/rest/v1/posts**", (r) => r.fulfill(json(posts)));
+  const inserts: Record<string, unknown>[] = [];
+  const uploads: { path: string; bytes: number; type: string }[] = [];
+  await page.route("**/rest/v1/ideas**", (r) => {
+    if (r.request().method() !== "POST") return r.fulfill(json([]));
+    inserts.push(r.request().postDataJSON() as Record<string, unknown>);
+    return r.fulfill({ status: 201, body: "" });
+  });
+  await page.route("**/storage/v1/object/idea-images/**", (r) => {
+    const body = r.request().postDataBuffer() ?? Buffer.alloc(0);
+    uploads.push({
+      path: decodeURIComponent(new URL(r.request().url()).pathname.split("/idea-images/")[1]),
+      bytes: body.length,
+      type: body.includes("image/webp") ? "webp" : body.includes("image/jpeg") ? "jpeg" : "?",
+    });
+    return r.fulfill(json({ Key: "x", Id: "x" }));
+  });
+  await ready(page);
+
+  // A post with a thumbnail.
+  const post = page
+    .locator("article")
+    .filter({ has: page.locator("img") })
+    .filter({ visible: true })
+    .first();
+  const caption = (await post.locator("p.line-clamp-2").innerText()).trim();
+  await post.getByRole("button", { name: "Save as idea" }).click();
+  const dialog = page.getByRole("dialog", { name: "Save to idea board" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(caption)).toBeVisible();
+  await expect(dialog.getByRole("textbox", { name: "Your idea" })).toBeFocused();
+  await expect(
+    dialog.getByText("Instagram", { exact: true }).or(dialog.getByText("TikTok", { exact: true })),
+  ).toBeVisible();
+  await dialog.getByRole("textbox", { name: "Your idea" }).fill("OBU version for month one");
+  await dialog.getByRole("button", { name: "+ tag" }).click();
+  await dialog.getByRole("textbox", { name: "New tag" }).fill("Hook");
+  await dialog.getByRole("textbox", { name: "New tag" }).press("Enter");
+  await page.waitForTimeout(300); // sheet slide-in on phones
+  if (info.project.name === "mobile-390") await tapTargetsOk(page);
+  await expect(page).toHaveScreenshot(`save-as-idea-${info.project.name}.png`);
+
+  await dialog.getByRole("button", { name: "Save idea" }).click();
+  await expect(page.getByText("Saved to idea board")).toBeVisible();
+  await expect(dialog).toBeHidden();
+
+  const row = inserts[0];
+  expect(row).toMatchObject({
+    client_id: "client-1",
+    kind: "post",
+    note: "OBU version for month one",
+    tags: ["Hook"],
+    source_snapshot: expect.objectContaining({ caption, saved_from: "overview" }),
+  });
+  expect(row.source_post_id).toEqual(expect.any(String));
+  expect(["instagram", "tiktok"]).toContain(row.platform);
+  // The thumbnail is copied (compressed) into idea-images and kept with the idea.
+  expect(uploads).toHaveLength(1);
+  expect(uploads[0].path).toBe(`client-1/${String(row.id)}.webp`);
+  expect(uploads[0].type).toBe("webp");
+  expect(row).toMatchObject({ image_path: uploads[0].path, image_width: 48, image_height: 60 });
+
+  // "Open" goes to the new idea on the board.
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/ideas\\?idea=${String(row.id)}$`));
+});
+
+test("Open post opens the original", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
   await setup(page, [LATEST]);
   await ready(page);
-  await page.getByRole("button", { name: "Save as idea" }).first().click();
-  await expect(page.getByRole("status")).toContainText("Saving ideas arrives in Slice 10");
   const open = page.getByRole("link", { name: /Open post/ }).first();
   await expect(open).toHaveAttribute("target", "_blank");
   await expect(open).toHaveAttribute("href", /^https:\/\/example\.com\//);

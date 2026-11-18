@@ -212,10 +212,7 @@ export function plannedLabel(day: string, short = false): string {
   return short ? base : `${WEEKDAYS[d.getUTCDay()]} ${base}`;
 }
 
-// ───────────────────────────── bento tiles (14b board)
-
-/** Columns × rows on the board grid. */
-export type TileSize = "1x1" | "2x1" | "1x2" | "2x2";
+// ───────────────────────────── bento board (14b)
 
 /** Wide when at least 1.2× wider than tall; tall when taller than wide; else square. */
 export function imageShape(
@@ -235,26 +232,19 @@ export function hasPicture(idea: Pick<Idea, "kind" | "image_path">): boolean {
 }
 
 /**
- * Tile size from content: landscape pictures 2×1; portrait, square or unknown-size pictures 1×2
- * (a 1×1 is too short for a picture plus text); everything else 1×1.
- * `feature` (desktop: the newest idea shown) is always 2×2.
+ * Columns a tile spans: landscape pictures 2, everything else 1 (portrait, square, unknown size,
+ * notes, links, AI ideas). Heights follow the content (the picture at its own ratio), see BentoGrid.
  */
-export function tileSize(
+export function tileColumns(
   idea: Pick<Idea, "kind" | "image_path" | "image_width" | "image_height">,
-  feature = false,
-): TileSize {
-  if (feature) return "2x2";
-  if (!hasPicture(idea)) return "1x1";
-  return imageShape(idea.image_width, idea.image_height) === "wide" ? "2x1" : "1x2";
+): 1 | 2 {
+  return hasPicture(idea) && imageShape(idea.image_width, idea.image_height) === "wide" ? 2 : 1;
 }
 
-/** Grid spans per tile size (the board grid has fixed-height rows, `grid-auto-flow: dense`). */
-export const TILE_SPAN: Record<TileSize, string> = {
-  "1x1": "",
-  "2x1": "col-span-2",
-  "1x2": "row-span-2",
-  "2x2": "col-span-2 row-span-2",
-};
+/** Rows of `unit` px (no row gap) a tile of `height` px needs, keeping `gap` px below it. */
+export function rowSpan(height: number, unit: number, gap: number): number {
+  return Math.max(1, Math.ceil((height + gap) / unit));
+}
 
 // ───────────────────────────── Plan it (14d)
 

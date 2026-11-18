@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 
-type ChipTone = "neutral" | "ok" | "danger" | "flash";
+type ChipTone = "neutral" | "ok" | "danger" | "flash" | "ink";
 
 const tones: Record<ChipTone, string> = {
   neutral: "bg-soft text-ink",
   ok: "bg-fresh/10 text-fresh",
   danger: "bg-spark/12 text-spark",
   flash: "bg-flash text-ink",
+  ink: "bg-ink text-white", // selected / fixed (06d platform and format)
 };
 
 /** Small mono tag: hashtags, tags, filters, statuses. */

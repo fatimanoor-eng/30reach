@@ -92,7 +92,7 @@ export function PostItem({
         <p className="mt-1.5 flex flex-wrap items-center gap-x-3 text-small">
           <button
             type="button"
-            onClick={saveAsIdea}
+            onClick={() => saveAsIdea({ post: p, brandName, thumbUrl })}
             className="min-h-11 text-blue hover:underline md:min-h-6"
           >
             Save as idea
