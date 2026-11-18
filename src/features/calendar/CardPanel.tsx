@@ -1,33 +1,50 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
+import { Avatar } from "../../components/Avatar";
 import { Button } from "../../components/Button";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Drawer } from "../../components/Drawer";
 import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { Tooltip } from "../../components/Tooltip";
+import { useAuth } from "../../lib/auth/auth-context";
+import { initialsFor } from "../../lib/auth/domain";
+import { useProfile } from "../../lib/auth/useProfile";
 import { useToast } from "../../components/toast-context";
 import {
   FORMAT_NAME,
   FORMATS,
   PLATFORM_LABEL,
-  STATUS_LABEL,
-  STATUSES,
+  PLATFORM_TINT,
   type CalendarCard,
   type CardPlatform,
-  type CardStatus,
 } from "./calendar-ui";
-import { StatusDot } from "./CardTile";
+import { dateRelation, editedAgo } from "./card-time";
 import { deleteCard, saveCard, type CardFields } from "./cards-api";
-import type { IsoDay } from "./events/dates";
+import { todayIso, type IsoDay } from "./events/dates";
 import { shortDay } from "./format";
+import { DateChip, SelectChip, type ChipOption } from "./SelectChip";
+import { StatusPills } from "./StatusPills";
 
 const COMING_SOON = "Coming soon";
+const PLATFORM_OPTIONS: ChipOption<CardPlatform>[] = [
+  {
+    value: "instagram",
+    label: PLATFORM_LABEL.instagram,
+    icon: <InstagramIcon size={15} aria-hidden="true" />,
+  },
+  {
+    value: "tiktok",
+    label: PLATFORM_LABEL.tiktok,
+    icon: <TikTokIcon size={15} aria-hidden="true" />,
+  },
+];
 
 /**
  * 09 card detail (drawer from 768 px) / M08 (full-screen page with a back arrow and a sticky Save bar).
- * Title is edited in place; the "TIKTOK · VIDEO · FRI 4 DEC" line is three pickers (platform, format,
- * date). Then status, hook, caption, visual idea. New post = the same panel, empty, with a date.
+ * Card header (Figma annotation): a panel tinted by platform with three select chips (platform, format,
+ * date), the title edited in place, a who/when line and the soft status pills. Then hook, caption,
+ * visual idea. New post = the same panel, empty, with a date. No ✕ (as in Figma): Esc, the dimmed page,
+ * or "‹ Calendar" on phones close it.
  * Not in this slice: "Inspired by" (Slice 10), the health-claim check (Slice 11); "Move to idea board"
  * is shown disabled.
  */
@@ -64,6 +81,9 @@ export function CardPanel({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const titleErrorId = useId();
+  const statusLabelId = useId();
+  const { user } = useAuth();
+  const profile = useProfile();
 
   const set = <K extends keyof CardFields>(key: K, value: CardFields[K]) => {
     setFields((f) => ({ ...f, [key]: value }));
@@ -124,73 +144,82 @@ export function CardPanel({
     void queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
   };
 
-  const PlatformIcon = fields.platform === "tiktok" ? TikTokIcon : InstagramIcon;
-  const formats = fields.platform ? FORMATS[fields.platform] : [];
+  const formatOptions: ChipOption<string>[] = (fields.platform ? FORMATS[fields.platform] : []).map(
+    (f) => ({ value: f, label: FORMAT_NAME[f] }),
+  );
+  // Who / when: the card's creator and last edit; a new post shows you and the chosen day only.
+  const who = card ? (card.creator?.full_name ?? null) : (profile.data?.full_name ?? null);
+  const whoInitials = initialsFor(who, card ? "?" : (user?.email ?? "?"));
+  const whoLine = [
+    who,
+    card ? editedAgo(card.updated_at) : null,
+    dateRelation(fields.date, todayIso()),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const header = (
-    <>
-      <div className="flex flex-wrap items-center gap-x-2 mono-label text-muted">
-        {fields.platform && <PlatformIcon size={14} aria-hidden="true" className="shrink-0" />}
-        <MetaSelect
+    <div
+      className={`flex flex-col gap-3.5 rounded-panel px-4 py-4 md:px-5 md:py-[18px] ${PLATFORM_TINT[fields.platform ?? "none"]}`}
+    >
+      <div className="flex flex-wrap items-center gap-x-2">
+        <SelectChip
           label="Platform"
-          value={fields.platform ?? ""}
-          onChange={(v) => setPlatform((v || null) as CardPlatform | null)}
-          options={[
-            ["", "Platform"],
-            ["instagram", PLATFORM_LABEL.instagram],
-            ["tiktok", PLATFORM_LABEL.tiktok],
-          ]}
+          placeholder="Platform"
+          value={fields.platform}
+          options={PLATFORM_OPTIONS}
+          onChange={setPlatform}
         />
-        <span aria-hidden="true">·</span>
-        <MetaSelect
+        <SelectChip
           label="Format"
-          value={fields.format ?? ""}
-          onChange={(v) => set("format", v || null)}
+          placeholder="Format"
+          value={fields.format}
+          options={formatOptions}
+          onChange={(v) => set("format", v)}
           disabled={!fields.platform}
-          options={[["", "Format"], ...formats.map((f) => [f, FORMAT_NAME[f]] as [string, string])]}
         />
-        <span aria-hidden="true">·</span>
-        {/* The real date input sits invisibly on top of the text, so a click or tap opens its picker. */}
-        <span className="relative inline-flex min-h-11 items-center gap-1 md:min-h-6">
-          <span aria-hidden="true">{shortDay(fields.date)}</span>
-          <ChevronDown size={12} aria-hidden="true" />
-          <input
-            type="date"
-            aria-label="Date"
-            required
-            value={fields.date}
-            onChange={(e) => e.target.value && set("date", e.target.value)}
-            onClick={(e) => {
-              try {
-                e.currentTarget.showPicker();
-              } catch {
-                /* older browsers open it themselves */
-              }
-            }}
-            className="absolute inset-0 cursor-pointer opacity-0"
-          />
-        </span>
+        <DateChip
+          value={fields.date}
+          text={shortDay(fields.date)}
+          onChange={(v) => set("date", v)}
+        />
       </div>
-      <textarea
-        aria-label="Title"
-        rows={1}
-        value={fields.title}
-        placeholder="Post title"
-        data-autofocus={card ? undefined : true}
-        aria-invalid={titleError || undefined}
-        aria-describedby={titleError ? titleErrorId : undefined}
-        onChange={(e) => {
-          set("title", e.target.value.replace(/\n/g, " "));
-          setTitleError(false);
-        }}
-        className="mt-2 [field-sizing:content] w-full resize-none bg-transparent text-heading outline-none placeholder:text-muted md:text-title"
-      />
-      {titleError && (
-        <p id={titleErrorId} className="mt-1 text-small text-spark">
-          Add a title.
+      <div>
+        <textarea
+          aria-label="Title"
+          rows={1}
+          value={fields.title}
+          placeholder="Post title"
+          data-autofocus={card ? undefined : true}
+          aria-invalid={titleError || undefined}
+          aria-describedby={titleError ? titleErrorId : undefined}
+          onChange={(e) => {
+            set("title", e.target.value.replace(/\n/g, " "));
+            setTitleError(false);
+          }}
+          className="[field-sizing:content] w-full resize-none bg-transparent text-heading outline-none placeholder:text-muted md:text-heading-md"
+        />
+        {titleError && (
+          <p id={titleErrorId} className="mt-1 text-small text-spark">
+            Add a title.
+          </p>
+        )}
+      </div>
+      <p className="flex items-center gap-2 text-small text-muted-strong">
+        <Avatar initials={whoInitials} tone="user" />
+        <span>{whoLine}</span>
+      </p>
+      <div className="flex flex-col gap-1 md:gap-2">
+        <p id={statusLabelId} className="mono-label text-muted-strong">
+          Status
         </p>
-      )}
-    </>
+        <StatusPills
+          value={fields.status}
+          onChange={(v) => set("status", v)}
+          labelledBy={statusLabelId}
+        />
+      </div>
+    </div>
   );
 
   const footer = (
@@ -239,27 +268,11 @@ export function CardPanel({
         onClose={onClose}
         title={card ? `Post card: ${card.title}` : "New post"}
         backLabel="Calendar"
+        hideClose
         header={header}
         footer={footer}
       >
         <div className="flex flex-col gap-5">
-          <div
-            className="flex flex-wrap items-center gap-x-1.5"
-            role="radiogroup"
-            aria-label="Status"
-          >
-            <span aria-hidden="true" className="mr-1 hidden mono-label text-muted md:inline">
-              Status
-            </span>
-            {STATUSES.map((s) => (
-              <StatusChip
-                key={s}
-                status={s}
-                selected={fields.status === s}
-                onSelect={() => set("status", s)}
-              />
-            ))}
-          </div>
           <Field label="Hook">
             {(id) => <TextArea id={id} value={fields.hook} onChange={(v) => set("hook", v)} />}
           </Field>
@@ -303,67 +316,6 @@ export function CardPanel({
         </ConfirmDialog>
       )}
     </>
-  );
-}
-
-/** A native <select> that looks like part of the mono meta line. */
-function MetaSelect({
-  label,
-  value,
-  onChange,
-  options,
-  disabled = false,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: [string, string][];
-  disabled?: boolean;
-}) {
-  return (
-    <span className="relative inline-flex min-h-11 items-center md:min-h-6">
-      <select
-        aria-label={label}
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        className="[field-sizing:content] cursor-pointer appearance-none bg-transparent pr-4 uppercase outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {options.map(([v, text]) => (
-          <option key={v} value={v}>
-            {text}
-          </option>
-        ))}
-      </select>
-      <ChevronDown size={12} aria-hidden="true" className="pointer-events-none absolute right-0" />
-    </span>
-  );
-}
-
-function StatusChip({
-  status,
-  selected,
-  onSelect,
-}: {
-  status: CardStatus;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      onClick={onSelect}
-      className="group inline-flex min-h-11 items-center md:min-h-9"
-    >
-      <span
-        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-small font-medium ${selected ? "bg-ink text-white" : "bg-soft text-ink group-hover:bg-line"}`}
-      >
-        <StatusDot status={status} size="md" />
-        {STATUS_LABEL[status]}
-      </span>
-    </button>
   );
 }
 

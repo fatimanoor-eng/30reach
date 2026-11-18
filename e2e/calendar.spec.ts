@@ -36,6 +36,8 @@ const card = (id: string, date: string, title: string, extra: Partial<Row> = {})
   status: "idea",
   origin: "manual",
   idea_id: null,
+  updated_at: "2026-11-10T09:00:00Z",
+  creator: { full_name: "Fatima Noor" },
   ...extra,
 });
 // Figma 08 (December 2026)
@@ -49,6 +51,7 @@ const SEED: Row[] = [
     caption:
       "Three small things our clinicians suggest for holiday dinners: eat before you go, start with protein, and skip the guilt. One meal doesn’t undo your progress.",
     visual_idea: "Talking head, clinician in kitchen, 3 quick text cards. 25–35 s.",
+    updated_at: "2026-11-17T10:00:00Z", // 2 h before NOW
   }),
   card("k3", "2026-12-09", "5 swaps for holiday parties", { format: "carousel" }),
   card("k4", "2026-12-11", "Doctor Q&A: travel and meds", {
@@ -211,7 +214,9 @@ test("calendar — edit status and save", async ({ page }) => {
   await open(page, "/calendar?date=2026-12-24&card=k2");
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("radio", { name: "Approved" }).click();
-  await dialog.getByRole("combobox", { name: "Format" }).selectOption("carousel");
+  await dialog.getByRole("button", { name: "Format: Video" }).click();
+  await dialog.getByRole("option", { name: "Carousel" }).click();
+  await expect(dialog.getByRole("button", { name: "Format: Carousel" })).toBeFocused();
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(calls.at(-1)).toMatchObject({
@@ -234,7 +239,8 @@ test("calendar — new post needs a title, then saves", async ({ page }) => {
   await expect(dialog.getByText("Add a title.")).toBeVisible();
   expect(calls).toHaveLength(0);
   await dialog.getByRole("textbox", { name: "Title" }).fill("Gift guide for healthy habits");
-  await dialog.getByRole("combobox", { name: "Platform" }).selectOption("instagram");
+  await dialog.getByRole("button", { name: "Platform: not set" }).click();
+  await dialog.getByRole("option", { name: "Instagram" }).click();
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Gift guide for healthy habits")).toBeVisible();
   expect(calls[0]).toMatchObject({
@@ -321,4 +327,65 @@ test("calendar — month arrows stay put and Today jumps back", async ({ page })
   await today.click();
   await expect(page.getByRole("heading", { name: "November 2026" })).toBeVisible();
   await expect(today).toBeDisabled();
+});
+
+test("calendar — 09 header: who/when, status pills by keyboard, chip menu", async ({ page }) => {
+  await setup(page);
+  await open(page, "/calendar?date=2026-12-24&card=k2");
+  const dialog = page.getByRole("dialog");
+  // who / when (today = 17 Nov in the test clock)
+  await expect(dialog.getByText("Fatima Noor · edited 2 h ago · in 17 days")).toBeVisible();
+
+  // header tinted by platform: TikTok → #E9F8FE
+  const header = dialog.locator("div.rounded-panel");
+  await expect(header).toHaveCSS("background-color", "rgb(233, 248, 254)");
+
+  // status: a radio group, only the current pill is tabbable, arrows move and set
+  const group = dialog.getByRole("radiogroup", { name: "Status" });
+  await expect(group.getByRole("radio", { name: "Drafting" })).toHaveAttribute("tabindex", "0");
+  await expect(group.getByRole("radio", { name: "Idea" })).toHaveAttribute("tabindex", "-1");
+  await group.getByRole("radio", { name: "Drafting" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(group.getByRole("radio", { name: "Approved" })).toBeFocused();
+  await expect(group.getByRole("radio", { name: "Approved" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await page.keyboard.press("End");
+  await expect(group.getByRole("radio", { name: "Posted" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await page.keyboard.press("ArrowRight"); // wraps
+  await expect(group.getByRole("radio", { name: "Idea" })).toHaveAttribute("aria-checked", "true");
+
+  // platform chip by keyboard: ↓ opens, ↑ moves, Enter picks; the tint follows
+  const platform = dialog.getByRole("button", { name: "Platform: TikTok" });
+  await platform.focus();
+  await page.keyboard.press("ArrowDown");
+  const menu = dialog.getByRole("listbox", { name: "Platform" });
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("Enter");
+  await expect(menu).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Platform: Instagram" })).toBeFocused();
+  await expect(header).toHaveCSS("background-color", "rgb(254, 234, 240)");
+  // Video isn't an Instagram format → Format goes back to its placeholder
+  await expect(dialog.getByRole("button", { name: "Format: not set" })).toBeVisible();
+
+  // Esc closes only the menu, not the drawer
+  await dialog.getByRole("button", { name: "Format: not set" }).click();
+  await expect(dialog.getByRole("listbox", { name: "Format" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog.getByRole("listbox", { name: "Format" })).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toBeVisible();
+});
+
+test("calendar — chip menu, open", async ({ page }, info) => {
+  await setup(page);
+  await open(page, "/calendar?date=2026-12-24&card=k2");
+  await page.getByRole("dialog").getByRole("button", { name: "Platform: TikTok" }).click();
+  await expect(page.getByRole("listbox", { name: "Platform" })).toBeVisible();
+  await page.waitForTimeout(300); // drawer slide-in
+  await expect(page).toHaveScreenshot(`chip-menu-${info.project.name}.png`);
 });

@@ -11,6 +11,7 @@ import { useNativeModal } from "./useNativeModal";
  * Native <dialog>: focus trap, Esc and inert page for free.
  * `header` replaces the plain title (09 card detail: meta line + editable title); `title` then names
  * the dialog for screen readers. `backLabel` shows "‹ {backLabel}" instead of ✕ on mobile (M08).
+ * `hideClose` drops the ✕ (09 has none in Figma: Esc, the dimmed page or "‹ back" on mobile close it).
  */
 export function Drawer({
   open,
@@ -21,6 +22,7 @@ export function Drawer({
   footer,
   header,
   backLabel,
+  hideClose = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -30,6 +32,7 @@ export function Drawer({
   footer?: ReactNode;
   header?: ReactNode;
   backLabel?: string;
+  hideClose?: boolean;
 }) {
   const titleId = useId();
   const descId = useId();
@@ -78,14 +81,16 @@ export function Drawer({
               </>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className={`-mt-2 -mr-2 size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-soft hover:text-ink ${backLabel ? "hidden md:inline-flex" : "inline-flex"}`}
-          >
-            <X size={20} aria-hidden="true" />
-          </button>
+          {!hideClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className={`-mt-2 -mr-2 size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-soft hover:text-ink ${backLabel ? "hidden md:inline-flex" : "inline-flex"}`}
+            >
+              <X size={20} aria-hidden="true" />
+            </button>
+          )}
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-7">{children}</div>
         {footer && (

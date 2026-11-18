@@ -3,8 +3,11 @@ import { supabase } from "../../lib/supabase";
 import { useClient } from "../../lib/useClient";
 import type { CalendarCard } from "./calendar-ui";
 
+// `creator:profiles(full_name)` follows created_by → profiles (the team can read profiles). It's a
+// many-to-one link, so PostgREST returns one object; without generated types supabase-js guesses an
+// array, hence the `as unknown as` casts below.
 const COLUMNS =
-  "id, date, platform, format, title, hook, caption, visual_idea, status, origin, idea_id";
+  "id, date, platform, format, title, hook, caption, visual_idea, status, origin, idea_id, updated_at, creator:profiles(full_name)";
 
 export type CardFields = Pick<
   CalendarCard,
@@ -35,7 +38,7 @@ export function useCalendarCards(from: string, to: string) {
         .order("date")
         .order("title");
       if (error) throw error;
-      return (data ?? []) as CalendarCard[];
+      return (data ?? []) as unknown as CalendarCard[];
     },
   });
 }
@@ -52,7 +55,7 @@ export function useCalendarCard(id: string | null) {
         .eq("id", id!)
         .maybeSingle();
       if (error) throw error;
-      return (data as CalendarCard | null) ?? null;
+      return (data as unknown as CalendarCard | null) ?? null;
     },
   });
 }
@@ -68,7 +71,7 @@ export async function saveCard(
     : supabase.from("calendar_cards").insert({ client_id: clientId, origin: "manual", ...fields });
   const { data, error } = await query.select(COLUMNS).single();
   if (error) throw error;
-  return data as CalendarCard;
+  return data as unknown as CalendarCard;
 }
 
 export async function deleteCard(id: string): Promise<void> {

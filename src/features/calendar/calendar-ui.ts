@@ -17,6 +17,10 @@ export type CalendarCard = {
   status: CardStatus;
   origin: CardOrigin;
   idea_id: string | null;
+  /** last save (the 09 "edited … ago") */
+  updated_at: string;
+  /** who made it (profiles.full_name via created_by); null if that profile is gone */
+  creator: { full_name: string | null } | null;
 };
 
 export const STATUSES: CardStatus[] = ["idea", "drafting", "approved", "posted"];
@@ -34,6 +38,21 @@ export const STATUS_DOT: Record<CardStatus, string> = {
   drafting: "bg-breeze",
   approved: "bg-fresh",
   posted: "bg-muted",
+};
+
+/** Soft status pills in the 09 header. */
+export const STATUS_PILL: Record<CardStatus, string> = {
+  idea: "bg-status-idea",
+  drafting: "bg-status-drafting",
+  approved: "bg-status-approved",
+  posted: "bg-status-posted",
+};
+
+/** 09 / M08 card header tint by platform (none = soft grey). */
+export const PLATFORM_TINT: Record<CardPlatform | "none", string> = {
+  instagram: "bg-tint-instagram",
+  tiktok: "bg-tint-tiktok",
+  none: "bg-soft",
 };
 
 /** 3 px bar on the card's left edge: Instagram pop, TikTok breeze, none = line. */

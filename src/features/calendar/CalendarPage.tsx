@@ -72,6 +72,14 @@ export function CalendarPage() {
     setParams(p, { replace });
   };
   const goTo = (day: IsoDay) => update({ date: day === today ? null : day }, true);
+  // Arrows and swipes step from the day in the *live* URL, not from this render: two quick clicks
+  // before React re-renders would otherwise both land on the same month.
+  const step = (next: (current: IsoDay) => IsoDay) => {
+    const live = new URLSearchParams(window.location.search).get("date");
+    goTo(next(isIsoDay(live) ? live : today));
+  };
+  const monthStep = (by: number) => (d: IsoDay) =>
+    isoDay(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1 + by, 1);
   const openCard = (id: string) => update({ card: id, new: null });
   const addPost = (day: IsoDay) => update({ new: day, card: null });
   const closePanel = () => update({ card: null, new: null }, true);
@@ -152,7 +160,7 @@ export function CalendarPage() {
           <button
             type="button"
             aria-label={`Previous month, ${monthYear(isoDay(year, month - 1, 1))}`}
-            onClick={() => goTo(isoDay(year, month - 1, 1))}
+            onClick={() => step(monthStep(-1))}
             className="inline-flex size-10 items-center justify-center rounded-full hover:bg-soft"
           >
             <ChevronLeft size={20} aria-hidden="true" />
@@ -160,7 +168,7 @@ export function CalendarPage() {
           <button
             type="button"
             aria-label={`Next month, ${monthYear(nextMonthFirst)}`}
-            onClick={() => goTo(nextMonthFirst)}
+            onClick={() => step(monthStep(1))}
             className="inline-flex size-10 items-center justify-center rounded-full hover:bg-soft"
           >
             <ChevronRight size={20} aria-hidden="true" />
@@ -275,7 +283,7 @@ export function CalendarPage() {
         events={events}
         cards={cards.data}
         onSelect={goTo}
-        onWeek={(step) => goTo(addDays(focus, step * 7))}
+        onWeek={(by) => step((d) => addDays(d, by * 7))}
         onOpenCard={openCard}
       />
     );
