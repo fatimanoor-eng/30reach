@@ -506,9 +506,15 @@ const strictObject = (properties: Record<string, unknown>) => ({
 });
 const strArray = { type: "array", items: { type: "string" } };
 
+/**
+ * One flat object for both reply types (strict mode needs every field anyway, and avoids relying on
+ * anyOf support): "insight" fills lead…in_data and leaves message ""; "chat" fills message only.
+ */
 export const ASK_SCHEMA = {
   name: "blip_answer",
   schema: strictObject({
+    type: { type: "string", enum: ["insight", "chat"] },
+    message: { type: "string" },
     lead: { type: "string" },
     points: strArray,
     for_client: { type: "string" },
@@ -645,20 +651,44 @@ export function parseHooksInput(body: Record<string, unknown>): HooksInput | Inp
 }
 
 // ───────────────────────────────────────────── output validators
-export type AskAnswer = {
+export type AskInsight = {
+  type: "insight";
   lead: string;
   points: string[];
   forClient: string;
   postIds: string[];
   inData: boolean;
 };
+/** Small talk (greetings, hype, thanks, feelings, off-topic): 1–2 sentences, then back to the data. */
+export type AskChat = { type: "chat"; message: string };
+export type AskAnswer = AskInsight | AskChat;
 
 const cleanChat = (s: string, max: number) => clip(s.replace(INLINE_REF, ""), max);
 
-/** Ask Blip answer. Citations are mapped back to real post ids; unknown refs are dropped. */
+const EMOJI =
+  /\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|\u{FE0F}|\u{200D}\p{Extended_Pictographic})*|\p{Regional_Indicator}{1,2}/gu;
+/** Keeps the first `max` emoji (a ZWJ sequence or flag counts as one) and drops the rest. */
+export function capEmoji(s: string, max: number): string {
+  let n = 0;
+  return squish(s.replace(EMOJI, (m) => (++n <= max ? m : "")));
+}
+
+export const CHAT_CHARS = 280;
+export const CHAT_EMOJI = 2;
+
+/**
+ * Ask Blip answer. Chat: a non-empty message (clipped, ≤ 2 emoji, no p-refs). Insight: citations are
+ * mapped back to real post ids; unknown refs are dropped.
+ */
 export function validateAskAnswer(raw: unknown, refs: string[]): AskAnswer | null {
-  if (!isObj(raw) || !isStr(raw.lead) || !Array.isArray(raw.points) || !isStr(raw.for_client))
-    return null;
+  if (!isObj(raw)) return null;
+  if (raw.type === "chat") {
+    if (!isStr(raw.message)) return null;
+    const message = capEmoji(cleanChat(raw.message, CHAT_CHARS), CHAT_EMOJI);
+    return message ? { type: "chat", message } : null;
+  }
+  if (raw.type !== "insight") return null;
+  if (!isStr(raw.lead) || !Array.isArray(raw.points) || !isStr(raw.for_client)) return null;
   if (!Array.isArray(raw.post_refs) || typeof raw.in_data !== "boolean") return null;
   const lead = cleanChat(raw.lead, 300);
   if (!lead) return null;
@@ -673,6 +703,7 @@ export function validateAskAnswer(raw: unknown, refs: string[]): AskAnswer | nul
     ...new Set(cited.map((r) => refToId(r, refs)).filter((id): id is string => !!id)),
   ];
   return {
+    type: "insight",
     lead,
     points,
     forClient: cleanChat(raw.for_client, 300),

@@ -1,10 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, ChevronLeft, Send, X } from "lucide-react";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { BlipError, BlipIdle, BlipThinking } from "../../components/blip/BlipPoses";
 import { useNativeModal } from "../../components/useNativeModal";
-import { AI_COPY, answerText, type BlipAnswer } from "../../lib/ai/ai-api";
+import { AI_COPY, answerText, type BlipInsight } from "../../lib/ai/ai-api";
 import { useProfile } from "../../lib/auth/useProfile";
 import { useCompetitors } from "../../lib/useCompetitors";
 import { useClient } from "../../lib/useClient";
@@ -13,6 +13,7 @@ import { createIdea } from "../ideas/ideas-api";
 import { usePullPosts, useSavedPulls } from "../overview/useOverviewData";
 import {
   clientShort,
+  firstNameOf,
   greeting,
   MAX_QUESTION,
   sourceLabel,
@@ -55,7 +56,7 @@ export function AskBlipPanel({
 
   const clientId = client.data?.id;
   const clientName = client.data?.name ?? "the client";
-  const firstName = profile.data?.full_name?.trim().split(/\s+/)[0] ?? null;
+  const firstName = firstNameOf(profile.data?.full_name);
   const noPull = pulls.isSuccess && !latest;
 
   function ask(question: string) {
@@ -140,14 +141,16 @@ export function AskBlipPanel({
           ) : (
             latest &&
             posts.data && (
-              <p className="text-body-sm">
-                {greeting({
-                  firstName,
-                  pullStartedAt: latest.started_at,
-                  posts: posts.data.length,
-                  brands: new Set(posts.data.map((p) => p.competitor_id)).size,
-                })}
-              </p>
+              <BlipSays>
+                <p className="text-body-sm">
+                  {greeting({
+                    firstName,
+                    pullStartedAt: latest.started_at,
+                    posts: posts.data.length,
+                    brands: new Set(posts.data.map((p) => p.competitor_id)).size,
+                  })}
+                </p>
+              </BlipSays>
             )
           )}
           {messages.map((m) => (
@@ -156,8 +159,8 @@ export function AskBlipPanel({
                 {m.question}
               </p>
               {m.status === "pending" && (
-                <p className="flex items-center gap-2 text-small text-muted">
-                  <BlipThinking className="h-11 w-auto shrink-0" />
+                <p className="flex items-center gap-2.5 text-small text-muted">
+                  <BlipThinking className="h-8 w-auto shrink-0" />
                   Blip is thinking…
                 </p>
               )}
@@ -174,15 +177,22 @@ export function AskBlipPanel({
                   retry={m.kind === "failed" ? () => thread.retry(m.id) : undefined}
                 />
               )}
-              {m.status === "done" && (
-                <Answer
-                  answer={m.answer}
-                  clientId={clientId ?? null}
-                  onOpenIdea={(ideaId) => {
-                    onClose();
-                    navigate(`/ideas?idea=${ideaId}`);
-                  }}
-                />
+              {m.status === "done" && m.answer.type === "chat" && (
+                <BlipSays>
+                  <p className="text-body-sm">{m.answer.message}</p>
+                </BlipSays>
+              )}
+              {m.status === "done" && m.answer.type === "insight" && (
+                <BlipSays>
+                  <Answer
+                    answer={m.answer}
+                    clientId={clientId ?? null}
+                    onOpenIdea={(ideaId) => {
+                      onClose();
+                      navigate(`/ideas?idea=${ideaId}`);
+                    }}
+                  />
+                </BlipSays>
               )}
             </div>
           ))}
@@ -246,6 +256,16 @@ export function AskBlipPanel({
   );
 }
 
+/** A Blip message: the small idle avatar beside it (greeting, chat replies and insights). */
+function BlipSays({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <BlipIdle className="h-8 w-auto shrink-0" />
+      <div className="min-w-0 flex-1 pt-1">{children}</div>
+    </div>
+  );
+}
+
 function Notice({
   pose,
   text,
@@ -258,8 +278,8 @@ function Notice({
   const Pose = pose === "error" ? BlipError : BlipIdle;
   return (
     <div role={pose === "error" ? "alert" : undefined} className="flex items-start gap-2.5">
-      <Pose className="h-11 w-auto shrink-0" />
-      <div className="flex flex-col items-start gap-1 pt-1.5">
+      <Pose className="h-8 w-auto shrink-0" />
+      <div className="flex flex-col items-start gap-1 pt-1">
         <p className="text-body-sm">{text}</p>
         {retry && (
           <button
@@ -280,7 +300,7 @@ function Answer({
   clientId,
   onOpenIdea,
 }: {
-  answer: BlipAnswer;
+  answer: BlipInsight;
   clientId: string | null;
   onOpenIdea: (ideaId: string) => void;
 }) {
@@ -317,6 +337,7 @@ function Answer({
     }
   }
 
+  /** Copy (tablet / desktop only, like 12; M11 has none). */
   async function copy() {
     try {
       await navigator.clipboard.writeText(answerText(answer));

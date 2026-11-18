@@ -6,6 +6,10 @@ import { formatCompact, formatShortDate } from "../../lib/format";
 export const WHAT_CHANGED = "What changed since the last pull?";
 export const MAX_QUESTION = 500;
 
+/** "Fatima Noor" → "Fatima" (null if there's no name). */
+export const firstNameOf = (fullName: string | null | undefined) =>
+  fullName?.trim().split(/\s+/)[0] || null;
+
 /** "OBU Health" → "OBU" (Figma: "Ask about OBU’s competitors…", "3 post ideas for OBU"). */
 export const clientShort = (name: string) => name.trim().split(/\s+/)[0] || name;
 
@@ -73,15 +77,159 @@ export function sourceLabel(s: SourcePost): string {
     .join(" · ");
 }
 
+// ───────────────────────────── small talk answered in code (no Groq call)
+
+export type SmallTalk = "greeting" | "thanks";
+export type Energy = "calm" | "warm" | "hype";
+export type SmallTalkMatch = {
+  kind: SmallTalk;
+  energy: Energy;
+  /** The plain word they used ("hi", "thank you"). Hype greetings say it back. */
+  word: string;
+  /** Letters typed beyond the plain word ("hiiii" → 3), mirrored by hype replies. */
+  stretch: number;
+};
+
+/** Every run of one letter → one letter ("hiiii" → "hi", "helloooo" → "helo"). */
+export const squashRepeats = (s: string) => s.replace(/(\p{L})\1+/gu, "$1");
+
+/** Emoji and their pieces (joiners, skin tones, variation selectors, flags). */
+const EMOJI =
+  /\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|\u{FE0F}|\u{200D}\p{Extended_Pictographic})*|\p{Regional_Indicator}{1,2}/gu;
+
+/**
+ * For matching only: lowercase, emoji / punctuation / symbols removed, spaces squished, repeated
+ * letters squashed. "Heyyyy!! 👋" → "hey", "THANK   YOUUU" → "thank you".
+ */
+export function normaliseSmallTalk(text: string): string {
+  const plain = text
+    .toLowerCase()
+    .replace(EMOJI, " ")
+    .replace(/[\p{P}\p{S}\p{M}\u{200D}]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return squashRepeats(plain);
+}
+
+/** The words, written squashed like normaliseSmallTalk() leaves them ("hello" → "helo"). */
+const WORDS: Record<string, { kind: SmallTalk; word: string }> = Object.fromEntries(
+  (
+    [
+      ["hi", "greeting"],
+      ["hey", "greeting"],
+      ["hello", "greeting"],
+      ["yo", "greeting"],
+      ["hiya", "greeting"],
+      ["thanks", "thanks"],
+      ["thank you", "thanks"],
+      ["ty", "thanks"],
+      ["thx", "thanks"],
+    ] as const
+  ).map(([word, kind]) => [squashRepeats(word), { kind, word }]),
+);
+
+/**
+ * calm / warm / hype from letter stretching, "!" count, CAPS and emoji.
+ * Hype: CAPS, 2+ stretched letters, "!!" or 2+ emoji, or several small signals together.
+ */
+export function smallTalkEnergy(text: string, stretch: number): Energy {
+  const bangs = (text.match(/!/g) ?? []).length;
+  const emoji = (text.match(EMOJI) ?? []).length;
+  const letters = text.replace(/[^\p{L}]/gu, "");
+  const caps = letters.length >= 2 && letters === letters.toUpperCase() && /\p{Lu}/u.test(letters);
+  if (caps || stretch >= 2 || bangs >= 2 || emoji >= 2) return "hype";
+  const signals = (stretch > 0 ? 1 : 0) + (bangs > 0 ? 1 : 0) + (emoji > 0 ? 1 : 0);
+  return signals >= 3 ? "hype" : signals >= 1 ? "warm" : "calm";
+}
+
+/**
+ * A message that is only a greeting (hi, hey, hello, yo, hiya) or thanks (thanks, thank you, ty,
+ * thx), after normalising. Anything else, including typos this doesn't catch, goes to Groq.
+ */
+export function matchSmallTalk(text: string): SmallTalkMatch | null {
+  if (/\p{N}/u.test(text)) return null; // "hi 2" isn't small talk
+  const hit = WORDS[normaliseSmallTalk(text)];
+  if (!hit) return null;
+  const typed = text.replace(/[^\p{L}]/gu, "").length;
+  const stretch = Math.max(0, typed - hit.word.replace(/\s/g, "").length);
+  return { kind: hit.kind, word: hit.word, energy: smallTalkEnergy(text, stretch), stretch };
+}
+
+const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
+/** "Hi" stretched like the person typed it, 2–5 extra letters ("Hiiii"). */
+const stretchy = (word: string, stretch: number) =>
+  word + word.slice(-1).repeat(Math.min(5, Math.max(2, stretch)));
+
+type Line = (name: string | null, stretch: number, word: string) => string;
+const named = (word: string, name: string | null, end = "!") =>
+  name ? `${word} ${name}${end}` : `${word}${end}`;
+const after = (word: string, name: string | null, end = "!") =>
+  name ? `${word}, ${name}${end}` : `${word}${end}`;
+
+/** Blip's voice, 1–2 emoji, ending with a nudge back to the data. Rotated per kind. */
+export const SMALL_TALK_LINES: Record<SmallTalk, Record<Energy, Line[]>> = {
+  greeting: {
+    calm: [
+      (n) => `${named("Hi", n, ".")} 👋 What should we look at today?`,
+      (n) => `${named("Hello", n, ".")} 🙂 Ask me about any brand, format or post.`,
+      (n) => `${named("Hey", n, ".")} 👋 Want to see what changed since the last pull?`,
+    ],
+    warm: [
+      (n) =>
+        `${named("Hey", n)} 👋 Ready when you are. Want to see what changed since the last pull?`,
+      (n) => `${named("Hi", n)} ✨ Good to see you. What should we dig into?`,
+      (n) => `${named("Hello", n)} 🙌 Ask me about any brand, format or post.`,
+    ],
+    hype: [
+      (n, s, w) =>
+        `${named(stretchy(cap(w), s), n)} 🚀 Love the energy. Want the top post from this pull?`,
+      (n, s, w) =>
+        `${named(stretchy(cap(w), s), n)} 🙌 Let’s find something good. Who should we look at first?`,
+      (n, s, w) =>
+        `${named(stretchy(cap(w), s), n)} ✨ Ready to dig in? What changed since the last pull is a fun start.`,
+    ],
+  },
+  thanks: {
+    calm: [
+      (n) => `${after("Anytime", n, ".")} 🙂 Shout if you want to look at anything else.`,
+      (n) => `${after("Happy to help", n, ".")} 👍 I’m here for the next question.`,
+      (n) => `${after("You’re welcome", n, ".")} 🙂 Want 3 post ideas from this pull next?`,
+    ],
+    warm: [
+      (n) => `${after("Anytime", n)} 🙌 Shout if you want to dig into anything else.`,
+      (n) => `${after("Happy to help", n)} ✨ I’m here when the next question pops up.`,
+      (n) => `${after("You got it", n)} 🎯 Want 3 post ideas from this pull next?`,
+    ],
+    hype: [
+      (n, s) => `${after(stretchy("Yes", s), n)} 🙌 We make a good team. What’s next?`,
+      (n, s) => `${after(stretchy("Anytime", s), n)} 🚀 Want 3 post ideas while we’re on a roll?`,
+      (n) => `${after("Love that", n)} 🎉 Let’s keep going, which brand next?`,
+    ],
+  },
+};
+
+/** The `turn`-th reply of this kind in the thread (0, 1, 2, … wraps around). */
+export function smallTalkReply(m: SmallTalkMatch, firstName: string | null, turn: number): string {
+  const lines = SMALL_TALK_LINES[m.kind][m.energy];
+  return lines[turn % lines.length](firstName, m.stretch, m.word);
+}
+
 export type Message =
   | { id: number; question: string; status: "pending" }
-  | { id: number; question: string; status: "done"; answer: BlipAnswer }
+  | {
+      id: number;
+      question: string;
+      status: "done";
+      answer: BlipAnswer;
+      /** Answered in code (small talk): not sent back to Groq as history. */
+      local?: SmallTalk;
+    }
   | { id: number; question: string; status: "error"; kind: "rate_limited" | "no_pull" | "failed" };
 
-/** The last 2 answered turns, sent with a new question so follow-ups make sense. */
+/** The last 2 answered turns from Groq, sent with a new question so follow-ups make sense. */
 export function historyFrom(messages: Message[]): AskTurn[] {
   return messages
-    .filter((m): m is Extract<Message, { status: "done" }> => m.status === "done")
+    .filter((m): m is Extract<Message, { status: "done" }> => m.status === "done" && !m.local)
     .slice(-2)
     .map((m) => ({ q: m.question, a: answerText(m.answer) }));
 }

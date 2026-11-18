@@ -51,7 +51,8 @@ export type SourcePost = {
 
 // ───────────────────────────── ask-blip
 export type AskTurn = { q: string; a: string };
-export type BlipAnswer = {
+export type BlipInsight = {
+  type: "insight";
   lead: string;
   points: string[];
   forClient: string;
@@ -61,11 +62,16 @@ export type BlipAnswer = {
   sources: SourcePost[];
   pull: { id: string; startedAt: string };
 };
+/** Small talk: one or two warm sentences, no sources, nothing to add to the board. */
+export type BlipChat = { type: "chat"; message: string };
+export type BlipAnswer = BlipInsight | BlipChat;
+
 export const askBlip = (clientId: string, question: string, history: AskTurn[]) =>
   call<BlipAnswer>("ask-blip", { clientId, question, history });
 
 /** An answer as one short text: the history Blip gets for follow-ups, and what "Copy" copies. */
-export function answerText(a: Pick<BlipAnswer, "lead" | "points" | "forClient">): string {
+export function answerText(a: BlipAnswer): string {
+  if (a.type === "chat") return a.message;
   return [a.lead, ...a.points.map((p, i) => `${i + 1}. ${p}`), a.forClient]
     .filter(Boolean)
     .join("\n");

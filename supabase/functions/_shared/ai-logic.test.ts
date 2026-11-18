@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ASK_SCHEMA,
   bestFormat,
+  capEmoji,
+  CHAT_CHARS,
   bestSlot,
   buildSummary,
   clip,
@@ -31,6 +33,7 @@ import {
   validatePlan,
 } from "./ai-logic.ts";
 import {
+  ASK_CHAT_RULES,
   askSystem,
   BLIP_VOICE_CHAT,
   BLIP_VOICE_JSON,
@@ -355,6 +358,8 @@ describe("inputs from the browser", () => {
 describe("validateAskAnswer", () => {
   const refs = ["id-1", "id-2", "id-3"];
   const good = {
+    type: "insight",
+    message: "",
     lead: "Hims is winning with short doctor Q&A videos 🎯",
     points: [
       "9 of their top 10 posts are Q&A [post:p1]",
@@ -365,8 +370,14 @@ describe("validateAskAnswer", () => {
     in_data: true,
   };
 
+  const insight = (raw: unknown) => {
+    const a = validateAskAnswer(raw, refs);
+    if (a?.type !== "insight") throw new Error(`expected an insight, got ${JSON.stringify(a)}`);
+    return a;
+  };
+
   it("maps refs (listed and inline) to post ids, drops unknown ones, removes inline markers", () => {
-    const a = validateAskAnswer(good, refs)!;
+    const a = insight(good);
     expect(a.postIds).toEqual(["id-1", "id-2", "id-3"]);
     expect(a.points[0]).toBe("9 of their top 10 posts are Q&A");
     expect(a.lead).toContain("🎯"); // emojis are fine in chat
@@ -376,12 +387,74 @@ describe("validateAskAnswer", () => {
     expect(validateAskAnswer({ ...good, in_data: "yes" }, refs)).toBeNull();
     expect(validateAskAnswer({ ...good, lead: "" }, refs)).toBeNull();
     expect(validateAskAnswer(null, refs)).toBeNull();
+    expect(validateAskAnswer({ ...good, type: undefined }, refs)).toBeNull();
+    expect(validateAskAnswer({ ...good, type: "joke" }, refs)).toBeNull();
   });
 
   it("caps points at 5", () => {
-    expect(validateAskAnswer({ ...good, points: Array(9).fill("x") }, refs)!.points).toHaveLength(
-      5,
-    );
+    expect(insight({ ...good, points: Array(9).fill("x") }).points).toHaveLength(5);
+  });
+
+  // Chat mode (AI_PROMPTS.md §1). Mocked model replies for each case; the real choice of type is
+  // only checked against Groq after deploying (STATUS.md › What's next).
+  const chat = (message: string) => ({
+    type: "chat",
+    message,
+    lead: "",
+    points: [],
+    for_client: "",
+    post_refs: [],
+    in_data: false,
+  });
+
+  it.each([
+    ["greeting", "Hey Fatima! 👋 Want to see what changed since the last pull?"],
+    ["hype", "LETS GOOO 🚀🔥 Hims just had its best week, want the top post?"],
+    ["thanks", "Anytime! 🙌 Want 3 post ideas from this pull next?"],
+    [
+      "feelings",
+      "Love is a bit above my pay grade 😄 but I do love a good carousel. Peek at Hims?",
+    ],
+    ["stressed", "That sounds like a lot. Let’s keep it simple: want the one post worth copying?"],
+    [
+      "off-topic",
+      "I’ll leave the weather to the experts ☀️ Want to see Tuesday’s best slot instead?",
+    ],
+    [
+      "medical",
+      "I can’t give medical advice, a clinician is the right person for that. Want to see how brands talk about it?",
+    ],
+  ])("chat (%s): message only, no sources or idea", (_case, message) => {
+    expect(validateAskAnswer(chat(message), refs)).toEqual({ type: "chat", message });
+  });
+
+  it("chat: ignores insight fields the model filled anyway", () => {
+    const a = validateAskAnswer({ ...chat("Hi! 👋"), lead: "x", post_refs: ["p1"] }, refs);
+    expect(a).toEqual({ type: "chat", message: "Hi! 👋" });
+  });
+
+  it("chat: keeps 2 emoji at most, strips p-refs, clips long replies", () => {
+    expect(validateAskAnswer(chat("So hyped 🚀🔥🎉🙌 lets go"), refs)).toEqual({
+      type: "chat",
+      message: "So hyped 🚀🔥 lets go",
+    });
+    expect(validateAskAnswer(chat("Nice one [p2] 🎯"), refs)).toEqual({
+      type: "chat",
+      message: "Nice one 🎯",
+    });
+    const long = validateAskAnswer(chat("word ".repeat(100)), refs);
+    expect(long?.type === "chat" && long.message.length).toBeLessThanOrEqual(CHAT_CHARS);
+  });
+
+  it("chat: an empty or missing message is retried (null)", () => {
+    expect(validateAskAnswer(chat("   "), refs)).toBeNull();
+    expect(validateAskAnswer(chat("[p1]"), refs)).toBeNull();
+    expect(validateAskAnswer({ ...chat("x"), message: 3 }, refs)).toBeNull();
+  });
+
+  it("capEmoji counts a ZWJ sequence, skin tone or flag as one", () => {
+    expect(capEmoji("a 👩‍💻 b 👋🏽 c 🇺🇸 d", 2)).toBe("a 👩‍💻 b 👋🏽 c d");
+    expect(capEmoji("no emoji", 2)).toBe("no emoji");
   });
 
   it("turns 'For {client}:' into plain idea text", () => {
@@ -580,6 +653,21 @@ describe("prompts", () => {
       expect(p).toContain(BLIP_VOICE_JSON);
       expect(p).toMatch(/no emojis/i);
     }
+  });
+
+  it("ask prompt has chat mode: when, tone, honesty, stressed, unsafe, and empty insight fields", () => {
+    const p = askSystem({ client: "OBU Health", firstName: "Fatima" });
+    expect(p).toContain(ASK_CHAT_RULES);
+    expect(p).toMatch(/type "chat"/);
+    expect(p).toMatch(/type "insight"/);
+    expect(ASK_CHAT_RULES).toMatch(/greetings, hype, thanks, feelings/);
+    expect(ASK_CHAT_RULES).toMatch(/1-2 short sentences/);
+    expect(ASK_CHAT_RULES).toMatch(/lets gooo/);
+    expect(ASK_CHAT_RULES).toMatch(/nudge back to the data/);
+    expect(ASK_CHAT_RULES).toMatch(/never claim real feelings or to be human/);
+    expect(ASK_CHAT_RULES).toMatch(/pay grade/);
+    expect(ASK_CHAT_RULES).toMatch(/Stressed or upset: calm and caring, no jokes, no emojis/);
+    expect(ASK_CHAT_RULES).toMatch(/Never give medical/);
   });
 
   it("plan prompt says there's no data from last year", () => {

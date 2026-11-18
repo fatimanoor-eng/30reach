@@ -1,7 +1,10 @@
 // `ask-blip` Edge Function: Ask Blip (12 / M11), Slice 11. Prompt: AI_PROMPTS.md §1.
 //
 // POST { clientId, question, history?: [{ q, a }] } →
-//   200 { lead, points[], forClient, idea, inData, sources: SourcePost[], pull: { id, startedAt } }
+//   200 { type: "insight", lead, points[], forClient, idea, inData, sources: SourcePost[],
+//         pull: { id, startedAt } }
+//   200 { type: "chat", message }             small talk: greetings, hype, thanks, feelings, off-topic
+//                                             (bare "hi" / "thanks" are answered in the browser, no call)
 //   400 { error: "bad_client" | "empty_question" | "question_too_long" }
 //   409 { error: "no_pull" }                 nothing to answer from yet (Groq isn't called)
 //   429 { error: "rate_limited", retryAfter } Groq asked us to slow down
@@ -57,7 +60,9 @@ export default {
     if (!result.ok) return aiFailure(result);
 
     const a = result.value;
+    if (a.type === "chat") return json({ type: "chat", message: a.message });
     return json({
+      type: "insight",
       lead: a.lead,
       points: a.points,
       forClient: a.forClient,

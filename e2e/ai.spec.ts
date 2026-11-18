@@ -25,6 +25,7 @@ const PREVIOUS = { id: "pull-old", started_at: "2026-11-06T10:00:00Z", status: "
 const isPhone = (page: Page) => (page.viewportSize()?.width ?? 0) < 768;
 
 const ANSWER = {
+  type: "insight",
   lead: "Hims is winning with short doctor Q&A videos on TikTok 🎯",
   points: [
     "Format: 5 of Hims’ 6 TikToks are Q&A videos, averaging 9.8K likes vs 3.1K on Instagram.",
@@ -313,6 +314,60 @@ test("Ask Blip — answers from the pull, cites posts, adds the idea (12 / M11)"
   await expect(dialog).toBeHidden();
   await openAskBlip(page);
   await expect(dialog.getByText("Why is Hims doing better on TikTok?")).toBeVisible();
+});
+
+test("Ask Blip — chat replies: small talk from Groq, bare hi / thanks answered in code", async ({
+  page,
+}, info) => {
+  const CHAT = {
+    type: "chat",
+    message: "LETS GOOO 🚀 Hims just had a big week, want the top post?",
+  };
+  const { sent } = await setup(page, { "ask-blip": (r) => r.fulfill(json(CHAT)) });
+  await open(page, "/overview");
+  const dialog = await openAskBlip(page);
+  const box = dialog.getByRole("textbox", { name: "Ask Blip a question" });
+
+  // A bare greeting / thanks never reaches the function, and the lines rotate.
+  await box.fill("Hey! 👋");
+  await page.keyboard.press("Enter");
+  await expect(
+    dialog.getByText(
+      "Hey Fatima! 👋 Ready when you are. Want to see what changed since the last pull?",
+    ),
+  ).toBeVisible();
+  await box.fill("hiiii!!");
+  await page.keyboard.press("Enter");
+  await expect(
+    dialog.getByText("Hiiii Fatima! 🙌 Let’s find something good. Who should we look at first?"),
+  ).toBeVisible();
+
+  // Hype goes to Groq; the chat reply has no sources and nothing to add to the board.
+  await box.fill("lets gooo");
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByText(CHAT.message)).toBeVisible();
+  expect(sent["ask-blip"]).toHaveLength(1);
+  expect(sent["ask-blip"][0]).toMatchObject({ question: "lets gooo", history: [] });
+  await expect(dialog.getByText(/Based on \d+ post/)).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Add idea to board" })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Copy" })).toHaveCount(0); // insights only
+
+  await box.fill("thank you!");
+  await page.keyboard.press("Enter");
+  await expect(
+    dialog.getByText("Anytime, Fatima! 🙌 Shout if you want to dig into anything else."),
+  ).toBeVisible();
+  expect(sent["ask-blip"]).toHaveLength(1);
+
+  // Code-written replies aren't sent back as history; Groq's chat reply is.
+  await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
+  await expect.poll(() => sent["ask-blip"].length).toBe(2);
+  expect(sent["ask-blip"][1].history).toEqual([{ q: "lets gooo", a: CHAT.message }]);
+  await expect(dialog.getByText(CHAT.message)).toHaveCount(2);
+
+  if (isPhone(page)) await tapTargetsOk(page);
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot(`ask-blip-chat-${info.project.name}.png`);
 });
 
 test("Ask Blip — rate limit and errors use Blip's voice", async ({ page }) => {
