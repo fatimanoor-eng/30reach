@@ -4,40 +4,21 @@ import { Avatar } from "../../components/Avatar";
 import { Button } from "../../components/Button";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Drawer } from "../../components/Drawer";
-import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { Tooltip } from "../../components/Tooltip";
 import { useAuth } from "../../lib/auth/auth-context";
 import { initialsFor } from "../../lib/auth/domain";
 import { useProfile } from "../../lib/auth/useProfile";
 import { useToast } from "../../components/toast-context";
-import {
-  FORMAT_NAME,
-  FORMATS,
-  PLATFORM_LABEL,
-  PLATFORM_TINT,
-  type CalendarCard,
-  type CardPlatform,
-} from "./calendar-ui";
+import { PLATFORM_TINT, type CalendarCard, type CardPlatform } from "./calendar-ui";
 import { dateRelation, editedAgo } from "./card-time";
 import { deleteCard, saveCard, type CardFields } from "./cards-api";
 import { todayIso, type IsoDay } from "./events/dates";
 import { shortDay } from "./format";
-import { DateChip, SelectChip, type ChipOption } from "./SelectChip";
+import { formatFor, formatOptions as optionsFor, PLATFORM_OPTIONS } from "./platform-options";
+import { DateChip, SelectChip } from "./SelectChip";
 import { StatusPills } from "./StatusPills";
 
 const COMING_SOON = "Coming soon";
-const PLATFORM_OPTIONS: ChipOption<CardPlatform>[] = [
-  {
-    value: "instagram",
-    label: PLATFORM_LABEL.instagram,
-    icon: <InstagramIcon size={15} aria-hidden="true" />,
-  },
-  {
-    value: "tiktok",
-    label: PLATFORM_LABEL.tiktok,
-    icon: <TikTokIcon size={15} aria-hidden="true" />,
-  },
-];
 
 /**
  * 09 card detail (drawer from 768 px) / M08 (full-screen page with a back arrow and a sticky Save bar).
@@ -94,7 +75,7 @@ export function CardPanel({
       ...f,
       platform,
       // keep the format only if the new platform has it
-      format: platform && f.format && FORMATS[platform].includes(f.format) ? f.format : null,
+      format: formatFor(platform, f.format),
     }));
 
   const save = async () => {
@@ -144,9 +125,7 @@ export function CardPanel({
     void queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
   };
 
-  const formatOptions: ChipOption<string>[] = (fields.platform ? FORMATS[fields.platform] : []).map(
-    (f) => ({ value: f, label: FORMAT_NAME[f] }),
-  );
+  const formatOptions = optionsFor(fields.platform);
   // Who / when: the card's creator and last edit; a new post shows you and the chosen day only.
   const who = card ? (card.creator?.full_name ?? null) : (profile.data?.full_name ?? null);
   const whoInitials = initialsFor(who, card ? "?" : (user?.email ?? "?"));

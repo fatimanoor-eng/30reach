@@ -1,6 +1,14 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
 import { NOW } from "./overview-fixtures";
+import { readFileSync } from "node:fs";
+
+const us2026: unknown = JSON.parse(
+  readFileSync(
+    new URL("../supabase/functions/holidays/fixtures/us-2026.json", import.meta.url),
+    "utf8",
+  ),
+);
 
 /*
  * Slice 10a Idea board (14a / 14b / M09). An in-memory `ideas` table answers GET / POST, and the
@@ -21,6 +29,8 @@ const idea = (id: string, kind: string, extra: Partial<Row> = {}): Row => ({
   kind,
   note: null,
   image_path: null,
+  image_width: null,
+  image_height: null,
   link_url: null,
   source_snapshot: null,
   platform: null,
@@ -37,7 +47,9 @@ const idea = (id: string, kind: string, extra: Partial<Row> = {}): Row => ({
 const SEED: Row[] = [
   idea("i1", "screenshot", {
     note: "“Day in my life on a plan” videos are everywhere this week. Try an OBU clinician version.",
-    image_path: "client-1/i1.webp",
+    image_path: "client-1/i1.webp", // portrait phone screenshot → 1×2
+    image_width: 739,
+    image_height: 1600,
     platform: "tiktok",
     tags: ["Trend", "Video"],
     created_at: daysAgo(2),
@@ -51,7 +63,9 @@ const SEED: Row[] = [
   }),
   idea("i3", "screenshot", {
     note: "Love this carousel cover: big number, tiny subtitle. Use for “5 swaps” post.",
-    image_path: "client-1/i3.webp",
+    image_path: "client-1/i3.webp", // landscape → 2×1
+    image_width: 1600,
+    image_height: 900,
     platform: "instagram",
     tags: ["Design", "Carousel"],
     created_at: daysAgo(7),
@@ -73,6 +87,9 @@ const SEED: Row[] = [
   }),
   idea("i6", "post", {
     note: "3 things nobody tells you about starting treatment",
+    image_path: "client-1/i6.webp", // copied thumbnail (Slice 10c), portrait → 1×2
+    image_width: 480,
+    image_height: 600,
     platform: "instagram",
     format: "reel",
     source_snapshot: {
@@ -95,7 +112,9 @@ const SEED: Row[] = [
   }),
   idea("i8", "screenshot", {
     note: "Comment section full of “is this covered by insurance?” Worth a FAQ post.",
-    image_path: "client-1/i8.webp",
+    image_path: "client-1/i8.webp", // square → 1×2
+    image_width: 1000,
+    image_height: 1000,
     platform: "instagram",
     tags: ["Audience question"],
     created_at: daysAgo(14),
@@ -106,17 +125,48 @@ const SEED: Row[] = [
 const svg = (w: number, h: number, fill: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="${fill}"/></svg>`;
 const IMAGES: Record<string, string> = {
-  "client-1/i1.webp": svg(400, 520, "#b0e9fd"),
-  "client-1/i3.webp": svg(400, 380, "#f4eb02"),
-  "client-1/i8.webp": svg(400, 470, "#d1e0d4"),
+  "client-1/i1.webp": svg(370, 800, "#b0e9fd"),
+  "client-1/i3.webp": svg(800, 450, "#f4eb02"),
+  "client-1/i8.webp": svg(500, 500, "#d1e0d4"),
+  "client-1/i6.webp": svg(480, 600, "#f8678f"),
 };
 
-type Upload = { path: string; bytes: number; webp: boolean };
+type Upload = { path: string; bytes: number; webp: boolean; jpeg: boolean };
 
-async function setup(page: Page, { seed = SEED, failList = false } = {}) {
+type Comment = {
+  id: string;
+  idea_id: string;
+  body: string;
+  created_at: string;
+  author: { full_name: string };
+};
+const COMMENTS: Comment[] = [
+  {
+    id: "c1",
+    idea_id: "i1",
+    body: "Love this. Could open our January series.",
+    created_at: daysAgo(1),
+    author: { full_name: "Ahmad Raza" },
+  },
+  {
+    id: "c2",
+    idea_id: "i1",
+    body: "Keep it short, under 30 seconds.",
+    created_at: daysAgo(0),
+    author: { full_name: "Sherry Khan" },
+  },
+];
+
+async function setup(
+  page: Page,
+  { seed = SEED, failList = false, planError = null as string | null } = {},
+) {
   const rows: Row[] = seed.map((r) => ({ ...r }));
   const inserts: Record<string, unknown>[] = [];
   const uploads: Upload[] = [];
+  const comments: Comment[] = COMMENTS.map((c) => ({ ...c }));
+  const calls: { method: string; url: string; body: unknown }[] = [];
+  const removed: string[] = [];
   await page.clock.setFixedTime(NOW);
   await stubSupabase(page);
   await signInAs(page);
@@ -140,7 +190,68 @@ async function setup(page: Page, { seed = SEED, failList = false } = {}) {
       );
       return r.fulfill({ status: 201, body: "" });
     }
+    const id = new URL(req.url()).searchParams.get("id")?.replace("eq.", "");
+    if (req.method() === "PATCH") {
+      const body = req.postDataJSON() as Record<string, unknown>;
+      calls.push({ method: "PATCH", url: req.url(), body });
+      Object.assign(
+        rows.find((x) => x.id === id)!,
+        body,
+      );
+      return r.fulfill({ status: 204 });
+    }
+    if (req.method() === "DELETE") {
+      calls.push({ method: "DELETE", url: req.url(), body: null });
+      rows.splice(
+        rows.findIndex((x) => x.id === id),
+        1,
+      );
+      return r.fulfill({ status: 204 });
+    }
     return r.fallback();
+  });
+
+  await page.route("**/rest/v1/idea_comments**", async (r: Route) => {
+    const req = r.request();
+    if (req.method() === "GET") {
+      const ideaId = new URL(req.url()).searchParams.get("idea_id")?.replace("eq.", "");
+      return r.fulfill(json(comments.filter((c) => c.idea_id === ideaId)));
+    }
+    const body = req.postDataJSON() as { idea_id: string; body: string };
+    calls.push({ method: "POST comment", url: req.url(), body });
+    comments.push({
+      id: `c${comments.length + 1}`,
+      ...body,
+      created_at: NOW.toISOString(),
+      author: { full_name: "Fatima Noor" },
+    });
+    return r.fulfill({ status: 201, body: "" });
+  });
+
+  // plan_idea: makes the card and marks the idea planned (like the SQL function).
+  await page.route("**/rest/v1/rpc/plan_idea", async (r: Route) => {
+    const body = r.request().postDataJSON() as Record<string, string>;
+    calls.push({ method: "RPC plan_idea", url: r.request().url(), body });
+    if (planError) return r.fulfill(json({ code: "P0001", message: planError }, 400));
+    const card = { id: "card-new", date: body.p_date };
+    const row = rows.find((x) => x.id === body.p_idea_id)!;
+    Object.assign(row, { planned_card_id: card.id, planned: card });
+    return r.fulfill(json({ ...card, title: body.p_title, status: "idea", origin: "idea" }));
+  });
+
+  // Holidays for the Plan it calendar's dots (2026 from the real Nager response).
+  await page.route("**/rest/v1/holiday_cache**", (r) => {
+    const year = new URL(r.request().url()).searchParams.get("year");
+    const single = (r.request().headers()["accept"] ?? "").includes("vnd.pgrst.object");
+    const row = { data: year === "eq.2026" ? us2026 : [], fetched_at: NOW.toISOString() };
+    return r.fulfill(json(single ? row : [row]));
+  });
+
+  // Remove images: DELETE /storage/v1/object/idea-images { prefixes }
+  await page.route("**/storage/v1/object/idea-images", async (r) => {
+    const { prefixes } = r.request().postDataJSON() as { prefixes: string[] };
+    removed.push(...prefixes);
+    return r.fulfill(json(prefixes.map((name) => ({ name }))));
   });
 
   // Upload: POST /storage/v1/object/idea-images/{path}
@@ -152,6 +263,7 @@ async function setup(page: Page, { seed = SEED, failList = false } = {}) {
       path,
       bytes: body.length,
       webp: body.includes("image/webp") || body.subarray(8, 12).toString() === "WEBP",
+      jpeg: body.includes("image/jpeg") || (body[0] === 0xff && body[1] === 0xd8),
     });
     IMAGES[path] = svg(400, 300, "#e9e9e3");
     return r.fulfill(json({ Key: `idea-images/${path}`, Id: "x" }));
@@ -179,7 +291,7 @@ async function setup(page: Page, { seed = SEED, failList = false } = {}) {
     });
   });
 
-  return { rows, inserts, uploads };
+  return { rows, inserts, uploads, calls, removed };
 }
 
 async function open(page: Page, path = "/ideas") {
@@ -255,6 +367,42 @@ test("ideas — board like Figma 14b / M09", async ({ page }, info) => {
   await expect(page).toHaveScreenshot(`ideas-board-${info.project.name}.png`, { fullPage: true });
 });
 
+test("ideas — bento tiles are sized from their content", async ({ page }) => {
+  await setup(page);
+  await open(page);
+  const tile = (text: string) => page.locator("[data-tile]").filter({ hasText: text });
+  const box = async (text: string) => (await tile(text).boundingBox())!;
+  const rowH = isDesktop(page) ? 180 : 150;
+
+  // Landscape → 2×1, portrait and square → 1×2, notes and links → 1×1.
+  await expect(tile("Love this carousel cover")).toHaveAttribute("data-tile", "2x1");
+  await expect(tile("Day in my life")).toHaveAttribute("data-tile", "1x2");
+  await expect(tile("covered by insurance")).toHaveAttribute("data-tile", "1x2");
+  await expect(tile("Brand using a soft yellow")).toHaveAttribute("data-tile", "1x1");
+  expect(Math.round((await box("Brand using a soft yellow")).height)).toBe(rowH);
+  const wide = await box("Love this carousel cover");
+  const one = await box("Brand using a soft yellow");
+  expect(wide.width).toBeGreaterThan(one.width * 2);
+  expect(Math.round(wide.height)).toBe(rowH);
+
+  // The newest idea (Blip's, today) is the 2×2 feature on desktop only.
+  const feature = tile("Weekly clinician Q&A");
+  if ((page.viewportSize()?.width ?? 0) >= 1200) {
+    await expect(feature).toHaveAttribute("data-tile", "2x2");
+    const f = await box("Weekly clinician Q&A");
+    expect(Math.round(f.height)).toBe(rowH * 2 + 16);
+  } else {
+    await expect(feature).toHaveAttribute("data-tile", "1x1");
+    await expect(page.locator('[data-tile="2x2"]')).toHaveCount(0);
+  }
+
+  // Long text ends in an ellipsis inside the tile instead of spilling out.
+  for (const el of await page.locator("[data-tile]").all()) {
+    const spills = await el.evaluate((t) => t.scrollHeight > t.clientHeight + 1);
+    expect(spills, await el.innerText()).toBe(false);
+  }
+});
+
 test("ideas — planned badge opens its calendar card", async ({ page }) => {
   await setup(page);
   await open(page);
@@ -318,7 +466,34 @@ test("ideas — paste a screenshot, compress, add a note and tag, save (14a)", a
     note: "Clinician version of this trend",
     tags: ["Trend"],
     image_path: up.path,
+    // 2400 × 1600 pasted → at most 1600 px on the long side, saved with the idea.
+    image_width: 1600,
+    image_height: 1067,
   });
+});
+
+test("ideas — browser without WebP saves a JPEG instead", async ({ page }) => {
+  test.skip(!isDesktop(page), "keyboard paste is a desktop/tablet action");
+  // Like older Safari: a canvas asked for WebP hands back a PNG.
+  await page.addInitScript(() => {
+    const toBlob = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function (cb, type, quality) {
+      return toBlob.call(this, cb, type === "image/webp" ? "image/png" : type, quality);
+    };
+  });
+  const { inserts, uploads } = await setup(page);
+  await open(page);
+  await pasteImage(page);
+  const draft = page.getByRole("article", { name: "Unsaved screenshot" });
+  await expect(draft.getByRole("img", { name: "Screenshot to save" })).toBeVisible();
+  await draft.getByRole("button", { name: "Save idea" }).click();
+  await expect(page.getByText("Saved to idea board")).toBeVisible();
+  const [up] = uploads;
+  expect(up.path).toBe(`client-1/${String(inserts[0].id)}.jpg`);
+  expect(up.jpeg).toBe(true);
+  expect(up.webp).toBe(false);
+  expect(up.bytes).toBeLessThan(205 * 1024);
+  expect(inserts[0]).toMatchObject({ image_path: up.path });
 });
 
 test("ideas — paste on another page opens the board; plain text there is ignored", async ({
@@ -477,11 +652,197 @@ test("ideas — empty board", async ({ page }, info) => {
 test("ideas — loading fails, then retry works", async ({ page }) => {
   await setup(page, { failList: true });
   await open(page);
-  await expect(page.getByRole("heading", { name: "Couldn't load ideas" })).toBeVisible({
+  await expect(page.getByRole("heading", { name: "Ideas didn’t load" })).toBeVisible({
     timeout: 15_000,
   });
   await page.unroute("**/rest/v1/ideas**");
   await page.route("**/rest/v1/ideas**", (r) => r.fulfill(json(SEED)));
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("button", { name: "All · 8" })).toBeVisible();
+});
+
+// ───────────────────────────── 10b: idea detail (14c) and Plan it (14d)
+
+const DAY_IN_MY_LIFE = /^Open idea: “Day in my life on a plan”/;
+
+async function openDetail(page: Page, name = DAY_IN_MY_LIFE) {
+  await page.getByRole("button", { name }).click();
+  const drawer = page.getByRole("dialog", { name: "Idea", exact: true });
+  await expect(drawer).toBeVisible();
+  await page.waitForTimeout(300); // drawer slide-in
+  return drawer;
+}
+
+test("idea detail — 14c full image, note, tags, comments", async ({ page }, info) => {
+  await setup(page);
+  await open(page);
+  const drawer = await openDetail(page);
+  await expect(page).toHaveURL(/[?&]idea=i1(&|$)/);
+  await expect(drawer.getByText("SCREENSHOT  ·  FATIMA  ·  2 DAYS AGO")).toBeVisible();
+  // The full image: not cropped.
+  const img = drawer.locator('img[src*="i1.webp"]');
+  await expect(img).toBeVisible();
+  expect(await img.evaluate((el) => getComputedStyle(el).objectFit)).toBe("contain");
+  await expect(drawer.getByText("“Day in my life on a plan” videos are everywhere")).toBeVisible();
+  await expect(drawer.getByRole("button", { name: "Remove tag Trend" })).toBeVisible();
+  await expect(drawer.getByText("Love this. Could open our January series.")).toBeVisible();
+  await expect(drawer.getByText("Keep it short, under 30 seconds.")).toBeVisible();
+  await expect(drawer.getByRole("button", { name: "Delete idea" })).toBeVisible();
+  await expect(drawer.getByRole("button", { name: "Plan it" })).toBeVisible();
+  if (!isDesktop(page)) {
+    await expect(drawer.getByRole("button", { name: "Ideas" })).toBeVisible(); // ‹ Ideas
+    await tapTargetsOk(page);
+  }
+  await expect(page).toHaveScreenshot(`idea-detail-${info.project.name}.png`);
+
+  // Esc closes it and clears the URL.
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeHidden();
+  await expect(page).not.toHaveURL(/idea=/);
+});
+
+test("idea detail — planned idea links to its card instead of Plan it", async ({ page }) => {
+  await setup(page);
+  await open(page, "/ideas?idea=i5");
+  const drawer = page.getByRole("dialog", { name: "Idea", exact: true });
+  await expect(drawer.getByRole("button", { name: "Plan it" })).toHaveCount(0);
+  await drawer.getByRole("link", { name: "Planned · Tue 5 Jan" }).click();
+  await expect(page).toHaveURL(/\/calendar\?date=2027-01-05&card=k1$/);
+});
+
+test("idea detail — a link to a deleted idea says so", async ({ page }) => {
+  await setup(page);
+  await open(page, "/ideas?idea=gone");
+  await expect(page.getByText("That idea isn’t on the board any more")).toBeVisible();
+  await expect(page).not.toHaveURL(/idea=/);
+});
+
+test("idea detail — add a comment (Enter posts)", async ({ page }) => {
+  const { calls } = await setup(page);
+  await open(page);
+  const drawer = await openDetail(page);
+  const box = drawer.getByRole("textbox", { name: "Add a comment" });
+  await box.fill("Let’s film it next week");
+  await box.press("Enter");
+  await expect(drawer.getByText("Let’s film it next week")).toBeVisible();
+  await expect(box).toHaveValue("");
+  expect(calls.find((c) => c.method === "POST comment")?.body).toEqual({
+    idea_id: "i1",
+    body: "Let’s film it next week",
+  });
+});
+
+test("idea detail — edit tags (saved straight away)", async ({ page }) => {
+  const { calls } = await setup(page);
+  await open(page);
+  const drawer = await openDetail(page);
+  await drawer.getByRole("button", { name: "Remove tag Trend" }).click();
+  await drawer.getByRole("button", { name: "+ tag" }).click();
+  await drawer.getByRole("textbox", { name: "New tag" }).fill("Clinician");
+  await drawer.getByRole("textbox", { name: "New tag" }).press("Enter");
+  await expect(drawer.getByRole("button", { name: "Remove tag Clinician" })).toBeVisible();
+  await expect
+    .poll(() => calls.filter((c) => c.method === "PATCH").map((c) => c.body))
+    .toEqual([{ tags: ["Video"] }, { tags: ["Video", "Clinician"] }]);
+});
+
+test("idea detail — delete with the shared confirm", async ({ page }) => {
+  const { calls, removed } = await setup(page);
+  await open(page);
+  const drawer = await openDetail(page);
+  await drawer.getByRole("button", { name: "Delete idea" }).click();
+  const confirm = page.getByRole("dialog", { name: "Delete this idea?" });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole("button", { name: "Delete idea" }).click();
+  await expect(page.getByText("Deleted the idea")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Idea", exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: DAY_IN_MY_LIFE })).toHaveCount(0);
+  expect(calls.some((c) => c.method === "DELETE" && c.url.includes("id=eq.i1"))).toBe(true);
+  expect(removed).toEqual(["client-1/i1.webp"]);
+});
+
+test("Plan it — 14d pick a day, platform and format → calendar card", async ({ page }, info) => {
+  const { calls } = await setup(page);
+  await open(page);
+  const drawer = await openDetail(page);
+  await drawer.getByRole("button", { name: "Plan it" }).click();
+  const plan = page.getByRole("dialog", { name: "Plan this idea" });
+  await expect(plan).toBeVisible();
+
+  // November 2026: yellow dots on event days (Thanksgiving), no picking the past.
+  await expect(plan.getByText("November 2026")).toBeVisible();
+  await expect(plan.getByRole("button", { name: /^Monday 16 November/ })).toBeDisabled();
+  await expect(plan.getByRole("button", { name: /^Tuesday 17 November, today/ })).toBeFocused();
+  const thanksgiving = plan.getByRole("button", { name: /^Thursday 26 November.*Thanksgiving/ });
+  await expect(thanksgiving).toBeVisible();
+  await expect(plan.getByRole("button", { name: "Create calendar card" })).toBeDisabled();
+
+  // Keyboard: → moves a day, ↓ a week; Enter picks.
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowDown");
+  await expect(plan.getByRole("button", { name: /^Wednesday 25 November/ })).toBeFocused();
+  await thanksgiving.click();
+  await expect(thanksgiving).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    plan.getByText(
+      "Creates an “Idea” card on Thu 26 Nov with this screenshot attached. The idea is marked Planned.",
+    ),
+  ).toBeVisible();
+
+  // Platform comes from the idea; pick the format with the same select chips as the card drawer.
+  await expect(plan.getByRole("button", { name: "Platform: TikTok" })).toBeVisible();
+  await plan.getByRole("button", { name: "Format: not set" }).click();
+  await plan.getByRole("option", { name: "Video" }).click();
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot(`plan-it-${info.project.name}.png`);
+
+  await plan.getByRole("button", { name: "Create calendar card" }).click();
+  await expect(page.getByText("Planned for Thu 26 Nov")).toBeVisible();
+  expect(calls.find((c) => c.method === "RPC plan_idea")?.body).toEqual({
+    p_idea_id: "i1",
+    p_date: "2026-11-26",
+    p_platform: "tiktok",
+    p_format: "video",
+    p_title: "“Day in my life on a plan” videos are everywhere this week…",
+  });
+  // Back on the board (the drawer closes so the toast is reachable); the tile shows Planned.
+  await expect(drawer).toBeHidden();
+  await expect(page.getByRole("link", { name: /Planned · .*26 Nov/ })).toBeVisible();
+
+  // The toast's Open goes to the new card.
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page).toHaveURL(/\/calendar\?date=2026-11-26&card=card-new$/);
+});
+
+test("Plan it — Esc closes the popover, not the drawer", async ({ page }) => {
+  test.skip(!isDesktop(page), "phones use a bottom sheet");
+  await setup(page);
+  await open(page);
+  const drawer = await openDetail(page);
+  await drawer.getByRole("button", { name: "Plan it" }).click();
+  const plan = page.getByRole("dialog", { name: "Plan this idea" });
+  await expect(plan).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(plan).toBeHidden();
+  await expect(drawer).toBeVisible();
+});
+
+test("Plan it — the tile's Plan it link opens straight into Plan it", async ({ page }) => {
+  test.skip(!isDesktop(page), "the tile link is hidden on phones (M09)");
+  await setup(page);
+  await open(page);
+  await page.getByRole("button", { name: /^Plan it: Brand using a soft yellow/ }).click();
+  await expect(page).toHaveURL(/idea=i4&plan=1/);
+  await expect(page.getByRole("dialog", { name: "Plan this idea" })).toBeVisible();
+});
+
+test("Plan it — already planned elsewhere: says so", async ({ page }) => {
+  await setup(page, { planError: "idea_already_planned" });
+  await open(page);
+  const drawer = await openDetail(page);
+  await drawer.getByRole("button", { name: "Plan it" }).click();
+  const plan = page.getByRole("dialog", { name: "Plan this idea" });
+  await plan.getByRole("button", { name: /^Thursday 26 November/ }).click();
+  await plan.getByRole("button", { name: "Create calendar card" }).click();
+  await expect(page.getByText("This idea is already on the calendar.")).toBeVisible();
 });

@@ -5,6 +5,8 @@ import {
   filterIdeas,
   ideaAge,
   ideaAuthor,
+  ideaCardTitle,
+  planSummary,
   ideaText,
   linkLabel,
   looksLikeUrl,
@@ -13,6 +15,8 @@ import {
   platformFromUrl,
   plannedLabel,
   tabCounts,
+  tileSize,
+  imageShape,
   type Idea,
 } from "./idea-rules";
 
@@ -21,6 +25,8 @@ const idea = (id: string, extra: Partial<Idea> = {}): Idea => ({
   kind: "note",
   note: null,
   image_path: null,
+  image_width: null,
+  image_height: null,
   link_url: null,
   source_snapshot: null,
   platform: null,
@@ -162,5 +168,79 @@ describe("planned badge", () => {
     expect(plannedLabel("2027-01-05")).toBe("Tue 5 Jan");
     expect(plannedLabel("2027-01-05", true)).toBe("5 Jan");
     expect(plannedLabel("not a day")).toBe("");
+  });
+});
+
+describe("bento tiles", () => {
+  const shot = (w: number | null, h: number | null) =>
+    idea("s", { kind: "screenshot", image_path: "c/s.webp", image_width: w, image_height: h });
+
+  it("knows the image's shape", () => {
+    expect(imageShape(1600, 900)).toBe("wide");
+    expect(imageShape(739, 1600)).toBe("tall");
+    expect(imageShape(1000, 1000)).toBe("square");
+    expect(imageShape(1100, 1000)).toBe("square"); // nearly square isn't "wide"
+    expect(imageShape(null, 900)).toBeNull();
+  });
+
+  it("landscape images are 2×1, portrait ones 1×2", () => {
+    expect(tileSize(shot(1600, 900))).toBe("2x1");
+    expect(tileSize(shot(739, 1600))).toBe("1x2");
+  });
+
+  it("square images and images of unknown size are 1×2 (room for the picture and the text)", () => {
+    expect(tileSize(shot(1000, 1000))).toBe("1x2");
+    expect(tileSize(shot(null, null))).toBe("1x2");
+  });
+
+  it("notes, links, AI ideas and posts without a picture are 1×1", () => {
+    expect(tileSize(idea("n", { kind: "note" }))).toBe("1x1");
+    expect(tileSize(idea("l", { kind: "link", link_url: "https://x.com" }))).toBe("1x1");
+    expect(tileSize(idea("a", { kind: "ai" }))).toBe("1x1");
+    expect(tileSize(idea("p", { kind: "post" }))).toBe("1x1");
+    const post = idea("p", {
+      kind: "post",
+      image_path: "c/p.webp",
+      image_width: 480,
+      image_height: 600,
+    });
+    expect(tileSize(post)).toBe("1x2");
+  });
+
+  it("the feature tile is 2×2 whatever it holds", () => {
+    expect(tileSize(idea("n", { kind: "note" }), true)).toBe("2x2");
+    expect(tileSize(shot(1600, 900), true)).toBe("2x2");
+  });
+});
+
+describe("Plan it", () => {
+  it("titles the card from the note's first line", () => {
+    expect(
+      ideaCardTitle({ note: "Myth vs fact series\nThree TikToks", source_snapshot: null }),
+    ).toBe("Myth vs fact series");
+  });
+
+  it("cuts long notes at a word and adds …", () => {
+    const note =
+      "“Day in my life on a plan” videos are everywhere this week. Try an OBU clinician version.";
+    const title = ideaCardTitle({ note, source_snapshot: null });
+    expect(title).toBe("“Day in my life on a plan” videos are everywhere this week…");
+    expect(title.length).toBeLessThanOrEqual(60);
+  });
+
+  it("falls back to the post caption, then to “Idea”", () => {
+    expect(ideaCardTitle({ note: null, source_snapshot: { caption: "3 things" } })).toBe(
+      "3 things",
+    );
+    expect(ideaCardTitle({ note: "  ", source_snapshot: null })).toBe("Idea");
+  });
+
+  it("says what it will create", () => {
+    expect(planSummary("screenshot", "2027-01-12")).toBe(
+      "Creates an “Idea” card on Tue 12 Jan with this screenshot attached. The idea is marked Planned.",
+    );
+    expect(planSummary("note", null)).toBe(
+      "Creates an “Idea” card with this note attached. The idea is marked Planned.",
+    );
   });
 });

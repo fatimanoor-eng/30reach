@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
-import { BlipIdle } from "./blip/BlipPoses";
+import { BlipError, BlipIdle } from "./blip/BlipPoses";
 
-/** Empty state: Blip/Idle + mono label + title + one line + actions. */
+/** Empty state: Blip (Idle, or Error when something failed) + mono label + title + one line + actions. */
 export function EmptyState({
   label,
   title,
   text,
   actions,
+  pose = "idle",
 }: {
+  pose?: "idle" | "error";
   label: string;
   title: string;
   text: string;
@@ -15,7 +17,11 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-3 px-4 py-10 text-center md:py-16">
-      <BlipIdle className="h-auto w-24 md:w-28" />
+      {pose === "error" ? (
+        <BlipError className="h-auto w-24 md:w-28" />
+      ) : (
+        <BlipIdle className="h-auto w-24 md:w-28" />
+      )}
       <p className="mono-label text-muted">{label}</p>
       <h2 className="text-card">{title}</h2>
       <p className="max-w-96 text-body-sm text-muted">{text}</p>

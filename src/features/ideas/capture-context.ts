@@ -9,6 +9,9 @@ export type Draft = {
   /** Screenshot: compressing → ready (or error). Link / note: always ready. */
   status: "compressing" | "ready" | "error";
   image?: Blob;
+  /** Pixel size of the compressed image (stored so the board can size its tile). */
+  imageWidth?: number;
+  imageHeight?: number;
   /** Object URL of the compressed image, for the preview. */
   previewUrl?: string;
   error?: string;

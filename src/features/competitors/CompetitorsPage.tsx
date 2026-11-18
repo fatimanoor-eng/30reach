@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { PageHeader } from "../../app/PageHeader";
 import { Avatar } from "../../components/Avatar";
-import { BlipIdle } from "../../components/blip/BlipPoses";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { Chip } from "../../components/Chip";
 import { EmptyState } from "../../components/EmptyState";
+import { LoadError } from "../../components/LoadError";
+import { Bone, Skeleton } from "../../components/Skeleton";
 import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ModalPresence } from "../../components/ModalPresence";
@@ -115,21 +116,10 @@ export function CompetitorsPage() {
     return (
       <>
         {header}
-        <Card>
-          <EmptyState
-            label="Couldn’t load"
-            title="Competitors didn’t load"
-            text="Check your connection and try again. Nothing was changed."
-            actions={
-              <Button
-                variant="secondary"
-                onClick={() => void Promise.all([competitors.refetch(), client.refetch()])}
-              >
-                Try again
-              </Button>
-            }
-          />
-        </Card>
+        <LoadError
+          title="Competitors didn’t load"
+          onRetry={() => void Promise.all([competitors.refetch(), client.refetch()])}
+        />
       </>
     );
   }
@@ -137,13 +127,7 @@ export function CompetitorsPage() {
     return (
       <>
         {header}
-        <div
-          aria-busy="true"
-          aria-label="Loading competitors"
-          className="flex h-72 items-center justify-center rounded-card bg-soft motion-safe:animate-pulse"
-        >
-          <BlipIdle className="h-auto w-16 opacity-60" />
-        </div>
+        <CompetitorsSkeleton />
       </>
     );
   }
@@ -329,5 +313,62 @@ export function CompetitorsPage() {
         )}
       </ConfirmDialog>
     </>
+  );
+}
+
+/** Loading, in the real shape: the 07 table from 1200 px, brand cards below (2 columns on tablet). */
+function CompetitorsSkeleton() {
+  const rows = [0, 1, 2, 3, 4, 5];
+  return (
+    <Skeleton label="Loading competitors">
+      <div className="hidden overflow-hidden rounded-card border border-line bg-surface xl:block">
+        <div className="flex gap-6 border-b border-line px-6 py-4">
+          {["w-16", "w-20", "w-16", "w-24", "w-14"].map((w, i) => (
+            <Bone key={i} className={`h-2.5 ${w} ${i === 0 ? "mr-24" : "mr-10"}`} />
+          ))}
+        </div>
+        {rows.map((i) => (
+          <div
+            key={i}
+            className="grid grid-cols-[1.4fr_1fr_1fr_0.8fr_0.8fr_0.8fr] items-center gap-4 border-b border-line px-6 py-4 last:border-0"
+          >
+            <div className="flex items-center gap-3">
+              <Bone className="size-8 shrink-0 rounded-full" />
+              <Bone className="h-3.5 w-28" />
+            </div>
+            <Bone className="h-3.5 w-28" />
+            <Bone className="h-3.5 w-24" />
+            <Bone className="h-3.5 w-10" />
+            <Bone className="h-5.5 w-16 rounded-full" />
+            <Bone className="ml-auto h-3.5 w-24" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2 md:gap-4 xl:hidden">
+        {rows.slice(0, 4).map((i) => (
+          <div key={i} className="rounded-card border border-line bg-surface p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <Bone className="size-9 rounded-full" />
+                <Bone className="h-3.5 w-28" />
+              </div>
+              <Bone className="h-5.5 w-16 rounded-full" />
+            </div>
+            <div className="mt-4 flex flex-col gap-3">
+              {["w-32", "w-28", "w-10"].map((w, j) => (
+                <div key={j} className="flex items-center gap-4">
+                  <Bone className="h-2.5 w-20" />
+                  <Bone className={`h-3 ${w}`} />
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end gap-4 border-t border-line pt-3">
+              <Bone className="h-3.5 w-8" />
+              <Bone className="h-3.5 w-14" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </Skeleton>
   );
 }

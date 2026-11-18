@@ -1,21 +1,37 @@
 import { Plus, Search } from "lucide-react";
-import { useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+} from "react";
 import { useSearchParams } from "react-router";
 import { PageHeader } from "../../app/PageHeader";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
-import { MQ_DESKTOP_UP, MQ_TABLET_UP, useMediaQuery } from "../../lib/useMediaQuery";
+import { LoadError } from "../../components/LoadError";
+import { ModalPresence } from "../../components/ModalPresence";
+import { useToast } from "../../components/toast-context";
+import { Bone, Skeleton } from "../../components/Skeleton";
+import { MQ_DESKTOP_UP, useMediaQuery } from "../../lib/useMediaQuery";
 import { AddIdeaSheet } from "./AddIdeaSheet";
 import { CaptureBar } from "./CaptureBar";
 import { useCapture } from "./capture-context";
 import { DraftCard } from "./DraftCard";
 import { IdeaCard } from "./IdeaCard";
+import { IdeaDetail } from "./IdeaDetail";
 import {
   filterIdeas,
   looksLikeUrl,
   normaliseUrl,
   tabCounts,
   TABS,
+  TILE_SPAN,
+  tileSize,
+  type Idea,
   type IdeaTab,
 } from "./idea-rules";
 import { useIdeaImages, useIdeas } from "./ideas-api";
@@ -64,35 +80,27 @@ function IdeaTabs({
   );
 }
 
-/** Splits cards into N columns (left to right, then down), like a masonry board. */
-function Columns({ items, count }: { items: { key: string; node: ReactNode }[]; count: number }) {
-  const cols: (typeof items)[] = Array.from({ length: count }, () => []);
-  items.forEach((item, i) => cols[i % count].push(item));
-  return (
-    <div className="flex items-start gap-2.5 md:gap-4">
-      {cols.map((col, i) => (
-        <div key={i} className="flex min-w-0 flex-1 flex-col gap-2.5 md:gap-4">
-          {col.map((item) => (
-            <div key={item.key}>{item.node}</div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
+/**
+ * Bento grid: fixed-height rows, 2 / 3 / 4 columns, `dense` so smaller tiles fill the gaps a big
+ * one leaves. The page order (newest first) stays the reading order for keyboards and screen readers.
+ */
+const GRID =
+  "grid grid-flow-row-dense grid-cols-2 auto-rows-(--bento-row-sm) gap-2.5 md:grid-cols-3 md:auto-rows-(--bento-row) md:gap-4 xl:grid-cols-4";
 
 function hasFiles(e: DragEvent) {
   return [...e.dataTransfer.types].includes("Files");
 }
 
 /**
- * Idea board (14a / 14b, M09): capture box, tabs + search, cards in columns.
- * Drop images anywhere on the page. Drafts (unsaved captures) come first.
+ * Idea board (14a / 14b, M09): capture box, tabs + search, ideas as a bento grid (DESIGN_SYSTEM ›
+ * Idea board). Drop images anywhere on the page. Drafts (unsaved captures) sit above the grid at
+ * their natural height, in the same columns.
  * Tab in the URL (?tab=link); search is per visit.
  */
 export function IdeasPage() {
   const ideas = useIdeas();
   const capture = useCapture();
+  const toast = useToast();
   const [params, setParams] = useSearchParams();
   const tab: IdeaTab = isTab(params.get("tab")) ? (params.get("tab") as IdeaTab) : "all";
   const [query, setQuery] = useState("");
@@ -102,14 +110,54 @@ export function IdeasPage() {
   // "2 days ago" is worked out once per visit (not on every render).
   const [now] = useState(Date.now);
 
+  // Desktop only: the newest idea shown gets the 2×2 feature tile.
   const desktop = useMediaQuery(MQ_DESKTOP_UP);
-  const tabletUp = useMediaQuery(MQ_TABLET_UP);
-  const columns = desktop ? 4 : tabletUp ? 3 : 2;
 
   const all = useMemo(() => ideas.data ?? [], [ideas.data]);
   const counts = useMemo(() => tabCounts(all), [all]);
   const shown = useMemo(() => filterIdeas(all, tab, query), [all, tab, query]);
-  const images = useIdeaImages(shown.flatMap((i) => (i.image_path ? [i.image_path] : [])));
+
+  // ── 14c detail: ?idea=<id> (&plan=1 opens Plan it straight away). The last open idea is kept so
+  // the drawer can slide out after the URL changes.
+  const openId = params.get("idea");
+  const openIdea = openId ? (all.find((i) => i.id === openId) ?? null) : null;
+  const [lastIdea, setLastIdea] = useState<Idea | null>(null);
+  if (openIdea && openIdea !== lastIdea) setLastIdea(openIdea);
+  const detailIdea = openIdea ?? lastIdea;
+  const openDetail = (id: string, plan: boolean) =>
+    setParams((p) => {
+      p.set("idea", id);
+      if (plan) p.set("plan", "1");
+      else p.delete("plan");
+      return p;
+    });
+  const closeDetail = useCallback(
+    () =>
+      setParams(
+        (p) => {
+          p.delete("idea");
+          p.delete("plan");
+          return p;
+        },
+        { replace: true },
+      ),
+    [setParams],
+  );
+  // Just deleted here: the list can refresh before the URL drops ?idea=, which isn't "missing".
+  const [deletedId, setDeletedId] = useState<string | null>(null);
+  const missingIdea = !!openId && ideas.isSuccess && !openIdea && openId !== deletedId;
+  useEffect(() => {
+    if (!missingIdea) return;
+    toast.show({ title: "That idea isn’t on the board any more", pose: "idle" });
+    closeDetail();
+  }, [missingIdea, toast, closeDetail]);
+
+  const images = useIdeaImages([
+    ...shown.flatMap((i) => (i.image_path ? [i.image_path] : [])),
+    ...(detailIdea?.image_path ? [detailIdea.image_path] : []),
+  ]);
+  const imageFor = (idea: Idea) =>
+    idea.image_path ? (images.data?.get(idea.image_path) ?? undefined) : undefined;
 
   const setTab = (next: IdeaTab) =>
     setParams(
@@ -153,47 +201,28 @@ export function IdeasPage() {
     },
   };
 
-  const cards = [
-    ...capture.drafts.map((d) => ({
-      key: `draft-${d.key}`,
-      node: <DraftCard draft={d} autoFocus={d.key === capture.focusKey} />,
-    })),
-    ...shown.map((idea) => ({
-      key: idea.id,
-      node: (
-        <IdeaCard
-          idea={idea}
-          imageUrl={idea.image_path ? (images.data?.get(idea.image_path) ?? undefined) : undefined}
-          now={now}
-        />
-      ),
-    })),
-  ];
+  const drafts = capture.drafts.length > 0 && (
+    <div className="grid grid-cols-2 items-start gap-2.5 md:grid-cols-3 md:gap-4 xl:grid-cols-4">
+      {capture.drafts.map((d) => (
+        <DraftCard key={d.key} draft={d} autoFocus={d.key === capture.focusKey} />
+      ))}
+    </div>
+  );
 
   let body: ReactNode;
   if (ideas.isError) {
-    body = (
-      <EmptyState
-        label="Idea board"
-        title="Couldn't load ideas"
-        text="Check your connection and try again."
-        actions={
-          <Button variant="secondary" onClick={() => void ideas.refetch()}>
-            Try again
-          </Button>
-        }
-      />
-    );
+    body = <LoadError title="Ideas didn’t load" onRetry={() => void ideas.refetch()} />;
   } else if (ideas.isPending) {
+    // The real bento sizes: 2×2 feature (desktop; 1×2 below), 1×1, 1×2, 2×1.
     body = (
-      <div aria-busy="true" aria-label="Loading ideas" className="flex gap-2.5 md:gap-4">
-        {Array.from({ length: columns }, (_, i) => (
-          <div
+      <Skeleton label="Loading ideas" className={GRID}>
+        {(["2x2", "1x1", "1x2", "1x1", "2x1", "1x1", "1x2", "1x1"] as const).map((size, i) => (
+          <Bone
             key={i}
-            className={`flex-1 rounded-card bg-soft motion-safe:animate-pulse ${i % 2 ? "h-48" : "h-72"}`}
+            className={`h-full rounded-card ${size === "2x2" ? "row-span-2 xl:col-span-2" : TILE_SPAN[size]}`}
           />
         ))}
-      </div>
+      </Skeleton>
     );
   } else if (!all.length && !capture.drafts.length) {
     body = (
@@ -216,7 +245,25 @@ export function IdeasPage() {
     const tabLabel = TABS.find((t) => t.id === tab)!.label.toLowerCase();
     body = (
       <>
-        <Columns items={cards} count={columns} />
+        {drafts}
+        {shown.length > 0 && (
+          <div className={GRID}>
+            {shown.map((idea, i) => {
+              const size = tileSize(idea, desktop && i === 0);
+              return (
+                <div key={idea.id} className={TILE_SPAN[size]}>
+                  <IdeaCard
+                    idea={idea}
+                    size={size}
+                    imageUrl={imageFor(idea)}
+                    now={now}
+                    onOpen={(plan) => openDetail(idea.id, plan)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
         {!shown.length && (
           <p className="py-10 text-center text-body-sm text-muted">
             {query.trim()
@@ -273,6 +320,21 @@ export function IdeasPage() {
         {body}
       </div>
       <AddIdeaSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+      <ModalPresence open={!!openIdea}>
+        {detailIdea && (
+          <IdeaDetail
+            key={detailIdea.id}
+            idea={detailIdea}
+            imageUrl={imageFor(detailIdea)}
+            onClose={closeDetail}
+            onDeleted={(id) => {
+              setDeletedId(id);
+              closeDetail();
+            }}
+            planOnOpen={params.get("plan") === "1"}
+          />
+        )}
+      </ModalPresence>
     </div>
   );
 }

@@ -23,6 +23,9 @@ export type Idea = {
   kind: IdeaKind;
   note: string | null;
   image_path: string | null;
+  /** Pixel size of the stored image; null when there's none or it was saved before Slice 10b. */
+  image_width: number | null;
+  image_height: number | null;
   link_url: string | null;
   source_snapshot: SourceSnapshot | null;
   platform: IdeaPlatform | null;
@@ -207,4 +210,82 @@ export function plannedLabel(day: string, short = false): string {
   if (Number.isNaN(d.getTime())) return "";
   const base = `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
   return short ? base : `${WEEKDAYS[d.getUTCDay()]} ${base}`;
+}
+
+// ───────────────────────────── bento tiles (14b board)
+
+/** Columns × rows on the board grid. */
+export type TileSize = "1x1" | "2x1" | "1x2" | "2x2";
+
+/** Wide when at least 1.2× wider than tall; tall when taller than wide; else square. */
+export function imageShape(
+  width: number | null,
+  height: number | null,
+): "wide" | "tall" | "square" | null {
+  if (!width || !height) return null;
+  const ratio = width / height;
+  if (ratio >= 1.2) return "wide";
+  if (ratio < 1) return "tall";
+  return "square";
+}
+
+/** Ideas whose tile shows a picture: screenshots, and posts that kept a thumbnail. */
+export function hasPicture(idea: Pick<Idea, "kind" | "image_path">): boolean {
+  return (idea.kind === "screenshot" || idea.kind === "post") && !!idea.image_path;
+}
+
+/**
+ * Tile size from content: landscape pictures 2×1; portrait, square or unknown-size pictures 1×2
+ * (a 1×1 is too short for a picture plus text); everything else 1×1.
+ * `feature` (desktop: the newest idea shown) is always 2×2.
+ */
+export function tileSize(
+  idea: Pick<Idea, "kind" | "image_path" | "image_width" | "image_height">,
+  feature = false,
+): TileSize {
+  if (feature) return "2x2";
+  if (!hasPicture(idea)) return "1x1";
+  return imageShape(idea.image_width, idea.image_height) === "wide" ? "2x1" : "1x2";
+}
+
+/** Grid spans per tile size (the board grid has fixed-height rows, `grid-auto-flow: dense`). */
+export const TILE_SPAN: Record<TileSize, string> = {
+  "1x1": "",
+  "2x1": "col-span-2",
+  "1x2": "row-span-2",
+  "2x2": "col-span-2 row-span-2",
+};
+
+// ───────────────────────────── Plan it (14d)
+
+export const CARD_TITLE_MAX = 60;
+
+/**
+ * The calendar card's title when an idea is planned: the first line of the note, else the source
+ * post's caption, else "Idea". Longer than 60 characters → cut at a word and "…" added. The title
+ * can be edited on the card afterwards.
+ */
+export function ideaCardTitle(idea: Pick<Idea, "note" | "source_snapshot">): string {
+  const text = ideaText(idea).split("\n")[0].replace(/\s+/g, " ").trim();
+  if (!text) return "Idea";
+  if (text.length <= CARD_TITLE_MAX) return text;
+  const cut = text.slice(0, CARD_TITLE_MAX - 1);
+  // Already at a word's end when the next character is a space; else back up to the last space.
+  const atWordEnd = text[CARD_TITLE_MAX - 1] === " ";
+  const lastSpace = cut.lastIndexOf(" ");
+  const words = atWordEnd || lastSpace <= 30 ? cut : cut.slice(0, lastSpace);
+  return `${words.replace(/[\s,.;:–—-]+$/, "")}…`;
+}
+
+/** What Plan it says it will make: "an “Idea” card on Tue 12 Jan with this screenshot attached". */
+export function planSummary(kind: IdeaKind, day: string | null): string {
+  const what: Record<IdeaKind, string> = {
+    screenshot: "this screenshot",
+    link: "this link",
+    note: "this note",
+    post: "this post",
+    ai: "this idea",
+  };
+  const when = day ? ` on ${plannedLabel(day)}` : "";
+  return `Creates an “Idea” card${when} with ${what[kind]} attached. The idea is marked Planned.`;
 }

@@ -1,9 +1,9 @@
 import { PageHeader } from "../../app/PageHeader";
-import { BlipIdle } from "../../components/blip/BlipPoses";
 import { BrandPills } from "../../components/BrandPills";
-import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { EmptyState } from "../../components/EmptyState";
+import { LoadError } from "../../components/LoadError";
+import { Skeleton, SkeletonCard, SkeletonKpis, SkeletonRows } from "../../components/Skeleton";
 import { KpiTile } from "../../components/KpiTile";
 import { useBrandSelection } from "../../lib/brand-selection-context";
 import { useClient } from "../../lib/useClient";
@@ -28,23 +28,13 @@ export function OverviewPage() {
     return (
       <>
         <PageHeader title="Overview" actions={<RefreshButton />} />
-        <Card>
-          <EmptyState
-            label="Couldn’t load"
-            title="The saved pull didn’t load"
-            text="Check your connection and try again. Nothing was pulled or changed."
-            actions={
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  void Promise.all([saved.refetch(), competitors.refetch(), client.refetch()])
-                }
-              >
-                Try again
-              </Button>
-            }
-          />
-        </Card>
+        <LoadError
+          title="The saved pull didn’t load"
+          text="Check your connection and try again. Nothing was pulled or changed."
+          onRetry={() =>
+            void Promise.all([saved.refetch(), competitors.refetch(), client.refetch()])
+          }
+        />
       </>
     );
   }
@@ -107,18 +97,12 @@ function Dashboard({
     return (
       <>
         {header}
-        <Card className="mt-6">
-          <EmptyState
-            label="Couldn’t load"
-            title="Posts didn’t load"
-            text="Nothing was pulled or changed. Try again."
-            actions={
-              <Button variant="secondary" onClick={() => void latestPosts.refetch()}>
-                Try again
-              </Button>
-            }
-          />
-        </Card>
+        <LoadError
+          className="mt-6"
+          title="Posts didn’t load"
+          text="Check your connection and try again. Nothing was pulled or changed."
+          onRetry={() => void latestPosts.refetch()}
+        />
       </>
     );
   }
@@ -200,21 +184,19 @@ function OverviewSkeleton() {
   );
 }
 
+/** 04 in its real shape: KPI tiles, then the leaderboard and top posts cards. */
 function SkeletonBlocks() {
-  const block = "rounded-tile bg-soft motion-safe:animate-pulse";
   return (
-    <div aria-busy="true" aria-label="Loading the saved pull" className="mt-6">
-      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className={`h-28 ${block}`} />
-        ))}
-      </div>
+    <Skeleton label="Loading the saved pull" className="mt-6">
+      <SkeletonKpis />
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
-        <div className={`h-96 ${block}`} />
-        <div className={`flex h-96 items-center justify-center ${block}`}>
-          <BlipIdle className="h-auto w-16 opacity-60" />
-        </div>
+        <SkeletonCard>
+          <SkeletonRows count={6} />
+        </SkeletonCard>
+        <SkeletonCard>
+          <SkeletonRows count={4} lead="thumb" />
+        </SkeletonCard>
       </div>
-    </div>
+    </Skeleton>
   );
 }

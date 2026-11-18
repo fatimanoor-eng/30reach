@@ -1,6 +1,6 @@
 import { Link, NavLink } from "react-router";
 import { Avatar } from "../components/Avatar";
-import { BlipIdle } from "../components/blip/BlipPoses";
+import { BlipError, BlipIdle } from "../components/blip/BlipPoses";
 import { LogoMark } from "../components/Logo";
 import { Tooltip } from "../components/Tooltip";
 import { useCurrentUser } from "../lib/auth/useCurrentUser";
@@ -131,7 +131,9 @@ export function IconRail({
                 aria-describedby={t["aria-describedby"]}
                 className="flex flex-col items-center gap-1.5 rounded-control px-2 py-1 hover:bg-sidebar-2"
               >
-                {meter}
+                {/* Blip/Error in place of the empty bar: the reading failed. */}
+                <BlipError className="h-auto w-8" />
+                <span className="font-mono text-label">—</span>
               </button>
             ) : (
               <div

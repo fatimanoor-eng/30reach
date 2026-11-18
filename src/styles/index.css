@@ -109,3 +109,22 @@ dialog[data-motion][data-instant]::backdrop {
     animation-name: modal-fade-out;
   }
 }
+
+/* ---------- Loading skeletons ----------
+   A skeleton stays invisible (but keeps its space) for its first 150 ms, so a quick load never
+   flashes grey. Showing it isn't motion, so this also applies with reduced motion; only the pulse
+   on the grey blocks is motion-safe (Skeleton.tsx). */
+:root {
+  --skeleton-delay: 150ms;
+}
+@keyframes skeleton-appear {
+  from {
+    visibility: hidden;
+  }
+  to {
+    visibility: visible;
+  }
+}
+.skeleton-delay {
+  animation: skeleton-appear 1ms linear var(--skeleton-delay) both;
+}

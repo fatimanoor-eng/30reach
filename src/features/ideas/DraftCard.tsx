@@ -62,6 +62,8 @@ export function DraftCard({ draft, autoFocus }: { draft: Draft; autoFocus: boole
         platform,
         tags: draft.tags,
         image: draft.image ?? null,
+        imageWidth: draft.imageWidth,
+        imageHeight: draft.imageHeight,
       }),
     onSuccess: () => {
       remove(draft.key);

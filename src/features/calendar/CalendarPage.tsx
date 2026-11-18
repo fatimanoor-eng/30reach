@@ -2,10 +2,9 @@ import { ChevronLeft, ChevronRight, Lightbulb, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { PageHeader } from "../../app/PageHeader";
-import { BlipIdle } from "../../components/blip/BlipPoses";
 import { Button } from "../../components/Button";
-import { Card } from "../../components/Card";
-import { EmptyState } from "../../components/EmptyState";
+import { LoadError } from "../../components/LoadError";
+import { Bone, Skeleton } from "../../components/Skeleton";
 import { ModalPresence } from "../../components/ModalPresence";
 import { useToast } from "../../components/toast-context";
 import { Tooltip } from "../../components/Tooltip";
@@ -230,32 +229,13 @@ export function CalendarPage() {
   let body;
   if (cards.isError || client.isError) {
     body = (
-      <Card>
-        <EmptyState
-          label="Couldn’t load"
-          title="The calendar didn’t load"
-          text="Check your connection and try again. Nothing was changed."
-          actions={
-            <Button
-              variant="secondary"
-              onClick={() => void Promise.all([cards.refetch(), client.refetch()])}
-            >
-              Try again
-            </Button>
-          }
-        />
-      </Card>
+      <LoadError
+        title="The calendar didn’t load"
+        onRetry={() => void Promise.all([cards.refetch(), client.refetch()])}
+      />
     );
   } else if (!cards.data || !client.data) {
-    body = (
-      <div
-        aria-busy="true"
-        aria-label="Loading the calendar"
-        className="flex h-96 items-center justify-center rounded-card bg-soft motion-safe:animate-pulse"
-      >
-        <BlipIdle className="h-auto w-16 opacity-60" />
-      </div>
-    );
+    body = <CalendarSkeleton month={tabletUp} />;
   } else if (tabletUp) {
     body = (
       <div className="flex flex-col gap-4 xl:flex-row xl:items-stretch">
@@ -320,5 +300,70 @@ export function CalendarPage() {
         )}
       </ModalPresence>
     </>
+  );
+}
+
+/**
+ * Loading, in the real shape: 08 month grid (weekday row, 5 weeks of day cells, a few cards) with
+ * the idea panel (beside it on desktop, under it on tablet); M07 week strip + day list on phones.
+ */
+function CalendarSkeleton({ month }: { month: boolean }) {
+  if (!month)
+    return (
+      <Skeleton label="Loading the calendar">
+        <div className="mb-5 grid grid-cols-7 gap-1">
+          {Array.from({ length: 7 }, (_, i) => (
+            <div key={i} className="flex flex-col items-center gap-1.5">
+              <Bone className="h-2.5 w-3" />
+              <Bone className="size-9 rounded-full" />
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col gap-3.5">
+          {[2, 1, 2].map((n, d) => (
+            <div key={d} className="flex flex-col gap-1.5">
+              <Bone className="h-3 w-24" />
+              {Array.from({ length: n }, (_, i) => (
+                <Bone key={i} className="h-14 rounded-tile" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </Skeleton>
+    );
+  // Cells that get a card bone, by week × weekday: a plausible spread, never more than one a day.
+  const busy = new Set(["0-1", "0-3", "1-2", "1-4", "2-0", "2-3", "3-2", "4-1", "4-2"]);
+  return (
+    <Skeleton label="Loading the calendar" className="flex flex-col gap-4 xl:flex-row">
+      <div className="min-w-0 flex-1 overflow-hidden rounded-card border border-line bg-surface">
+        <div className="grid grid-cols-7">
+          {Array.from({ length: 7 }, (_, i) => (
+            <div key={i} className="py-2.5 pl-2.5">
+              <Bone className="h-2.5 w-7" />
+            </div>
+          ))}
+        </div>
+        {Array.from({ length: 5 }, (_, w) => (
+          <div key={w} className="grid grid-cols-7 border-t border-line">
+            {Array.from({ length: 7 }, (_, d) => (
+              <div
+                key={d}
+                className={`flex min-h-28 flex-col gap-2 px-1.5 pt-2 xl:min-h-32 ${d ? "border-l border-line" : ""}`}
+              >
+                <Bone className="h-3 w-4" />
+                {busy.has(`${w}-${d}`) && <Bone className="h-10 rounded-[6px]" />}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4 xl:w-70 xl:shrink-0">
+        <Bone className="h-5 w-28" />
+        <Bone className="h-3 w-44" />
+        {[0, 1, 2].map((i) => (
+          <Bone key={i} className="h-18 rounded-tile" />
+        ))}
+      </div>
+    </Skeleton>
   );
 }

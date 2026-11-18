@@ -1,11 +1,11 @@
 import { PageHeader } from "../../app/PageHeader";
-import { BlipIdle } from "../../components/blip/BlipPoses";
 import { BrandPills } from "../../components/BrandPills";
-import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { EmptyState } from "../../components/EmptyState";
 import { KpiTile } from "../../components/KpiTile";
+import { LoadError } from "../../components/LoadError";
+import { Bone, Skeleton, SkeletonCard, SkeletonKpis } from "../../components/Skeleton";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { useBrandSelection } from "../../lib/brand-selection-context";
 import type { Platform } from "../../lib/pulls/api";
@@ -98,8 +98,10 @@ export function SocialPage({ platform }: { platform: Platform }) {
       <>
         {header}
         <LoadError
-          onRetry={() => void Promise.all([saved.refetch(), competitors.refetch()])}
+          className="mt-6"
           title="The saved pull didn’t load"
+          text="Check your connection and try again. Nothing was pulled or changed."
+          onRetry={() => void Promise.all([saved.refetch(), competitors.refetch()])}
         />
       </>
     );
@@ -191,7 +193,14 @@ function SocialBody({
   const latestPosts = usePullPosts(latest.id);
 
   if (latestPosts.isError) {
-    return <LoadError title="Posts didn’t load" onRetry={() => void latestPosts.refetch()} />;
+    return (
+      <LoadError
+        className="mt-6"
+        title="Posts didn’t load"
+        text="Check your connection and try again. Nothing was pulled or changed."
+        onRetry={() => void latestPosts.refetch()}
+      />
+    );
   }
   if (!latestPosts.data) return <SocialSkeleton />;
 
@@ -268,35 +277,51 @@ function SocialBody({
   );
 }
 
-function LoadError({ title, onRetry }: { title: string; onRetry: () => void }) {
-  return (
-    <Card className="mt-6">
-      <EmptyState
-        label="Couldn’t load"
-        title={title}
-        text="Check your connection and try again. Nothing was pulled or changed."
-        actions={
-          <Button variant="secondary" onClick={onRetry}>
-            Try again
-          </Button>
-        }
-      />
-    </Card>
-  );
-}
-
+/** 06a in its real shape: KPI tiles, the top posts strip, then formats + hashtags and best times. */
 function SocialSkeleton() {
-  const block = "rounded-tile bg-soft motion-safe:animate-pulse";
   return (
-    <div aria-busy="true" aria-label="Loading the saved pull" className="mt-6">
-      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className={`h-28 ${block}`} />
-        ))}
+    <Skeleton label="Loading the saved pull" className="mt-6">
+      <SkeletonKpis />
+      <SkeletonCard className="mt-6">
+        <div className="-mx-4 flex gap-3 overflow-hidden px-4 md:mx-0 md:grid md:grid-cols-3 md:gap-4 md:px-0 xl:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex w-55 shrink-0 flex-col gap-2 md:w-auto">
+              <Bone className="h-23" />
+              <Bone className="h-3 w-1/3" />
+              <Bone className="h-3.5 w-5/6" />
+              <Bone className="h-3 w-1/2" />
+            </div>
+          ))}
+        </div>
+      </SkeletonCard>
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-2">
+        <div className="flex flex-col gap-6">
+          <SkeletonCard>
+            <div className="flex flex-col gap-4">
+              {["w-11/12", "w-2/3", "w-2/5"].map((w) => (
+                <div key={w} className="flex items-center gap-3">
+                  <Bone className="h-3.5 w-20 shrink-0" />
+                  <Bone className={`h-2.5 ${w}`} />
+                </div>
+              ))}
+            </div>
+          </SkeletonCard>
+          <SkeletonCard>
+            <div className="flex flex-wrap gap-2">
+              {["w-28", "w-16", "w-24", "w-32", "w-20", "w-24"].map((w, i) => (
+                <Bone key={i} className={`h-6 rounded-full ${w}`} />
+              ))}
+            </div>
+          </SkeletonCard>
+        </div>
+        <SkeletonCard>
+          <div className="grid grid-cols-5 gap-1.5">
+            {Array.from({ length: 35 }, (_, i) => (
+              <Bone key={i} className="h-5 rounded-sm" />
+            ))}
+          </div>
+        </SkeletonCard>
       </div>
-      <div className={`mt-6 flex h-72 items-center justify-center ${block}`}>
-        <BlipIdle className="h-auto w-16 opacity-60" />
-      </div>
-    </div>
+    </Skeleton>
   );
 }

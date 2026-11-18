@@ -73,7 +73,7 @@ export function IdeaCaptureProvider({ children }: { children: ReactNode }) {
 
       items.forEach((item, i) => {
         compressImage(fit[i])
-          .then((image) => {
+          .then(({ blob: image, width, height }) => {
             const previewUrl = URL.createObjectURL(image);
             setDrafts((d) => {
               if (!d.some((x) => x.key === item.key)) {
@@ -81,7 +81,16 @@ export function IdeaCaptureProvider({ children }: { children: ReactNode }) {
                 return d;
               }
               return d.map((x) =>
-                x.key === item.key ? { ...x, status: "ready", image, previewUrl } : x,
+                x.key === item.key
+                  ? {
+                      ...x,
+                      status: "ready",
+                      image,
+                      imageWidth: width,
+                      imageHeight: height,
+                      previewUrl,
+                    }
+                  : x,
               );
             });
           })

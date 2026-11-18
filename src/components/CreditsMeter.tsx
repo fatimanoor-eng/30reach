@@ -1,10 +1,12 @@
 import { creditsFraction, formatNumber } from "../lib/format";
+import { BlipError } from "./blip/BlipPoses";
 import { creditsSummary, formatResetDate, formatTime, type CreditsState } from "../lib/useCredits";
 
 /**
  * Firecrawl credits meter (sidebar, More page). Live from the `credits` Edge Function.
  * Bar = credits LEFT as a share of the plan, in B30 Flash.
- * States: ready · loading ("— left", "Checking credits…") · error ("Couldn't load credits · Retry").
+ * States: ready · loading ("— left", "Checking credits…") · error (Blip/Error + "Couldn't load
+ * credits · Retry").
  * Stale (Firecrawl unreachable, cached reading): "live" becomes "as of 14:02".
  */
 export function CreditsMeter({
@@ -56,6 +58,7 @@ export function CreditsMeter({
         {state.status === "loading" && <p>Checking credits…</p>}
         {state.status === "error" && (
           <p className="flex items-center gap-1">
+            <BlipError className={`h-auto shrink-0 ${card ? "mr-1 w-7" : "mr-0.5 w-5"}`} />
             <span role="alert">Couldn’t load credits</span>
             <span aria-hidden="true">·</span>
             <button

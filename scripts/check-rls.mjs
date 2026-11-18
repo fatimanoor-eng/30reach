@@ -98,6 +98,34 @@ report(
     : `HTTP ${upload.status} — UPLOAD WAS ACCEPTED. Delete idea-images/${probe} in the dashboard.`,
 );
 
+// Slice 10 functions: execute is granted to authenticated only. A random id means that even if the
+// call were allowed it would only fail with "not found" — nothing is ever written.
+const NO_SUCH_ID = "00000000-0000-4000-8000-000000000000";
+const RPCS = {
+  plan_idea: {
+    p_idea_id: NO_SUCH_ID,
+    p_date: "2027-01-05",
+    p_platform: "instagram",
+    p_format: "reel",
+    p_title: "rls check",
+  },
+  card_to_idea: { p_card_id: NO_SUCH_ID },
+};
+for (const [fn, args] of Object.entries(RPCS)) {
+  const { status, body } = await call("POST", `/rest/v1/rpc/${fn}`, {
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(args),
+  });
+  const refused = (status === 401 || status === 403) && body?.code === "42501";
+  report(
+    refused,
+    `function ${fn}`,
+    refused
+      ? `HTTP ${status} 42501 (refused)`
+      : `HTTP ${status} — ${JSON.stringify(body).slice(0, 120)}`,
+  );
+}
+
 console.log(
   failures ? `\n✗ ${failures} check(s) failed.` : "\n✓ Anonymous access is blocked everywhere.",
 );
