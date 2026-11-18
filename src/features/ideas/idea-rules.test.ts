@@ -6,6 +6,8 @@ import {
   ideaAge,
   ideaAuthor,
   ideaCardTitle,
+  canDeleteIdea,
+  deleteBlockedMessage,
   planSummary,
   ideaText,
   linkLabel,
@@ -35,6 +37,7 @@ const idea = (id: string, extra: Partial<Idea> = {}): Idea => ({
   tags: [],
   planned_card_id: null,
   created_at: "2026-11-17T12:00:00Z",
+  created_by: "u-fatima",
   creator: { full_name: "Fatima Noor" },
   planned: null,
   ...extra,
@@ -234,6 +237,34 @@ describe("Plan it", () => {
     );
     expect(planSummary("note", null)).toBe(
       "Creates an “Idea” card with this note attached. The idea is marked Planned.",
+    );
+  });
+});
+
+describe("who can delete", () => {
+  it("the person who added it, or an admin", () => {
+    const mine = idea("a");
+    expect(canDeleteIdea(mine, "u-fatima", false)).toBe(true);
+    expect(canDeleteIdea(mine, "u-ahmad", false)).toBe(false);
+    expect(canDeleteIdea(mine, "u-ahmad", true)).toBe(true);
+  });
+
+  it("AI ideas (no creator): admins only", () => {
+    const ai = idea("b", { kind: "ai", created_by: null, creator: null });
+    expect(canDeleteIdea(ai, "u-fatima", false)).toBe(false);
+    expect(canDeleteIdea(ai, null, false)).toBe(false); // null user never matches a null creator
+    expect(canDeleteIdea(ai, "u-fatima", true)).toBe(true);
+  });
+
+  it("says who can", () => {
+    expect(deleteBlockedMessage(idea("a"))).toBe(
+      "Only Fatima (who added it) or an admin can delete this idea.",
+    );
+    expect(deleteBlockedMessage(idea("b", { kind: "ai", creator: null }))).toBe(
+      "Only an admin can delete AI ideas.",
+    );
+    expect(deleteBlockedMessage(idea("c", { creator: null }))).toBe(
+      "Only the person who added it or an admin can delete this idea.",
     );
   });
 });

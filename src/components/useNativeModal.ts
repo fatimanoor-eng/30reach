@@ -77,6 +77,9 @@ export function useNativeModal(open: boolean, onClose: () => void) {
   return {
     ref,
     onCancel: (e: SyntheticEvent) => {
+      // React passes a nested dialog's cancel (Esc) up to this one too (a confirm inside a
+      // drawer): only close for our own, or one Esc would close both.
+      if (e.target !== e.currentTarget) return;
       e.preventDefault(); // we close via state so React stays the source of truth
       onClose();
     },

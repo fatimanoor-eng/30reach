@@ -37,6 +37,7 @@ export function PlanIt({
   const navigate = useNavigate();
   const [day, setDay] = useState<IsoDay | null>(null);
   const [platform, setPlatform] = useState<CardPlatform | null>(idea.platform);
+  const [formatRequest, setFormatRequest] = useState(0);
   const [format, setFormat] = useState<string | null>(() =>
     formatFor(idea.platform, idea.format ?? idea.source_snapshot?.format),
   );
@@ -77,21 +78,25 @@ export function PlanIt({
       >
         <SelectChip
           label="Platform"
-          placeholder="Platform"
+          placeholder="Choose platform"
           value={platform}
           options={PLATFORM_OPTIONS}
           onChange={(p) => {
+            const kept = formatFor(p, format);
             setPlatform(p);
-            setFormat((f) => formatFor(p, f));
+            setFormat(kept);
+            if (!kept) setFormatRequest((n) => n + 1); // the format menu opens next
           }}
         />
         <SelectChip
           label="Format"
-          placeholder="Format"
+          placeholder="Choose format"
           value={format}
           options={formatOptions(platform)}
           onChange={setFormat}
           disabled={!platform}
+          disabledReason="Choose a platform first"
+          openRequest={formatRequest}
         />
       </div>
       <p className="text-small text-muted">{planSummary(idea.kind, day)}</p>

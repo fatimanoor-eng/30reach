@@ -1,7 +1,12 @@
 import { X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BlipError, BlipIdle, BlipSuccess } from "./blip/BlipPoses";
-import { TOAST_DURATION_MS, ToastContext, type ToastInput } from "./toast-context";
+import {
+  TOAST_DURATION_MS,
+  ToastContext,
+  type ToastDismissReason,
+  type ToastInput,
+} from "./toast-context";
 
 const poses = { success: BlipSuccess, error: BlipError, idle: BlipIdle };
 
@@ -13,16 +18,39 @@ const poses = { success: BlipSuccess, error: BlipError, idle: BlipIdle };
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<(ToastInput & { id: number }) | null>(null);
   const [paused, setPaused] = useState(false);
+  // The toast on screen, for onDismiss (called once, outside state updates).
+  const current = useRef<(ToastInput & { id: number }) | null>(null);
 
-  const show = useCallback((t: ToastInput) => setToast({ ...t, id: Date.now() }), []);
-  const dismiss = useCallback(() => setToast(null), []);
+  const end = useCallback((reason: ToastDismissReason) => {
+    const gone = current.current;
+    current.current = null;
+    gone?.onDismiss?.(reason);
+  }, []);
+  const show = useCallback(
+    (t: ToastInput) => {
+      end("replaced");
+      const next = { ...t, id: Date.now() };
+      current.current = next;
+      setToast(next);
+      setPaused(false);
+    },
+    [end],
+  );
+  const close = useCallback(
+    (reason: ToastDismissReason) => {
+      end(reason);
+      setToast(null);
+    },
+    [end],
+  );
+  const dismiss = useCallback(() => close("closed"), [close]);
   const api = useMemo(() => ({ show, dismiss }), [show, dismiss]);
 
   useEffect(() => {
     if (!toast || paused) return;
-    const timer = window.setTimeout(dismiss, TOAST_DURATION_MS);
+    const timer = window.setTimeout(() => close("timeout"), toast.durationMs ?? TOAST_DURATION_MS);
     return () => window.clearTimeout(timer);
-  }, [toast, paused, dismiss]);
+  }, [toast, paused, close]);
 
   const Pose = toast?.pose ? poses[toast.pose] : null;
 
@@ -54,8 +82,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => {
+                  close("action");
                   toast.action?.onClick();
-                  dismiss();
                 }}
                 className="min-h-11 shrink-0 px-2 text-body-sm text-flash hover:underline md:min-h-9"
               >

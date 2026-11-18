@@ -5,6 +5,7 @@ import { isTyping } from "../../lib/is-typing";
 import { CaptureContext, MAX_DRAFTS, type CaptureApi, type Draft } from "./capture-context";
 import { compressImage, ImageCompressionError } from "./compress-image";
 import { looksLikeUrl, normaliseUrl } from "./idea-rules";
+import { flushImageDeletesOnExit, sweepImageDeletes } from "./pending-image-deletes";
 
 const IDEAS_PATH = "/ideas";
 
@@ -183,6 +184,14 @@ export function IdeaCaptureProvider({ children }: { children: ReactNode }) {
     document.addEventListener("paste", onPaste);
     return () => document.removeEventListener("paste", onPaste);
   }, [addImages, addLink, addNote, pathname, toast]);
+
+  // Images of deleted ideas wait for their Undo toast to go (pending-image-deletes.ts): finish any
+  // left from an earlier visit, and send this tab's pending ones if the page closes meanwhile.
+  useEffect(() => {
+    void sweepImageDeletes();
+    window.addEventListener("pagehide", flushImageDeletesOnExit);
+    return () => window.removeEventListener("pagehide", flushImageDeletesOnExit);
+  }, []);
 
   // Free the preview images if the whole app unmounts (sign out).
   useEffect(

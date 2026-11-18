@@ -23,6 +23,9 @@ const json = (body: unknown, status = 200) => ({
 });
 
 type Row = Record<string, unknown> & { id: string; kind: string };
+/** The signed-in test user (helpers › signInAs) and a teammate. */
+const ME = "00000000-0000-4000-8000-000000000001";
+const AHMAD = "u-ahmad";
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000 - 60_000).toISOString();
 const idea = (id: string, kind: string, extra: Partial<Row> = {}): Row => ({
   id,
@@ -38,6 +41,7 @@ const idea = (id: string, kind: string, extra: Partial<Row> = {}): Row => ({
   tags: [],
   planned_card_id: null,
   created_at: daysAgo(1),
+  created_by: ME,
   creator: { full_name: "Fatima Noor" },
   planned: null,
   ...extra,
@@ -59,6 +63,7 @@ const SEED: Row[] = [
     note: "Great hook in the first 2 seconds. Saved for the hook, not the topic.",
     platform: "tiktok",
     tags: ["Hook"],
+    created_by: AHMAD,
     creator: { full_name: "Ahmad Raza" },
   }),
   idea("i3", "screenshot", {
@@ -75,6 +80,7 @@ const SEED: Row[] = [
     note: "Brand using a soft yellow palette for health tips",
     platform: "instagram",
     tags: ["Look & feel"],
+    created_by: "u-sherry",
     creator: { full_name: "Sherry Khan" },
     created_at: daysAgo(3),
   }),
@@ -107,6 +113,7 @@ const SEED: Row[] = [
     note: "Weekly clinician Q&A on TikTok, modelled on Hims’ best format.",
     platform: "tiktok",
     tags: ["Q&A"],
+    created_by: null, // AI idea: no person
     creator: null,
     created_at: daysAgo(0),
   }),
@@ -159,7 +166,13 @@ const COMMENTS: Comment[] = [
 
 async function setup(
   page: Page,
-  { seed = SEED, failList = false, planError = null as string | null } = {},
+  {
+    seed = SEED,
+    failList = false,
+    planError = null as string | null,
+    role = "admin" as "admin" | "member",
+    refuseDelete = false,
+  } = {},
 ) {
   const rows: Row[] = seed.map((r) => ({ ...r }));
   const inserts: Record<string, unknown>[] = [];
@@ -168,7 +181,7 @@ async function setup(
   const calls: { method: string; url: string; body: unknown }[] = [];
   const removed: string[] = [];
   await page.clock.setFixedTime(NOW);
-  await stubSupabase(page);
+  await stubSupabase(page, { role, full_name: "Fatima Noor" });
   await signInAs(page);
 
   await page.route("**/rest/v1/ideas**", async (r: Route) => {
@@ -226,6 +239,32 @@ async function setup(
       author: { full_name: "Fatima Noor" },
     });
     return r.fulfill({ status: 201, body: "" });
+  });
+
+  // delete_idea / restore_idea, with the database's rule: the creator or an admin.
+  await page.route("**/rest/v1/rpc/delete_idea", async (r: Route) => {
+    const { p_idea_id } = r.request().postDataJSON() as { p_idea_id: string };
+    calls.push({ method: "RPC delete_idea", url: r.request().url(), body: { p_idea_id } });
+    const row = rows.find((x) => x.id === p_idea_id)!;
+    if (refuseDelete || (role !== "admin" && row.created_by !== ME))
+      return r.fulfill(json({ code: "42501", message: "not_allowed" }, 403));
+    rows.splice(rows.indexOf(row), 1);
+    const snapshot = {
+      idea: { ...row },
+      comments: comments.filter((c) => c.idea_id === p_idea_id),
+    };
+    for (const c of snapshot.comments) comments.splice(comments.indexOf(c), 1);
+    return r.fulfill(json(snapshot));
+  });
+  await page.route("**/rest/v1/rpc/restore_idea", async (r: Route) => {
+    const { p_snapshot } = r.request().postDataJSON() as {
+      p_snapshot: { idea: Row; comments: Comment[] };
+    };
+    calls.push({ method: "RPC restore_idea", url: r.request().url(), body: p_snapshot });
+    rows.push(p_snapshot.idea);
+    rows.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    comments.push(...p_snapshot.comments);
+    return r.fulfill(json(p_snapshot.idea.id));
   });
 
   // plan_idea: makes the card and marks the idea planned (like the SQL function).
@@ -498,7 +537,10 @@ test("ideas — paste a screenshot, compress, add a note and tag, save (14a)", a
   await expect(
     page.getByText("Screenshot pasted from clipboard. Add a note and save."),
   ).toBeVisible();
-  await expect(draft.getByRole("img", { name: "Screenshot to save" })).toBeVisible();
+  // Compressing a big image can take a few seconds when every test runs in parallel.
+  await expect(draft.getByRole("img", { name: "Screenshot to save" })).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(draft.getByRole("textbox", { name: "Note" })).toBeFocused();
   await draft.getByRole("textbox", { name: "Note" }).fill("Clinician version of this trend");
   await draft.getByRole("button", { name: "+ tag" }).click();
@@ -544,7 +586,10 @@ test("ideas — browser without WebP saves a JPEG instead", async ({ page }) => 
   await open(page);
   await pasteImage(page);
   const draft = page.getByRole("article", { name: "Unsaved screenshot" });
-  await expect(draft.getByRole("img", { name: "Screenshot to save" })).toBeVisible();
+  // Compressing a big image can take a few seconds when every test runs in parallel.
+  await expect(draft.getByRole("img", { name: "Screenshot to save" })).toBeVisible({
+    timeout: 15_000,
+  });
   await draft.getByRole("button", { name: "Save idea" }).click();
   await expect(page.getByText("Saved to idea board")).toBeVisible();
   const [up] = uploads;
@@ -671,7 +716,10 @@ test("ideas — choose from photos (M09 sheet)", async ({ page }, info) => {
   ).setFiles({ name: "photo.png", mimeType: "image/png", buffer: Buffer.from(png) });
   const draft = page.getByRole("article", { name: "Unsaved screenshot" });
   await expect(draft.getByText("NEW SCREENSHOT")).toBeVisible();
-  await expect(draft.getByRole("img", { name: "Screenshot to save" })).toBeVisible();
+  // Compressing a big image can take a few seconds when every test runs in parallel.
+  await expect(draft.getByRole("img", { name: "Screenshot to save" })).toBeVisible({
+    timeout: 15_000,
+  });
   await draft.getByRole("button", { name: "Save idea" }).click();
   await expect(page.getByText("Saved to idea board")).toBeVisible();
   expect(uploads[0].webp).toBe(true);
@@ -805,19 +853,157 @@ test("idea detail — edit tags (saved straight away)", async ({ page }) => {
     .toEqual([{ tags: ["Video"] }, { tags: ["Video", "Clinician"] }]);
 });
 
-test("idea detail — delete with the shared confirm", async ({ page }) => {
-  const { calls, removed } = await setup(page);
+test("delete — the creator deletes; the image goes once the Undo toast has gone", async ({
+  page,
+}) => {
+  const { calls, removed } = await setup(page, { role: "member" });
   await open(page);
   const drawer = await openDetail(page);
   await drawer.getByRole("button", { name: "Delete idea" }).click();
   const confirm = page.getByRole("dialog", { name: "Delete this idea?" });
+  // Esc closes only the confirm; the idea stays open behind it.
   await expect(confirm).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(confirm).toBeHidden();
+  await expect(drawer).toBeVisible();
+  await drawer.getByRole("button", { name: "Delete idea" }).click();
   await confirm.getByRole("button", { name: "Delete idea" }).click();
-  await expect(page.getByText("Deleted the idea")).toBeVisible();
-  await expect(page.getByRole("dialog", { name: "Idea", exact: true })).toBeHidden();
+  await expect(drawer).toBeHidden();
   await expect(page.getByRole("button", { name: DAY_IN_MY_LIFE })).toHaveCount(0);
-  expect(calls.some((c) => c.method === "DELETE" && c.url.includes("id=eq.i1"))).toBe(true);
-  expect(removed).toEqual(["client-1/i1.webp"]);
+  expect(calls.find((c) => c.method === "RPC delete_idea")?.body).toEqual({ p_idea_id: "i1" });
+
+  // Undo is offered; the image is kept (and listed in case the page closes).
+  const toast = page.getByRole("status").filter({ hasText: "Deleted the idea" });
+  await expect(toast.getByRole("button", { name: "Undo" })).toBeVisible();
+  expect(removed).toEqual([]);
+  expect(
+    await page.evaluate(() => localStorage.getItem("30reach:pending-image-deletes")),
+  ).toContain("client-1/i1.webp");
+
+  // The toast goes (✕ here; ~10 s on its own): now the image is removed.
+  await toast.getByRole("button", { name: "Dismiss" }).click();
+  await expect.poll(() => removed).toEqual(["client-1/i1.webp"]);
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("30reach:pending-image-deletes")))
+    .toBeNull();
+});
+
+test("delete — Undo brings back the idea, its comments and its image", async ({ page }) => {
+  const { calls, removed } = await setup(page, { role: "member" });
+  await open(page);
+  const drawer = await openDetail(page);
+  await drawer.getByRole("button", { name: "Delete idea" }).click();
+  await page
+    .getByRole("dialog", { name: "Delete this idea?" })
+    .getByRole("button", { name: "Delete idea" })
+    .click();
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("Restored the idea")).toBeVisible();
+  await expect(page.getByRole("button", { name: DAY_IN_MY_LIFE })).toBeVisible();
+  const restored = calls.find((c) => c.method === "RPC restore_idea")?.body as {
+    idea: { id: string };
+    comments: unknown[];
+  };
+  expect(restored.idea.id).toBe("i1");
+  expect(restored.comments).toHaveLength(2);
+  expect(removed).toEqual([]); // the image was never removed
+  await expect(page.locator('img[src*="i1.webp"]').first()).toBeVisible();
+  // …and its comments are back.
+  await openDetail(page);
+  await expect(page.getByText("Keep it short, under 30 seconds.")).toBeVisible();
+});
+
+test("delete — someone else's idea: disabled, with who can", async ({ page }, info) => {
+  await setup(page, { role: "member" });
+  await open(page, "/ideas?idea=i2"); // Ahmad's link
+  const drawer = page.getByRole("dialog", { name: "Idea", exact: true });
+  const del = drawer.getByRole("button", { name: "Delete idea" });
+  await expect(del).toHaveAttribute("aria-disabled", "true");
+  const note = "Only Ahmad (who added it) or an admin can delete this idea.";
+  await expect(drawer.locator("p", { hasText: note })).toBeVisible();
+  await page.waitForTimeout(300); // drawer slide-in
+  if (!isDesktop(page)) await tapTargetsOk(page);
+  await expect(page).toHaveScreenshot(`idea-delete-blocked-${info.project.name}.png`);
+  // Keyboard focus shows the tooltip; a click (Playwright needs `force` on aria-disabled) opens
+  // no confirm.
+  await del.focus();
+  await expect(page.getByRole("tooltip")).toHaveText(note);
+  await del.click({ force: true });
+  await expect(page.getByRole("dialog", { name: "Delete this idea?" })).toHaveCount(0);
+
+  // AI ideas: admins only.
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await open(page, "/ideas?idea=i7");
+  await expect(
+    page
+      .getByRole("dialog", { name: "Idea", exact: true })
+      .locator("p", { hasText: "Only an admin can delete AI ideas." }),
+  ).toBeVisible();
+});
+
+test("delete — an admin can delete anyone's idea", async ({ page }) => {
+  const { calls } = await setup(page, { role: "admin" });
+  await open(page, "/ideas?idea=i2");
+  const drawer = page.getByRole("dialog", { name: "Idea", exact: true });
+  await drawer.getByRole("button", { name: "Delete idea" }).click();
+  await page
+    .getByRole("dialog", { name: "Delete this idea?" })
+    .getByRole("button", { name: "Delete idea" })
+    .click();
+  await expect(page.getByText("Deleted the idea")).toBeVisible();
+  expect(calls.some((c) => c.method === "RPC delete_idea")).toBe(true);
+});
+
+test("delete — the server refuses (403): says who can", async ({ page }) => {
+  await setup(page, { role: "member", refuseDelete: true });
+  await open(page);
+  const drawer = await openDetail(page);
+  await drawer.getByRole("button", { name: "Delete idea" }).click();
+  const confirm = page.getByRole("dialog", { name: "Delete this idea?" });
+  await confirm.getByRole("button", { name: "Delete idea" }).click();
+  await expect(
+    confirm.getByText("Only Fatima (who added it) or an admin can delete this idea."),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(confirm).toBeHidden();
+  await expect(drawer.getByRole("button", { name: "Delete idea" })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+});
+
+test("delete — the page closes during Undo: the image is still removed", async ({ page }) => {
+  const { removed } = await setup(page, { role: "member" });
+  await open(page);
+  const drawer = await openDetail(page);
+  await drawer.getByRole("button", { name: "Delete idea" }).click();
+  await page
+    .getByRole("dialog", { name: "Delete this idea?" })
+    .getByRole("button", { name: "Delete idea" })
+    .click();
+  await expect(page.getByRole("button", { name: "Undo" })).toBeVisible();
+  // The page closes: `pagehide` sends the removal with keepalive. (Fired here directly: Playwright
+  // can't intercept requests from a page that is unloading.)
+  await page.evaluate(() =>
+    window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false })),
+  );
+  await expect.poll(() => removed).toContain("client-1/i1.webp");
+});
+
+test("delete — leftovers from an earlier visit are swept", async ({ page }) => {
+  const { removed } = await setup(page);
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "30reach:pending-image-deletes",
+      JSON.stringify([
+        { path: "client-1/old.webp", at: Date.now() - 60_000 },
+        { path: "client-1/recent.webp", at: Date.now() - 2_000 },
+      ]),
+    ),
+  );
+  await open(page);
+  await expect.poll(() => removed).toEqual(["client-1/old.webp"]);
 });
 
 test("Plan it — 14d pick a day, platform and format → calendar card", async ({ page }, info) => {

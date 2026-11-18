@@ -33,6 +33,8 @@ export type Idea = {
   tags: string[];
   planned_card_id: string | null;
   created_at: string;
+  /** Who added it (null for AI ideas, or if that person was removed). */
+  created_by: string | null;
   creator: { full_name: string | null } | null;
   /** The calendar card this idea became (ideas.planned_card_id → calendar_cards). */
   planned: { id: string; date: string } | null;
@@ -278,4 +280,24 @@ export function planSummary(kind: IdeaKind, day: string | null): string {
   };
   const when = day ? ` on ${plannedLabel(day)}` : "";
   return `Creates an “Idea” card${when} with ${what[kind]} attached. The idea is marked Planned.`;
+}
+
+// ───────────────────────────── who can delete (RLS: creator or admin, *_idea_delete_rules.sql)
+
+/** Same rule as the database: the person who added it, or an admin (AI ideas: admins only). */
+export function canDeleteIdea(
+  idea: Pick<Idea, "created_by">,
+  userId: string | null | undefined,
+  isAdmin: boolean,
+): boolean {
+  return isAdmin || (!!idea.created_by && idea.created_by === userId);
+}
+
+/** Why someone else can't delete it: "Only Fatima (who added it) or an admin can delete this idea." */
+export function deleteBlockedMessage(idea: Pick<Idea, "kind" | "creator">): string {
+  if (idea.kind === "ai") return "Only an admin can delete AI ideas.";
+  const first = idea.creator?.full_name?.trim().split(/\s+/)[0];
+  return first
+    ? `Only ${first} (who added it) or an admin can delete this idea.`
+    : "Only the person who added it or an admin can delete this idea.";
 }

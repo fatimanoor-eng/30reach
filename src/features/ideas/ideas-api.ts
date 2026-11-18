@@ -11,7 +11,7 @@ export const IDEA_BUCKET = "idea-images";
 // Both are many-to-one, so PostgREST returns one object (supabase-js without generated types
 // guesses an array, hence the cast).
 const COLUMNS =
-  "id, kind, note, image_path, image_width, image_height, link_url, source_snapshot, platform, format, tags, planned_card_id, created_at, creator:profiles(full_name), planned:calendar_cards!ideas_planned_card_fk(id, date)";
+  "id, kind, note, image_path, image_width, image_height, link_url, source_snapshot, platform, format, tags, planned_card_id, created_at, created_by, creator:profiles(full_name), planned:calendar_cards!ideas_planned_card_fk(id, date)";
 
 export const ideasKey = (clientId: string | undefined): QueryKey => ["ideas", clientId];
 
@@ -149,15 +149,40 @@ export async function updateIdeaTags(id: string, tags: string[]): Promise<void> 
   if (error) throw error;
 }
 
+export class DeleteError extends Error {
+  constructor(
+    message: string,
+    readonly reason: "not-allowed" | "not-found" | "other",
+  ) {
+    super(message);
+    this.name = "DeleteError";
+  }
+}
+
+/** What Undo needs: the idea row and its comments, as delete_idea returned them. */
+export type DeletedIdea = { snapshot: unknown; imagePath: string | null };
+
 /**
- * Deletes the idea (its comments go with it; a calendar card made from it stays and just loses the
- * link), then its image. The row goes first: if that fails nothing is lost. If only the image
- * removal fails, the file is left behind (no one can reach it) rather than failing the delete.
+ * Deletes the idea through delete_idea (comments go with it; a calendar card made from it stays and
+ * loses the link). The database refuses unless you added it or you're an admin (42501 → HTTP 403).
+ * The image is left in place: the caller removes it once Undo is no longer offered.
  */
-export async function deleteIdea(idea: Pick<Idea, "id" | "image_path">): Promise<void> {
-  const { error } = await supabase.from("ideas").delete().eq("id", idea.id);
+export async function deleteIdea(idea: Pick<Idea, "id" | "image_path">): Promise<DeletedIdea> {
+  const { data, error } = await supabase.rpc("delete_idea", { p_idea_id: idea.id });
+  if (error) {
+    if (error.code === "42501" || error.message.includes("not_allowed"))
+      throw new DeleteError("not allowed", "not-allowed");
+    if (error.message.includes("idea_not_found"))
+      throw new DeleteError("This idea isn’t on the board any more.", "not-found");
+    throw new DeleteError("Couldn’t delete it. Check your connection and try again.", "other");
+  }
+  return { snapshot: data, imagePath: idea.image_path };
+}
+
+/** Undo: puts back the same idea, its comments and its calendar link (restore_idea). */
+export async function restoreIdea(snapshot: unknown): Promise<void> {
+  const { error } = await supabase.rpc("restore_idea", { p_snapshot: snapshot });
   if (error) throw error;
-  if (idea.image_path) await supabase.storage.from(IDEA_BUCKET).remove([idea.image_path]);
 }
 
 // ───────────────────────────── Plan it (14d) → plan_idea (migration *_plan_idea.sql)

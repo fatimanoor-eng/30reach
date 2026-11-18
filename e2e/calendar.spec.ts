@@ -273,6 +273,11 @@ test("calendar — delete asks first", async ({ page }) => {
   await page.getByRole("button", { name: /^Delete/ }).click();
   const confirm = page.getByRole("dialog", { name: "Delete “5 swaps for holiday parties”?" });
   await expect(confirm).toBeVisible();
+  // Esc closes only the confirm; the card stays open behind it.
+  await page.keyboard.press("Escape");
+  await expect(confirm).toBeHidden();
+  await expect(page).toHaveURL(/card=k3/);
+  await page.getByRole("button", { name: /^Delete/ }).click();
   await confirm.getByRole("button", { name: "Delete card" }).click();
   await expect(page.getByText("Deleted “5 swaps for holiday parties”")).toBeVisible();
   expect(calls.at(-1)).toMatchObject({ method: "DELETE", id: "k3" });
@@ -368,17 +373,58 @@ test("calendar — 09 header: who/when, status pills by keyboard, chip menu", as
   await page.keyboard.press("ArrowUp");
   await page.keyboard.press("Enter");
   await expect(menu).toHaveCount(0);
-  await expect(dialog.getByRole("button", { name: "Platform: Instagram" })).toBeFocused();
+  await expect(dialog.getByRole("button", { name: "Platform: Instagram" })).toBeVisible();
   await expect(header).toHaveCSS("background-color", "rgb(254, 234, 240)");
-  // Video isn't an Instagram format → Format goes back to its placeholder
-  await expect(dialog.getByRole("button", { name: "Format: not set" })).toBeVisible();
+  // Video isn't an Instagram format → Format is empty again, and its menu opens by itself
+  // (the next step), with focus in it.
+  const format = dialog.getByRole("button", { name: "Format: not set" });
+  await expect(format).toBeVisible();
+  await expect(format).toHaveText("Choose format");
+  const formats = dialog.getByRole("listbox", { name: "Format" });
+  await expect(formats).toBeFocused();
+  // Empty chip: dashed ink border, so it reads as clickable (ANNOTATIONS › Select chip — states).
+  await page.keyboard.press("Escape");
+  await expect(format.locator("span").first()).toHaveCSS("border-top-style", "dashed");
+  await expect(format.locator("span").first()).toHaveCSS("border-top-color", "rgb(11, 11, 12)");
 
   // Esc closes only the menu, not the drawer
-  await dialog.getByRole("button", { name: "Format: not set" }).click();
+  await format.click();
   await expect(dialog.getByRole("listbox", { name: "Format" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog.getByRole("listbox", { name: "Format" })).toHaveCount(0);
   await expect(page.getByRole("dialog")).toBeVisible();
+});
+
+test("calendar — new post: empty chips look clickable, platform leads to format", async ({
+  page,
+}, info) => {
+  await setup(page);
+  await open(page, "/calendar?date=2026-12-24&new=2026-12-24");
+  const dialog = page.getByRole("dialog");
+  const platform = dialog.getByRole("button", { name: "Platform: not set" });
+  await expect(platform).toHaveText("Choose platform");
+  const chip = platform.locator("span").first();
+  await expect(chip).toHaveCSS("border-top-style", "dashed");
+  await expect(chip).toHaveCSS("border-top-color", "rgb(11, 11, 12)"); // ink
+  await expect(chip).toHaveCSS("color", "rgb(11, 11, 12)");
+
+  // Format waits for a platform: grey, and it says why.
+  const format = dialog.getByRole("button", { name: "Format: not set" });
+  await expect(format).toHaveAttribute("aria-disabled", "true");
+  await format.focus();
+  await expect(page.getByRole("tooltip")).toHaveText("Choose a platform first");
+  await dialog.getByRole("textbox", { name: "Title" }).focus(); // tooltip away for the shot
+  await page.waitForTimeout(300); // drawer slide-in
+  await expect(page).toHaveScreenshot(`chips-empty-${info.project.name}.png`);
+
+  // Pick a platform → the format menu opens by itself.
+  await platform.click();
+  await dialog.getByRole("option", { name: "Instagram" }).click();
+  const formats = dialog.getByRole("listbox", { name: "Format" });
+  await expect(formats).toBeVisible();
+  await expect(formats).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByRole("button", { name: "Format: Reel" })).toBeVisible();
 });
 
 test("calendar — chip menu, open", async ({ page }, info) => {

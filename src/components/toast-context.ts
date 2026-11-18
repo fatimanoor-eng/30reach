@@ -6,7 +6,16 @@ export type ToastInput = {
   detail?: string;
   pose?: "success" | "error" | "idle";
   action?: { label: string; onClick: () => void };
+  /** How long it stays (default TOAST_DURATION_MS); hovering or focusing it pauses the timer. */
+  durationMs?: number;
+  /**
+   * Called once when the toast goes: its action was used, it timed out, ✕ was pressed, or another
+   * toast replaced it. ("Deleted the idea · Undo" removes the image only when it's not "action".)
+   */
+  onDismiss?: (reason: ToastDismissReason) => void;
 };
+
+export type ToastDismissReason = "action" | "timeout" | "closed" | "replaced";
 
 export type ToastApi = { show: (toast: ToastInput) => void; dismiss: () => void };
 

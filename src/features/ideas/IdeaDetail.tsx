@@ -7,23 +7,42 @@ import { Button } from "../../components/Button";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Drawer } from "../../components/Drawer";
 import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
+import { Tooltip } from "../../components/Tooltip";
 import { useToast } from "../../components/toast-context";
+import { useAuth } from "../../lib/auth/auth-context";
+import { useProfile } from "../../lib/auth/useProfile";
 import { initialsFor } from "../../lib/auth/domain";
 import { formatCompact, formatShortDate } from "../../lib/format";
 import { useClient } from "../../lib/useClient";
 import { AiTag } from "../calendar/CardTile";
-import { formatLabel, ideaAge, ideaAuthor, ideaText, plannedLabel, type Idea } from "./idea-rules";
+import {
+  canDeleteIdea,
+  deleteBlockedMessage,
+  formatLabel,
+  ideaAge,
+  ideaAuthor,
+  ideaText,
+  plannedLabel,
+  type Idea,
+} from "./idea-rules";
+import { cancelImageDelete, finishImageDelete, holdImageDelete } from "./pending-image-deletes";
 import {
   addComment,
   COMMENT_MAX,
   commentsKey,
   deleteIdea,
+  DeleteError,
+  restoreIdea,
+  type DeletedIdea,
   ideasKey,
   updateIdeaTags,
   useIdeaComments,
 } from "./ideas-api";
 import { PlanIt } from "./PlanIt";
 import { TagEditor } from "./TagEditor";
+
+/** How long "Deleted the idea · Undo" stays. */
+const UNDO_MS = 10_000;
 
 const KIND_LABEL: Record<Idea["kind"], string> = {
   screenshot: "SCREENSHOT",
@@ -80,16 +99,58 @@ export function IdeaDetail({
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["ideas"] }),
   });
 
+  // Who may delete: the person who added it, or an admin (the database enforces the same rule).
+  const { user } = useAuth();
+  const profile = useProfile();
+  const isAdmin = profile.data?.role === "admin";
+  const [refused, setRefused] = useState(false); // the server said no (403)
+  const mayDelete =
+    !refused && (profile.isPending || canDeleteIdea(idea, user?.id ?? null, isAdmin));
+  const blockedMessage = deleteBlockedMessage(idea);
+
   const remove = useMutation({
     mutationFn: () => deleteIdea(idea),
-    onSuccess: () => {
+    onSuccess: (deleted) => {
       setConfirmOpen(false);
       onDeleted(idea.id);
-      toast.show({ title: "Deleted the idea", pose: "success" });
       void queryClient.invalidateQueries({ queryKey: ["ideas"] });
       void queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
+      offerUndo(deleted);
+    },
+    onError: (err) => {
+      if (err instanceof DeleteError && err.reason === "not-allowed") setRefused(true);
     },
   });
+
+  /**
+   * "Deleted the idea · Undo" for ~10 s. The image stays until the toast goes, so Undo brings it
+   * back too; then it's removed (pending-image-deletes.ts covers a page closed in between).
+   */
+  function offerUndo(deleted: DeletedIdea) {
+    const path = deleted.imagePath;
+    if (path) holdImageDelete(path);
+    const undo = async () => {
+      if (path) cancelImageDelete(path);
+      try {
+        await restoreIdea(deleted.snapshot);
+        void queryClient.invalidateQueries({ queryKey: ["ideas"] });
+        void queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
+        toast.show({ title: "Restored the idea", pose: "success" });
+      } catch {
+        if (path) void finishImageDelete(path);
+        toast.show({ title: "Couldn’t undo. The idea stays deleted.", pose: "error" });
+      }
+    };
+    toast.show({
+      title: "Deleted the idea",
+      pose: "success",
+      durationMs: UNDO_MS,
+      action: { label: "Undo", onClick: () => void undo() },
+      onDismiss: (reason) => {
+        if (reason !== "action" && path) void finishImageDelete(path);
+      },
+    });
+  }
 
   const PlatformIcon =
     idea.platform === "instagram" ? InstagramIcon : idea.platform === "tiktok" ? TikTokIcon : null;
@@ -116,43 +177,63 @@ export function IdeaDetail({
   );
 
   const footer = (
-    <div className="flex items-center justify-between gap-3">
-      <button
-        type="button"
-        onClick={() => {
-          remove.reset();
-          setConfirmOpen(true);
-        }}
-        className="min-h-11 text-body-sm font-medium text-spark hover:underline"
-      >
-        Delete idea
-      </button>
-      {idea.planned ? (
-        <Link
-          to={`/calendar?date=${idea.planned.date}&card=${idea.planned.id}`}
-          className="inline-flex min-h-11 items-center gap-2 rounded-control border border-line px-4 text-body-sm font-medium hover:bg-soft md:min-h-10"
-        >
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-fresh" />
-          Planned · {plannedLabel(idea.planned.date)}
-        </Link>
-      ) : (
-        <div className="relative">
-          <Button
-            data-plan-anchor
-            aria-expanded={planOpen}
-            icon={<CalendarDays size={16} aria-hidden="true" />}
-            onClick={() => setPlanOpen((o) => !o)}
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between gap-3">
+        {mayDelete ? (
+          <button
+            type="button"
+            onClick={() => {
+              remove.reset();
+              setConfirmOpen(true);
+            }}
+            className="min-h-11 text-body-sm font-medium text-spark hover:underline"
           >
-            Plan it
-          </Button>
-          <PlanIt
-            idea={idea}
-            open={planOpen}
-            onClose={() => setPlanOpen(false)}
-            onPlanned={onClose}
-          />
-        </div>
-      )}
+            Delete idea
+          </button>
+        ) : (
+          // Shown but not usable: the shared board only lets the creator or an admin delete.
+          <Tooltip content={blockedMessage}>
+            {(tip) => (
+              <button
+                type="button"
+                aria-disabled="true"
+                aria-describedby={tip["aria-describedby"]}
+                onClick={tip.onToggle}
+                className="min-h-11 cursor-not-allowed text-body-sm font-medium text-muted"
+              >
+                Delete idea
+              </button>
+            )}
+          </Tooltip>
+        )}
+        {idea.planned ? (
+          <Link
+            to={`/calendar?date=${idea.planned.date}&card=${idea.planned.id}`}
+            className="inline-flex min-h-11 items-center gap-2 rounded-control border border-line px-4 text-body-sm font-medium hover:bg-soft md:min-h-10"
+          >
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-fresh" />
+            Planned · {plannedLabel(idea.planned.date)}
+          </Link>
+        ) : (
+          <div className="relative">
+            <Button
+              data-plan-anchor
+              aria-expanded={planOpen}
+              icon={<CalendarDays size={16} aria-hidden="true" />}
+              onClick={() => setPlanOpen((o) => !o)}
+            >
+              Plan it
+            </Button>
+            <PlanIt
+              idea={idea}
+              open={planOpen}
+              onClose={() => setPlanOpen(false)}
+              onPlanned={onClose}
+            />
+          </div>
+        )}
+      </div>
+      {!mayDelete && <p className="text-small text-muted">{blockedMessage}</p>}
     </div>
   );
 
@@ -242,7 +323,9 @@ export function IdeaDetail({
       >
         {remove.isError && (
           <p role="alert" className="text-center text-small text-spark">
-            Couldn’t delete it. Check your connection and try again.
+            {remove.error instanceof DeleteError && remove.error.reason === "not-allowed"
+              ? blockedMessage
+              : remove.error.message}
           </p>
         )}
       </ConfirmDialog>

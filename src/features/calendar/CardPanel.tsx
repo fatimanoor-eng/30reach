@@ -59,6 +59,7 @@ export function CardPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [formatRequest, setFormatRequest] = useState(0);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const titleErrorId = useId();
@@ -144,18 +145,24 @@ export function CardPanel({
       <div className="flex flex-wrap items-center gap-x-2">
         <SelectChip
           label="Platform"
-          placeholder="Platform"
+          placeholder="Choose platform"
           value={fields.platform}
           options={PLATFORM_OPTIONS}
-          onChange={setPlatform}
+          onChange={(p) => {
+            setPlatform(p);
+            // Next step: the format menu opens by itself when the format is still empty.
+            if (!formatFor(p, fields.format)) setFormatRequest((n) => n + 1);
+          }}
         />
         <SelectChip
           label="Format"
-          placeholder="Format"
+          placeholder="Choose format"
           value={fields.format}
           options={formatOptions}
           onChange={(v) => set("format", v)}
           disabled={!fields.platform}
+          disabledReason="Choose a platform first"
+          openRequest={formatRequest}
         />
         <DateChip
           value={fields.date}

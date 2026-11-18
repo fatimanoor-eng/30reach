@@ -1,12 +1,26 @@
 import { CalendarDays, ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Tooltip } from "../../components/Tooltip";
 
 export type ChipOption<T extends string> = { value: T; label: string; icon?: ReactNode };
 
-/** The chip's look (Figma "Select chip — states"): placeholder grey · selected · open (bg + ink border). */
-const chip = (open: boolean) =>
+type ChipState = "selected" | "empty" | "open" | "disabled";
+
+/**
+ * The chip's look (ANNOTATIONS › Select chip — states):
+ * • empty — "Choose …" in ink, dashed 1 px ink border, ink chevron: clearly the next thing to click
+ * • selected — white, 1 px line-strong border (ink on hover)
+ * • open — bg fill + ink border, with the menu
+ * • disabled — grey; a tooltip says why
+ */
+const chip = (state: ChipState) =>
   `inline-flex items-center gap-[7px] rounded-control border py-[7px] pr-2 pl-2.5 text-small font-medium whitespace-nowrap ${
-    open ? "border-ink bg-bg" : "border-line-strong bg-surface group-hover:border-ink"
+    {
+      open: "border-ink bg-bg text-ink",
+      empty: "border-dashed border-ink bg-surface text-ink group-hover:bg-bg",
+      selected: "border-line-strong bg-surface text-ink group-hover:border-ink",
+      disabled: "border-line-strong bg-bg text-muted",
+    }[state]
   }`;
 
 /**
@@ -21,14 +35,21 @@ export function SelectChip<T extends string>({
   placeholder,
   onChange,
   disabled = false,
+  disabledReason,
+  openRequest = 0,
 }: {
   /** what it sets, for screen readers ("Platform") */
   label: string;
   value: T | null;
   options: ChipOption<T>[];
+  /** "Choose format" */
   placeholder: string;
   onChange: (value: T) => void;
   disabled?: boolean;
+  /** Shown as a tooltip on the disabled chip, e.g. "Choose a platform first". */
+  disabledReason?: string;
+  /** Increase it to open the menu from outside (format opens after a platform is picked). */
+  openRequest?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -56,6 +77,23 @@ export function SelectChip<T extends string>({
     onChange(options[i].value);
     close(true);
   };
+
+  // Opened from outside (the next step after picking a platform is the format). Derived while
+  // rendering, React's pattern for adjusting state when a prop changes; focus follows in the
+  // effect below.
+  const [seenRequest, setSeenRequest] = useState(openRequest);
+  if (openRequest !== seenRequest) {
+    setSeenRequest(openRequest);
+    if (openRequest > 0 && !disabled && options.length > 0) {
+      setActive(
+        Math.max(
+          0,
+          options.findIndex((o) => o.value === value),
+        ),
+      );
+      setOpen(true);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -89,31 +127,54 @@ export function SelectChip<T extends string>({
 
   return (
     <div ref={wrapRef} className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={open ? listId : undefined}
-        aria-label={`${label}: ${selected?.label ?? "not set"}`}
-        onClick={() => (open ? close(false) : openMenu())}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-            e.preventDefault();
-            openMenu();
-          }
-        }}
-        className="group inline-flex min-h-11 items-center disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0"
-      >
-        <span className={chip(open)}>
-          {selected?.icon}
-          <span className={selected ? "text-ink" : "text-muted"}>
+      {disabled ? (
+        <Tooltip content={disabledReason ?? "Not available"} enabled={!!disabledReason}>
+          {(tip) => (
+            <button
+              type="button"
+              aria-disabled="true"
+              aria-label={`${label}: ${selected?.label ?? "not set"}`}
+              aria-describedby={disabledReason ? tip["aria-describedby"] : undefined}
+              onClick={tip.onToggle}
+              className="group inline-flex min-h-11 cursor-not-allowed items-center md:min-h-0"
+            >
+              <span className={chip("disabled")}>
+                {selected?.icon}
+                {selected?.label ?? placeholder}
+                <ChevronDown size={13} aria-hidden="true" />
+              </span>
+            </button>
+          )}
+        </Tooltip>
+      ) : (
+        <button
+          ref={buttonRef}
+          type="button"
+          data-empty={selected ? undefined : true}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={open ? listId : undefined}
+          aria-label={`${label}: ${selected?.label ?? "not set"}`}
+          onClick={() => (open ? close(false) : openMenu())}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+              e.preventDefault();
+              openMenu();
+            }
+          }}
+          className="group inline-flex min-h-11 items-center md:min-h-0"
+        >
+          <span className={chip(open ? "open" : selected ? "selected" : "empty")}>
+            {selected?.icon}
             {selected?.label ?? placeholder}
+            <ChevronDown
+              size={13}
+              aria-hidden="true"
+              className={selected && !open ? "text-muted" : "text-ink"}
+            />
           </span>
-          <ChevronDown size={13} aria-hidden="true" className="text-muted" />
-        </span>
-      </button>
+        </button>
+      )}
       {open && (
         <ul
           ref={listRef}
@@ -165,7 +226,7 @@ export function DateChip({
     <span className="group relative inline-flex min-h-11 items-center md:min-h-0">
       <span
         aria-hidden="true"
-        className={`${chip(false)} group-focus-within:border-ink group-focus-within:bg-bg`}
+        className={`${chip("selected")} group-focus-within:border-ink group-focus-within:bg-bg`}
       >
         <CalendarDays size={15} />
         <span className="text-ink">{text}</span>
