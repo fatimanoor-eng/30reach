@@ -8,6 +8,7 @@ import { NotFoundPage } from "../features/NotFoundPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { PlaceholderPage } from "../features/PlaceholderPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
+import { CalendarPage } from "../features/calendar/CalendarPage";
 import { CompetitorsPage } from "../features/competitors/CompetitorsPage";
 import { SocialPage } from "../features/social/SocialPage";
 import { AppShell } from "./AppShell";
@@ -50,16 +51,7 @@ const appRoutes: RouteObject[] = [
         path: "competitors",
         element: <CompetitorsPage />,
       },
-      {
-        path: "calendar",
-        element: (
-          <PlaceholderPage
-            title="Calendar"
-            slice={9}
-            text="Plan posts around holidays, health months and marketing dates. Planning only, nothing is posted."
-          />
-        ),
-      },
+      { path: "calendar", element: <CalendarPage /> },
       {
         path: "ideas",
         element: (

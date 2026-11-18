@@ -450,3 +450,9 @@ entrypoint = "./functions/pull-finish/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/check-handle/index.ts"
+
+# Holidays (Slice 9) — fills holiday_cache from Nager.Date on a cache miss. Same rules: team only.
+[functions.holidays]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/holidays/index.ts"

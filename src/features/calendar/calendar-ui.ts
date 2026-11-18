@@ -1,0 +1,87 @@
+// Shared labels and colour classes for the calendar (DESIGN_SYSTEM › Calendar post card, All-day event bar).
+import type { EventKind } from "./events";
+
+export type CardStatus = "idea" | "drafting" | "approved" | "posted";
+export type CardPlatform = "instagram" | "tiktok";
+export type CardOrigin = "manual" | "idea" | "ai";
+
+export type CalendarCard = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  platform: CardPlatform | null;
+  format: string | null;
+  title: string;
+  hook: string | null;
+  caption: string | null;
+  visual_idea: string | null;
+  status: CardStatus;
+  origin: CardOrigin;
+  idea_id: string | null;
+};
+
+export const STATUSES: CardStatus[] = ["idea", "drafting", "approved", "posted"];
+
+export const STATUS_LABEL: Record<CardStatus, string> = {
+  idea: "Idea",
+  drafting: "Drafting",
+  approved: "Approved",
+  posted: "Posted",
+};
+
+/** Status dots (Figma 08 legend): idea bloom, drafting breeze, approved fresh, posted grey. */
+export const STATUS_DOT: Record<CardStatus, string> = {
+  idea: "bg-bloom",
+  drafting: "bg-breeze",
+  approved: "bg-fresh",
+  posted: "bg-muted",
+};
+
+/** 3 px bar on the card's left edge: Instagram pop, TikTok breeze, none = line. */
+export const PLATFORM_BAR: Record<CardPlatform | "none", string> = {
+  instagram: "bg-pop",
+  tiktok: "bg-breeze",
+  none: "bg-line",
+};
+
+export const PLATFORM_LABEL: Record<CardPlatform, string> = {
+  instagram: "Instagram",
+  tiktok: "TikTok",
+};
+export const PLATFORM_SHORT: Record<CardPlatform, string> = { instagram: "IG", tiktok: "TT" };
+
+/** Formats each platform supports (the same names the pulls use). */
+export const FORMATS: Record<CardPlatform, string[]> = {
+  instagram: ["reel", "carousel", "image"],
+  tiktok: ["video", "carousel"],
+};
+export const FORMAT_NAME: Record<string, string> = {
+  reel: "Reel",
+  carousel: "Carousel",
+  image: "Image",
+  video: "Video",
+};
+
+/** "IG · REEL" (mono, uppercased by CSS). Missing parts are left out. */
+export function cardMeta(card: Pick<CalendarCard, "platform" | "format">): string {
+  const parts = [
+    card.platform ? PLATFORM_SHORT[card.platform] : null,
+    card.format ? (FORMAT_NAME[card.format] ?? card.format) : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "No platform";
+}
+
+/** All-day bars: holidays flash, health bloom, marketing breeze. */
+export const EVENT_BG: Record<EventKind, string> = {
+  holiday: "bg-flash",
+  health: "bg-bloom",
+  marketing: "bg-breeze",
+};
+
+export const EVENT_TOGGLE_LABEL: Record<EventKind, string> = {
+  holiday: "Holidays",
+  health: "Health",
+  marketing: "Marketing",
+};
+
+/** Order of the toggles (Figma 08 / M07). */
+export const TOGGLE_ORDER: EventKind[] = ["holiday", "health", "marketing"];

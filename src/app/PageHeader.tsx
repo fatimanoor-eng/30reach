@@ -11,6 +11,7 @@ export function PageHeader({
   crumbs = [],
   description,
   actions,
+  titleAddon,
 }: {
   title: string;
   /** Shorter title below 768 px (e.g. "Social" for the Instagram/TikTok pages, M05). */
@@ -20,6 +21,8 @@ export function PageHeader({
   /** One line under the title (e.g. 07 "6 brands tracked. Changes apply on the next Refresh.") */
   description?: ReactNode;
   actions?: ReactNode;
+  /** Next to the title, e.g. the month arrows on the calendar (08). */
+  titleAddon?: ReactNode;
 }) {
   const client = useClient();
   // Client name from the database; left out of the trail until it has loaded.
@@ -37,16 +40,19 @@ export function PageHeader({
             ))}
           </ol>
         </nav>
-        <h1 className="text-title md:text-display">
-          {mobileTitle ? (
-            <>
-              <span className="md:hidden">{mobileTitle}</span>
-              <span className="hidden md:inline">{title}</span>
-            </>
-          ) : (
-            title
-          )}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-title md:text-display">
+            {mobileTitle ? (
+              <>
+                <span className="md:hidden">{mobileTitle}</span>
+                <span className="hidden md:inline">{title}</span>
+              </>
+            ) : (
+              title
+            )}
+          </h1>
+          {titleAddon}
+        </div>
         {description && <p className="mt-2 text-body text-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

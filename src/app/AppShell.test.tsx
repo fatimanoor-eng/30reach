@@ -29,7 +29,11 @@ describe("App shell", () => {
     ["/instagram", /^Social\s*Instagram$/],
     ["/tiktok", /^Social\s*TikTok$/],
     ["/competitors", "Competitors"],
-    ["/calendar", "Calendar"],
+    // The calendar's title is the month on screen ("November" on phones, "November 2026" from 768 px).
+    [
+      "/calendar",
+      /^(January|February|March|April|May|June|July|August|September|October|November|December)( \d{4})?$/,
+    ],
     ["/ideas", "Idea board"],
     ["/settings", "Settings"],
     ["/more", "More"],

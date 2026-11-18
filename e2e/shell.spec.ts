@@ -6,7 +6,7 @@ const ROUTES = [
   "/instagram",
   "/tiktok",
   "/competitors",
-  "/calendar",
+  // "/calendar" has its own spec with data (calendar.spec.ts).
   "/ideas",
   "/settings",
   "/more",

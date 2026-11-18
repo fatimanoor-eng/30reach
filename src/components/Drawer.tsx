@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import { useEffect, useId, type ReactNode } from "react";
 import { useNativeModal } from "./useNativeModal";
 
@@ -9,6 +9,8 @@ import { useNativeModal } from "./useNativeModal";
  * in <ModalPresence> so it can finish sliding out before it unmounts.
  * On mobile it's a full-screen page. Header (title + close) and footer (actions) stay put; the body scrolls.
  * Native <dialog>: focus trap, Esc and inert page for free.
+ * `header` replaces the plain title (09 card detail: meta line + editable title); `title` then names
+ * the dialog for screen readers. `backLabel` shows "‹ {backLabel}" instead of ✕ on mobile (M08).
  */
 export function Drawer({
   open,
@@ -17,6 +19,8 @@ export function Drawer({
   description,
   children,
   footer,
+  header,
+  backLabel,
 }: {
   open: boolean;
   onClose: () => void;
@@ -24,6 +28,8 @@ export function Drawer({
   description?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
+  header?: ReactNode;
+  backLabel?: string;
 }) {
   const titleId = useId();
   const descId = useId();
@@ -38,28 +44,45 @@ export function Drawer({
   return (
     <dialog
       {...modal}
-      aria-labelledby={titleId}
-      aria-describedby={description ? descId : undefined}
+      aria-labelledby={header ? undefined : titleId}
+      aria-label={header ? title : undefined}
+      aria-describedby={description && !header ? descId : undefined}
       data-motion="drawer"
       className="m-0 h-dvh w-full bg-surface text-ink md:ml-auto md:w-120 md:shadow-xl"
     >
       <div className="flex h-full flex-col">
-        <header className="flex items-start justify-between gap-3 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] md:px-7 md:pt-7">
-          <div className="min-w-0">
-            <h2 id={titleId} className="text-heading">
-              {title}
-            </h2>
-            {description && (
-              <p id={descId} className="mt-3 text-body-sm text-muted">
-                {description}
-              </p>
+        {backLabel && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex min-h-11 items-center gap-1 self-start px-3 pt-[env(safe-area-inset-top)] text-body text-ink md:hidden"
+          >
+            <ChevronLeft size={20} aria-hidden="true" />
+            {backLabel}
+          </button>
+        )}
+        <header
+          className={`flex items-start justify-between gap-3 px-4 md:px-7 md:pt-7 ${backLabel ? "pt-2" : "pt-[calc(env(safe-area-inset-top)+1rem)]"}`}
+        >
+          <div className="min-w-0 flex-1">
+            {header ?? (
+              <>
+                <h2 id={titleId} className="text-heading">
+                  {title}
+                </h2>
+                {description && (
+                  <p id={descId} className="mt-3 text-body-sm text-muted">
+                    {description}
+                  </p>
+                )}
+              </>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-mt-2 -mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-soft hover:text-ink"
+            className={`-mt-2 -mr-2 size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-soft hover:text-ink ${backLabel ? "hidden md:inline-flex" : "inline-flex"}`}
           >
             <X size={20} aria-hidden="true" />
           </button>
