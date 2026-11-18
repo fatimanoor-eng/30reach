@@ -110,6 +110,8 @@ const RPCS = {
     p_title: "rls check",
   },
   card_to_idea: { p_card_id: NO_SUCH_ID },
+  delete_idea: { p_idea_id: NO_SUCH_ID },
+  restore_idea: { p_snapshot: { idea: { id: NO_SUCH_ID }, comments: [] } },
 };
 for (const [fn, args] of Object.entries(RPCS)) {
   const { status, body } = await call("POST", `/rest/v1/rpc/${fn}`, {
