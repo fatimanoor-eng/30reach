@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, Lightbulb, Plus } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { PageHeader } from "../../app/PageHeader";
@@ -21,6 +22,10 @@ import { addDays, isoDay, monthGrid, startOfWeek, todayIso, type IsoDay } from "
 import { dayMonth, monthName, monthYear } from "./format";
 import { IdeaPanel } from "./IdeaPanel";
 import { MonthGrid } from "./MonthGrid";
+import { CalendarDnd } from "./CalendarDnd";
+import { formatFor } from "./platform-options";
+import { ideaCardTitle, plannedLabel, type Idea } from "../ideas/idea-rules";
+import { planIdea, useIdeas } from "../ideas/ideas-api";
 import { useHolidays } from "./useHolidays";
 import { WeekView } from "./WeekView";
 
@@ -53,6 +58,34 @@ export function CalendarPage() {
   const holidays = useHolidays(yearsIn(from, to));
   const { toggles, toggle } = useEventToggles();
   const events = eventsInRange(from, to, holidays.byYear).filter((e) => toggles[e.kind]);
+  // ── ideas: the 08 panel lists them; dropping one on a day plans it (plan_idea, like Plan it)
+  const queryClient = useQueryClient();
+  const ideas = useIdeas();
+  const planDrop = useMutation({
+    mutationFn: ({ idea, day }: { idea: Idea; day: IsoDay }) =>
+      planIdea({
+        ideaId: idea.id,
+        date: day,
+        platform: idea.platform,
+        format: formatFor(idea.platform, idea.format ?? idea.source_snapshot?.format),
+        title: ideaCardTitle(idea),
+      }),
+    onSuccess: (card) => {
+      void queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
+      void queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      toast.show({
+        title: `Planned for ${plannedLabel(card.date)}`,
+        detail: "Added to the calendar as an Idea card.",
+        pose: "success",
+        action: { label: "Open", onClick: () => openCard(card.id) },
+      });
+    },
+    onError: (err: Error) => {
+      void queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      toast.show({ title: err.message, pose: "error" });
+    },
+  });
+
   const move = useMoveCard(cardsKey(client.data?.id, from, to), () =>
     toast.show({
       title: "Couldn’t move the card",
@@ -81,7 +114,13 @@ export function CalendarPage() {
     isoDay(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1 + by, 1);
   const openCard = (id: string) => update({ card: id, new: null });
   const addPost = (day: IsoDay) => update({ new: day, card: null });
-  const closePanel = () => update({ card: null, new: null }, true);
+  // The card just closed here: after a delete or "Move to idea board" the list can refresh before
+  // the URL drops ?card=, which isn't a "missing" card.
+  const [closedId, setClosedId] = useState<string | null>(null);
+  const closePanel = () => {
+    setClosedId(params.get("card"));
+    update({ card: null, new: null }, true);
+  };
 
   // ── the 09 panel: a card from the list, or fetched by id (a link to another month)
   const cardId = params.get("card");
@@ -102,7 +141,7 @@ export function CalendarPage() {
       date: isIsoDay(newParam) ? newParam : today,
     });
   }
-  const missingCard = !!cardId && fetched.isSuccess && fetched.data === null;
+  const missingCard = !!cardId && cardId !== closedId && fetched.isSuccess && fetched.data === null;
   useEffect(() => {
     if (!missingCard) return;
     toast.show({ title: "That card isn’t on the calendar any more", pose: "idle" });
@@ -238,21 +277,32 @@ export function CalendarPage() {
     body = <CalendarSkeleton month={tabletUp} />;
   } else if (tabletUp) {
     body = (
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-stretch">
-        <div className="min-w-0 flex-1">
-          <MonthGrid
-            weeks={weeks}
-            month={month}
-            today={today}
-            events={events}
-            cards={cards.data}
-            onOpenCard={openCard}
-            onAddPost={addPost}
-            onMove={(id, date) => move.mutate({ id, date })}
+      <CalendarDnd
+        cards={cards.data}
+        ideas={ideas.data ?? []}
+        onMoveCard={(id, date) => move.mutate({ id, date })}
+        onPlanIdea={(idea, day) => planDrop.mutate({ idea, day })}
+      >
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-stretch">
+          <div className="min-w-0 flex-1">
+            <MonthGrid
+              weeks={weeks}
+              month={month}
+              today={today}
+              events={events}
+              cards={cards.data}
+              onOpenCard={openCard}
+              onAddPost={addPost}
+            />
+          </div>
+          <IdeaPanel
+            ideas={ideas.data ?? []}
+            loading={ideas.isPending}
+            error={ideas.isError}
+            onRetry={() => void ideas.refetch()}
           />
         </div>
-        <IdeaPanel />
-      </div>
+      </CalendarDnd>
     );
   } else {
     body = (

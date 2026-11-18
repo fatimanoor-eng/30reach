@@ -24,3 +24,18 @@ export function dateRelation(day: IsoDay, today: IsoDay): string {
   if (n === 0) return "today";
   return n > 0 ? `in ${plural(n, "day")}` : `${plural(-n, "day")} ago`;
 }
+
+/** 09 who line: "New card · Fatima Noor" while creating; "Fatima Noor · edited 2 h ago" once saved. */
+export function whoLine(
+  name: string | null,
+  saved: { updatedAt: string } | null,
+  now: number = Date.now(),
+): string {
+  if (!saved) return ["New card", name].filter(Boolean).join(" · ");
+  return [name, editedAgo(saved.updatedAt, now)].filter(Boolean).join(" · ");
+}
+
+/** The amber "This date is in the past" note: a past day on a card that isn't Posted yet. */
+export function pastAndNotPosted(day: IsoDay, today: IsoDay, status: string): boolean {
+  return daysBetween(today, day) < 0 && status !== "posted";
+}

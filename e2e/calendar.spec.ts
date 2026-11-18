@@ -65,6 +65,7 @@ const SEED: Row[] = [
     format: "video",
     status: "drafting",
     origin: "ai",
+    idea_id: "idea-ai", // planned from Blip's idea → "Inspired by"
   }),
   card("k7", "2026-12-23", "Your holiday check-in", { format: "carousel" }),
   card("k8", "2026-12-29", "Realistic goals for 2027", {
@@ -73,6 +74,51 @@ const SEED: Row[] = [
     origin: "ai",
   }),
   card("k9", "2026-12-30", "Resolution season starts", { status: "drafting", origin: "ai" }),
+];
+
+// 08 idea panel (Figma): three ideas to plan; Blip's is already planned (k6), so it isn't listed.
+const ideaRow = (id: string, extra: Record<string, unknown>) => ({
+  id,
+  kind: "note",
+  note: null,
+  image_path: null,
+  image_width: null,
+  image_height: null,
+  link_url: null,
+  source_snapshot: null,
+  platform: "instagram",
+  format: null,
+  tags: [],
+  planned_card_id: null,
+  created_at: "2026-11-15T10:00:00Z",
+  created_by: "u-fatima",
+  creator: { full_name: "Fatima Noor" },
+  planned: null,
+  ...extra,
+});
+const IDEAS = [
+  ideaRow("idea-hers", {
+    kind: "post",
+    note: "OBU version of “3 things nobody tells you” for the first month on a plan",
+    format: "reel",
+    source_snapshot: {
+      brand: "Hers",
+      date: "2026-11-12T15:00:00Z",
+      caption: "3 things",
+      likes: 18400,
+    },
+  }),
+  ideaRow("idea-bts", { note: "Behind the scenes with an OBU clinician" }),
+  ideaRow("idea-dry", { note: "“Dry January” check-in carousel", platform: null }),
+  ideaRow("idea-ai", {
+    kind: "ai",
+    note: "Myth vs fact mini-series: 3 TikToks in January",
+    platform: "tiktok",
+    created_by: null,
+    creator: null,
+    planned_card_id: "k6",
+    planned: { id: "k6", date: "2026-12-17" },
+  }),
 ];
 
 type Calls = { method: string; body: unknown; id?: string }[];
@@ -141,6 +187,41 @@ async function setup(page: Page) {
       }),
     );
   });
+  // Ideas (panel + "Inspired by"), and the two functions that link them to cards.
+  const ideas = IDEAS.map((i) => ({ ...i }));
+  await page.route("**/rest/v1/ideas**", (r: Route) => {
+    const id = new URL(r.request().url()).searchParams.get("id")?.replace("eq.", "");
+    const single = (r.request().headers()["accept"] ?? "").includes("vnd.pgrst.object");
+    if (id) {
+      const found = ideas.filter((i) => i.id === id); // maybeSingle() asks for a list
+      return r.fulfill(json(single ? (found[0] ?? null) : found));
+    }
+    return r.fulfill(json(ideas));
+  });
+  await page.route("**/rest/v1/rpc/plan_idea", (r: Route) => {
+    const body = r.request().postDataJSON() as Record<string, string>;
+    calls.push({ method: "RPC plan_idea", body });
+    const row = card("card-new", body.p_date, body.p_title, {
+      platform: body.p_platform,
+      format: body.p_format,
+      origin: "idea",
+      idea_id: body.p_idea_id,
+    });
+    rows.push(row);
+    const idea = ideas.find((i) => i.id === body.p_idea_id)!;
+    Object.assign(idea, { planned_card_id: row.id, planned: { id: row.id, date: row.date } });
+    return r.fulfill(json(row));
+  });
+  await page.route("**/rest/v1/rpc/card_to_idea", (r: Route) => {
+    const body = r.request().postDataJSON() as { p_card_id: string };
+    calls.push({ method: "RPC card_to_idea", body });
+    rows.splice(
+      rows.findIndex((x) => x.id === body.p_card_id),
+      1,
+    );
+    return r.fulfill(json("idea-from-card"));
+  });
+
   return { rows, calls, holidayFnYears };
 }
 
@@ -280,6 +361,8 @@ test("calendar — delete asks first", async ({ page }) => {
   await page.getByRole("button", { name: /^Delete/ }).click();
   await confirm.getByRole("button", { name: "Delete card" }).click();
   await expect(page.getByText("Deleted “5 swaps for holiday parties”")).toBeVisible();
+  await page.waitForTimeout(800); // the list refreshes: still this toast, no "missing card" one
+  await expect(page.getByText("Deleted “5 swaps for holiday parties”")).toBeVisible();
   expect(calls.at(-1)).toMatchObject({ method: "DELETE", id: "k3" });
 });
 
@@ -339,7 +422,10 @@ test("calendar — 09 header: who/when, status pills by keyboard, chip menu", as
   await open(page, "/calendar?date=2026-12-24&card=k2");
   const dialog = page.getByRole("dialog");
   // who / when (today = 17 Nov in the test clock)
-  await expect(dialog.getByText("Fatima Noor · edited 2 h ago · in 17 days")).toBeVisible();
+  await expect(dialog.getByText("Fatima Noor · edited 2 h ago", { exact: true })).toBeVisible();
+  // The date's relation sits next to the date chip.
+  await expect(dialog.getByText("in 17 days", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("This date is in the past")).toHaveCount(0);
 
   // header tinted by platform: TikTok → #E9F8FE
   const header = dialog.locator("div.rounded-panel");
@@ -379,7 +465,7 @@ test("calendar — 09 header: who/when, status pills by keyboard, chip menu", as
   // (the next step), with focus in it.
   const format = dialog.getByRole("button", { name: "Format: not set" });
   await expect(format).toBeVisible();
-  await expect(format).toHaveText("Choose format");
+  await expect(format).toHaveText("Format");
   const formats = dialog.getByRole("listbox", { name: "Format" });
   await expect(formats).toBeFocused();
   // Empty chip: dashed ink border, so it reads as clickable (ANNOTATIONS › Select chip — states).
@@ -402,7 +488,7 @@ test("calendar — new post: empty chips look clickable, platform leads to forma
   await open(page, "/calendar?date=2026-12-24&new=2026-12-24");
   const dialog = page.getByRole("dialog");
   const platform = dialog.getByRole("button", { name: "Platform: not set" });
-  await expect(platform).toHaveText("Choose platform");
+  await expect(platform).toHaveText("Platform");
   const chip = platform.locator("span").first();
   await expect(chip).toHaveCSS("border-top-style", "dashed");
   await expect(chip).toHaveCSS("border-top-color", "rgb(11, 11, 12)"); // ink
@@ -417,6 +503,17 @@ test("calendar — new post: empty chips look clickable, platform leads to forma
   await page.waitForTimeout(300); // drawer slide-in
   await expect(page).toHaveScreenshot(`chips-empty-${info.project.name}.png`);
 
+  await expect(dialog.getByText("New card · Fatima Noor", { exact: true })).toBeVisible();
+  // From 768 px platform, format and date stay on one line (the relation may go below).
+  if (isDesktop(page)) {
+    const tops = await dialog
+      .locator(
+        'button[aria-label^="Platform"], button[aria-label^="Format"], input[aria-label="Date"]',
+      )
+      .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+    expect(new Set(tops).size).toBe(1);
+  }
+
   // Pick a platform → the format menu opens by itself.
   await platform.click();
   await dialog.getByRole("option", { name: "Instagram" }).click();
@@ -427,6 +524,37 @@ test("calendar — new post: empty chips look clickable, platform leads to forma
   await expect(dialog.getByRole("button", { name: "Format: Reel" })).toBeVisible();
 });
 
+test("calendar — longest chips still fit on one line in the drawer", async ({ page }) => {
+  test.skip(!isDesktop(page), "the drawer is tablet/desktop; phones may wrap");
+  await setup(page);
+  await open(page, "/calendar?date=2026-12-24&card=k3"); // Instagram · Carousel
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "Format: Carousel" })).toBeVisible();
+  const tops = await dialog
+    .locator(
+      'button[aria-label^="Platform"], button[aria-label^="Format"], input[aria-label="Date"]',
+    )
+    .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+  expect(new Set(tops).size).toBe(1);
+  // Nothing sticks out of the tinted panel.
+  const panel = (await dialog.locator("div.rounded-panel").boundingBox())!;
+  const relation = (await dialog.getByText(/^in \d+ days$/).boundingBox())!;
+  expect(relation.x + relation.width).toBeLessThanOrEqual(panel.x + panel.width);
+});
+
+test("calendar — a past date gets an amber note unless posted", async ({ page }) => {
+  await setup(page);
+  await open(page, "/calendar?date=2026-12-24&card=k2");
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Date").fill("2026-11-10"); // before 17 Nov (test clock)
+  await expect(dialog.getByText("7 days ago", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("This date is in the past")).toBeVisible();
+  await dialog.getByRole("radio", { name: "Posted" }).click();
+  await expect(dialog.getByText("This date is in the past")).toHaveCount(0);
+  // Not blocking: Save still works.
+  await expect(dialog.getByRole("button", { name: "Save" })).toBeEnabled();
+});
+
 test("calendar — chip menu, open", async ({ page }, info) => {
   await setup(page);
   await open(page, "/calendar?date=2026-12-24&card=k2");
@@ -434,4 +562,101 @@ test("calendar — chip menu, open", async ({ page }, info) => {
   await expect(page.getByRole("listbox", { name: "Platform" })).toBeVisible();
   await page.waitForTimeout(300); // drawer slide-in
   await expect(page).toHaveScreenshot(`chip-menu-${info.project.name}.png`);
+});
+
+// ───────────────────────────── 10d: calendar ↔ ideas
+
+test("calendar — idea panel lists ideas not planned yet (08)", async ({ page }) => {
+  test.skip(!isDesktop(page), "the panel is tablet/desktop; phones use the Ideas tab");
+  await setup(page);
+  await open(page);
+  const panel = page.getByRole("complementary", { name: "Idea board" });
+  await expect(panel.getByText("FROM Hers · 12 NOV", { exact: false })).toBeVisible();
+  await expect(panel.getByText("Behind the scenes with an OBU clinician")).toBeVisible();
+  await expect(panel.getByText("“Dry January” check-in carousel")).toBeVisible();
+  await expect(panel.getByText("Myth vs fact mini-series")).toHaveCount(0); // already planned
+  await expect(panel.getByRole("link", { name: "Add idea" })).toHaveAttribute("href", "/ideas");
+});
+
+test("calendar — drag an idea onto a day plans it", async ({ page }) => {
+  test.skip(!isDesktop(page), "drag and drop is on the month grid (tablet and desktop)");
+  const { calls } = await setup(page);
+  await open(page);
+  const idea = page.getByRole("button", { name: /^Behind the scenes with an OBU clinician/ });
+  const target = page.getByRole("group", { name: "Monday 14 December" });
+  await idea.scrollIntoViewIfNeeded();
+  const from = (await idea.boundingBox())!;
+  await page.mouse.move(from.x + 20, from.y + 10);
+  await page.mouse.down();
+  await target.scrollIntoViewIfNeeded();
+  const to = (await target.boundingBox())!;
+  await page.mouse.move(from.x + 40, from.y + 30, { steps: 4 });
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await expect(page.getByText("Planned for Mon 14 Dec")).toBeVisible();
+  expect(calls.find((c) => c.method === "RPC plan_idea")?.body).toEqual({
+    p_idea_id: "idea-bts",
+    p_date: "2026-12-14",
+    p_platform: "instagram",
+    p_format: null,
+    p_title: "Behind the scenes with an OBU clinician",
+  });
+  // The idea leaves the panel; the card is on the day.
+  await expect(
+    page.getByRole("button", { name: /^Behind the scenes with an OBU clinician/ }),
+  ).toHaveCount(0);
+  await expect(target.getByText("Behind the scenes with an OBU clinician")).toBeVisible();
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page).toHaveURL(/card=card-new/);
+});
+
+test("calendar — clicking an idea in the panel opens it on the board with Plan it", async ({
+  page,
+}) => {
+  test.skip(!isDesktop(page), "the panel is tablet/desktop");
+  await setup(page);
+  await open(page);
+  await page.getByRole("button", { name: /^“Dry January” check-in carousel/ }).click();
+  await expect(page).toHaveURL(/\/ideas\?idea=idea-dry&plan=1$/);
+});
+
+test("calendar — Move to idea board (card_to_idea)", async ({ page }) => {
+  test.skip(!isDesktop(page), "the button is in the drawer from 768 px (M08 has Delete + Save)");
+  const { calls } = await setup(page);
+  await open(page, "/calendar?date=2026-12-24&card=k3");
+  await page.getByRole("button", { name: "Move to idea board" }).click();
+  const confirm = page.getByRole("dialog", { name: "Move it to the idea board?" });
+  await expect(confirm.getByText(/becomes a note on the idea board/)).toBeVisible();
+  await confirm.getByRole("button", { name: "Move to idea board" }).click();
+  await expect(page.getByText("Moved to the idea board")).toBeVisible();
+  // Still the same toast a moment later (not replaced by "isn't on the calendar any more").
+  await page.waitForTimeout(800);
+  await expect(page.getByText("Moved to the idea board")).toBeVisible();
+  expect(calls.find((c) => c.method === "RPC card_to_idea")?.body).toEqual({ p_card_id: "k3" });
+  await expect(page.getByRole("button", { name: /5 swaps for holiday parties/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page).toHaveURL(/\/ideas\?idea=idea-from-card$/);
+});
+
+test("calendar — Inspired by shows the idea a card came from (09)", async ({ page }, info) => {
+  await setup(page);
+  await open(page, "/calendar?date=2026-12-17&card=k6");
+  const dialog = page.getByRole("dialog");
+  const inspired = dialog.getByRole("link", { name: /Inspired by/ });
+  await expect(inspired).toContainText("Myth vs fact mini-series: 3 TikToks in January");
+  await expect(inspired).toContainText("Blip");
+  // A card made from an idea: Move to idea board puts the idea back instead of making a note.
+  if (isDesktop(page)) {
+    await dialog.getByRole("button", { name: "Move to idea board" }).click();
+    await expect(
+      page
+        .getByRole("dialog", { name: "Move it to the idea board?" })
+        .getByText(/its idea goes back/),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+  }
+  await page.waitForTimeout(300);
+  await expect(page).toHaveScreenshot(`card-inspired-${info.project.name}.png`);
+  await inspired.click();
+  await expect(page).toHaveURL(/\/ideas\?idea=idea-ai$/);
 });

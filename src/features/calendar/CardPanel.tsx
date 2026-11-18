@@ -1,16 +1,18 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
+import { cardToIdea } from "../ideas/ideas-api";
+import { InspiredBy } from "../ideas/InspiredBy";
 import { useId, useState, type ReactNode } from "react";
 import { Avatar } from "../../components/Avatar";
 import { Button } from "../../components/Button";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Drawer } from "../../components/Drawer";
-import { Tooltip } from "../../components/Tooltip";
 import { useAuth } from "../../lib/auth/auth-context";
 import { initialsFor } from "../../lib/auth/domain";
 import { useProfile } from "../../lib/auth/useProfile";
 import { useToast } from "../../components/toast-context";
 import { PLATFORM_TINT, type CalendarCard, type CardPlatform } from "./calendar-ui";
-import { dateRelation, editedAgo } from "./card-time";
+import { dateRelation, pastAndNotPosted, whoLine } from "./card-time";
 import { deleteCard, saveCard, type CardFields } from "./cards-api";
 import { todayIso, type IsoDay } from "./events/dates";
 import { shortDay } from "./format";
@@ -18,16 +20,14 @@ import { formatFor, formatOptions as optionsFor, PLATFORM_OPTIONS } from "./plat
 import { DateChip, SelectChip } from "./SelectChip";
 import { StatusPills } from "./StatusPills";
 
-const COMING_SOON = "Coming soon";
-
 /**
  * 09 card detail (drawer from 768 px) / M08 (full-screen page with a back arrow and a sticky Save bar).
  * Card header (Figma annotation): a panel tinted by platform with three select chips (platform, format,
  * date), the title edited in place, a who/when line and the soft status pills. Then hook, caption,
  * visual idea. New post = the same panel, empty, with a date. No ✕ (as in Figma): Esc, the dimmed page,
  * or "‹ Calendar" on phones close it.
- * Not in this slice: "Inspired by" (Slice 10), the health-claim check (Slice 11); "Move to idea board"
- * is shown disabled.
+ * "Inspired by" links to the idea a card was planned from; "Move to idea board" (card_to_idea)
+ * sends it back. Not in this slice: the health-claim check (Slice 11).
  */
 export function CardPanel({
   open,
@@ -60,6 +60,23 @@ export function CardPanel({
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [formatRequest, setFormatRequest] = useState(0);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const navigate = useNavigate();
+  // 09 "Move to idea board" (card_to_idea). Closes first so the toast and its Open are reachable.
+  const move = useMutation({
+    mutationFn: () => cardToIdea(card!.id),
+    onSuccess: (ideaId) => {
+      setMoveOpen(false);
+      onClose();
+      void queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
+      void queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      toast.show({
+        title: "Moved to the idea board",
+        pose: "success",
+        action: { label: "Open", onClick: () => navigate(`/ideas?idea=${ideaId}`) },
+      });
+    },
+  });
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const titleErrorId = useId();
@@ -127,48 +144,59 @@ export function CardPanel({
   };
 
   const formatOptions = optionsFor(fields.platform);
-  // Who / when: the card's creator and last edit; a new post shows you and the chosen day only.
+  // Who: "New card · {you}" while creating, "{creator} · edited … ago" once saved. When: the
+  // date's relation sits next to the date chip, with an amber note for a past, unposted day.
   const who = card ? (card.creator?.full_name ?? null) : (profile.data?.full_name ?? null);
   const whoInitials = initialsFor(who, card ? "?" : (user?.email ?? "?"));
-  const whoLine = [
-    who,
-    card ? editedAgo(card.updated_at) : null,
-    dateRelation(fields.date, todayIso()),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const who_ = whoLine(who, card ? { updatedAt: card.updated_at } : null);
+  const today = todayIso();
+  const relation = dateRelation(fields.date, today);
+  const isPast = pastAndNotPosted(fields.date, today, fields.status);
 
   const header = (
     <div
       className={`flex flex-col gap-3.5 rounded-panel px-4 py-4 md:px-5 md:py-[18px] ${PLATFORM_TINT[fields.platform ?? "none"]}`}
     >
-      <div className="flex flex-wrap items-center gap-x-2">
-        <SelectChip
-          label="Platform"
-          placeholder="Choose platform"
-          value={fields.platform}
-          options={PLATFORM_OPTIONS}
-          onChange={(p) => {
-            setPlatform(p);
-            // Next step: the format menu opens by itself when the format is still empty.
-            if (!formatFor(p, fields.format)) setFormatRequest((n) => n + 1);
-          }}
-        />
-        <SelectChip
-          label="Format"
-          placeholder="Choose format"
-          value={fields.format}
-          options={formatOptions}
-          onChange={(v) => set("format", v)}
-          disabled={!fields.platform}
-          disabledReason="Choose a platform first"
-          openRequest={formatRequest}
-        />
-        <DateChip
-          value={fields.date}
-          text={shortDay(fields.date)}
-          onChange={(v) => set("date", v)}
-        />
+      <div className="flex flex-col gap-1.5">
+        {/* Platform, format and date: one line from 768 px (the drawer); they wrap only on
+            phones. The date's relation goes beside them, or below when there's no room. */}
+        <div className="flex flex-wrap items-center gap-x-2">
+          <div className="flex flex-wrap items-center gap-x-2 md:flex-nowrap">
+            <SelectChip
+              label="Platform"
+              placeholder="Platform"
+              value={fields.platform}
+              options={PLATFORM_OPTIONS}
+              onChange={(p) => {
+                setPlatform(p);
+                // Next step: the format menu opens by itself when the format is still empty.
+                if (!formatFor(p, fields.format)) setFormatRequest((n) => n + 1);
+              }}
+            />
+            <SelectChip
+              label="Format"
+              placeholder="Format"
+              value={fields.format}
+              options={formatOptions}
+              onChange={(v) => set("format", v)}
+              disabled={!fields.platform}
+              disabledReason="Choose a platform first"
+              openRequest={formatRequest}
+            />
+            <DateChip
+              value={fields.date}
+              text={shortDay(fields.date)}
+              onChange={(v) => set("date", v)}
+            />
+          </div>
+          <span className="text-small whitespace-nowrap text-muted-strong">{relation}</span>
+        </div>
+        {isPast && (
+          <p className="flex items-center gap-1.5 text-small text-amber-text">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-amber" />
+            This date is in the past
+          </p>
+        )}
       </div>
       <div>
         <textarea
@@ -193,7 +221,7 @@ export function CardPanel({
       </div>
       <p className="flex items-center gap-2 text-small text-muted-strong">
         <Avatar initials={whoInitials} tone="user" />
-        <span>{whoLine}</span>
+        <span>{who_}</span>
       </p>
       <div className="flex flex-col gap-1 md:gap-2">
         <p id={statusLabelId} className="mono-label text-muted-strong">
@@ -224,21 +252,17 @@ export function CardPanel({
       )}
       <div className="flex flex-1 items-center justify-end gap-2">
         {card && (
-          <div className="hidden md:block">
-            <Tooltip content={COMING_SOON}>
-              {(tip) => (
-                <Button
-                  variant="secondary"
-                  aria-disabled="true"
-                  aria-describedby={tip["aria-describedby"]}
-                  onClick={tip.onToggle}
-                  className="cursor-not-allowed opacity-40"
-                >
-                  Move to idea board
-                </Button>
-              )}
-            </Tooltip>
-          </div>
+          // Not on phones (M08 has Delete + Save only).
+          <Button
+            variant="secondary"
+            onClick={() => {
+              move.reset();
+              setMoveOpen(true);
+            }}
+            className="hidden md:inline-flex"
+          >
+            Move to idea board
+          </Button>
         )}
         <Button onClick={() => void save()} disabled={saving} className="flex-1 md:flex-none">
           {saving ? "Saving…" : "Save"}
@@ -281,6 +305,7 @@ export function CardPanel({
               />
             )}
           </Field>
+          <InspiredBy ideaId={card?.idea_id ?? null} />
           {error && (
             <p role="alert" className="text-small text-spark">
               {error}
@@ -299,6 +324,27 @@ export function CardPanel({
           busy={deleting}
         >
           {deleteError && <p className="text-center text-small text-spark">{deleteError}</p>}
+        </ConfirmDialog>
+      )}
+      {card && (
+        <ConfirmDialog
+          open={moveOpen}
+          onClose={() => !move.isPending && setMoveOpen(false)}
+          title="Move it to the idea board?"
+          description={
+            card.idea_id
+              ? "It comes off the calendar and its idea goes back on the board, ready to plan again."
+              : "It comes off the calendar and becomes a note on the idea board, with its title, hook, caption and visual idea as saved."
+          }
+          confirmLabel={move.isPending ? "Moving…" : "Move to idea board"}
+          onConfirm={() => move.mutate()}
+          busy={move.isPending}
+        >
+          {move.isError && (
+            <p role="alert" className="text-center text-small text-spark">
+              Couldn’t move it. Check your connection and try again.
+            </p>
+          )}
         </ConfirmDialog>
       )}
     </>

@@ -1,19 +1,5 @@
-import {
-  DndContext,
-  DragOverlay,
-  MouseSensor,
-  pointerWithin,
-  TouchSensor,
-  useDraggable,
-  useDroppable,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Plus } from "lucide-react";
-import { useState } from "react";
-import { useMediaQuery } from "../../lib/useMediaQuery";
 import { EVENT_BG, type CalendarCard } from "./calendar-ui";
 import { CardTile } from "./CardTile";
 import { layoutWeek, eventsOn, type WeekBar } from "./events/bars";
@@ -30,8 +16,8 @@ const LANE = 23;
 /**
  * 08 month grid (tablet and desktop). Weeks start on Monday. All-day bars are drawn in one layer per
  * week so multi-day bars connect; each day cell keeps space for them, then lists its cards.
- * Cards drag to another day (@dnd-kit: mouse, or touch-and-hold on tablets) — the day under the
- * pointer wins; a click opens 09.
+ * Cards drag to another day, and ideas from the panel drop onto a day (CalendarDnd, around the grid
+ * and the panel); a click opens 09.
  * Hovering an empty day shows "+ Add post".
  */
 export function MonthGrid({
@@ -42,7 +28,6 @@ export function MonthGrid({
   cards,
   onOpenCard,
   onAddPost,
-  onMove,
 }: {
   weeks: IsoDay[][];
   /** 0 = January: days outside it are greyed */
@@ -52,32 +37,11 @@ export function MonthGrid({
   cards: CalendarCard[];
   onOpenCard: (id: string) => void;
   onAddPost: (day: IsoDay) => void;
-  onMove: (id: string, day: IsoDay) => void;
 }) {
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
-  );
-  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const [dragging, setDragging] = useState<CalendarCard | null>(null);
   const gridStart = weeks[0][0];
 
-  const onDragStart = ({ active }: DragStartEvent) =>
-    setDragging(cards.find((c) => c.id === active.id) ?? null);
-  const onDragEnd = ({ active, over }: DragEndEvent) => {
-    setDragging(null);
-    const card = cards.find((c) => c.id === active.id);
-    if (card && over && over.id !== card.date) onMove(card.id, String(over.id));
-  };
-
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={pointerWithin}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onDragCancel={() => setDragging(null)}
-    >
+    <>
       <div className="overflow-hidden rounded-card border border-line bg-surface">
         <div aria-hidden="true" className="grid grid-cols-7">
           {WEEKDAYS.map((d) => (
@@ -112,10 +76,7 @@ export function MonthGrid({
           );
         })}
       </div>
-      <DragOverlay dropAnimation={reducedMotion ? null : undefined}>
-        {dragging && <CardTile card={dragging} dragging />}
-      </DragOverlay>
-    </DndContext>
+    </>
   );
 }
 

@@ -241,3 +241,32 @@ export async function copyThumbnail(url: string | undefined): Promise<Compressed
     return null;
   }
 }
+
+// ───────────────────────────── calendar ↔ ideas (09)
+
+/** One idea by id (09 "Inspired by"). Null when it's gone. */
+export function useIdea(id: string | null) {
+  return useQuery({
+    queryKey: ["ideas", "one", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ideas")
+        .select(COLUMNS)
+        .eq("id", id!)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as unknown as Idea | null) ?? null;
+    },
+  });
+}
+
+/**
+ * 09 "Move to idea board" (card_to_idea): a card made from an idea is removed and its idea is no
+ * longer planned; any other card becomes a Note idea, then is removed. Returns the idea's id.
+ */
+export async function cardToIdea(cardId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("card_to_idea", { p_card_id: cardId });
+  if (error) throw error;
+  return data as string;
+}

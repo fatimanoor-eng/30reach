@@ -78,7 +78,7 @@ export function PlanIt({
       >
         <SelectChip
           label="Platform"
-          placeholder="Choose platform"
+          placeholder="Platform"
           value={platform}
           options={PLATFORM_OPTIONS}
           onChange={(p) => {
@@ -90,7 +90,7 @@ export function PlanIt({
         />
         <SelectChip
           label="Format"
-          placeholder="Choose format"
+          placeholder="Format"
           value={format}
           options={formatOptions(platform)}
           onChange={setFormat}
