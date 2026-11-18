@@ -12,6 +12,7 @@ import { formatShortDate } from "../../lib/format";
 import { createIdea } from "../ideas/ideas-api";
 import { usePullPosts, useSavedPulls } from "../overview/useOverviewData";
 import {
+  BREATHER_TEXT,
   clientShort,
   firstNameOf,
   greeting,
@@ -161,7 +162,7 @@ export function AskBlipPanel({
               {m.status === "pending" && (
                 <p className="flex items-center gap-2.5 text-small text-muted">
                   <BlipThinking className="h-8 w-auto shrink-0" />
-                  Blip is thinking…
+                  {m.breather ? BREATHER_TEXT : "Blip is thinking…"}
                 </p>
               )}
               {m.status === "error" && (

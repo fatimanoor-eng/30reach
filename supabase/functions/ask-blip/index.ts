@@ -1,6 +1,6 @@
 // `ask-blip` Edge Function: Ask Blip (12 / M11), Slice 11. Prompt: AI_PROMPTS.md §1.
 //
-// POST { clientId, question, history?: [{ q, a }] } →
+// POST { clientId, question, history?: [{ q, a }], light?: boolean } →
 //   200 { type: "insight", lead, points[], forClient, idea, inData, sources: SourcePost[],
 //         pull: { id, startedAt } }
 //   200 { type: "chat", message }             small talk: greetings, hype, thanks, feelings, off-topic
@@ -10,19 +10,25 @@
 //   429 { error: "rate_limited", retryAfter } Groq asked us to slow down
 //   502 { error: "ai_invalid" | "ai_unavailable" }
 //
+// Light mode (light: true, question ≤ 40 chars; the browser decides with isLightQuestion()): small talk
+// with no data words. The pull isn't loaded or sent: persona + rules + last turns only (~400 tokens
+// instead of ~3K), and the answer is always { type: "chat", message }.
+//
 // The model never sees the raw pull: only the compact summary from buildSummary() (≈ 2.5K tokens),
 // with posts as p1…pN. History is the last 2 turns, trimmed. Nothing is stored.
 // Who can call it: team only (verify_jwt → withSupabase → is_team()), same as `credits`.
 
 import {
+  ASK_LIGHT_SCHEMA,
   ASK_SCHEMA,
   buildSummary,
   firstName,
   ideaFromAnswer,
   parseAskInput,
   validateAskAnswer,
+  validateLightAnswer,
 } from "../_shared/ai-logic.ts";
-import { askSystem, askUser } from "../_shared/ai-prompts.ts";
+import { askLightSystem, askLightUser, askSystem, askUser } from "../_shared/ai-prompts.ts";
 import { aiFailure, groqJson, loadFailure, loadPull, sourcePost } from "../_shared/ai-server.ts";
 import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
 
@@ -36,11 +42,37 @@ export default {
     if ("error" in input) return json(input, 400);
 
     const userId = ctx.userClaims?.sub;
+    const profileQuery = userId
+      ? ctx.supabase.from("profiles").select("full_name, email").eq("id", userId).maybeSingle()
+      : Promise.resolve({ data: null });
+
+    if (input.light) {
+      const [clientRow, profile] = await Promise.all([
+        ctx.supabase.from("clients").select("name").eq("id", input.clientId).maybeSingle(),
+        profileQuery,
+      ]);
+      if (!clientRow.data) return loadFailure("no_client");
+      const who = profile.data as { full_name: string | null; email: string } | null;
+      const result = await groqJson({
+        admin: ctx.supabaseAdmin,
+        fn: "ask-blip",
+        label: "ask-blip light",
+        system: askLightSystem({
+          client: (clientRow.data as { name: string }).name,
+          firstName: firstName(who?.full_name, who?.email),
+        }),
+        user: askLightUser({ history: input.history, question: input.question }),
+        schema: ASK_LIGHT_SCHEMA,
+        maxTokens: 400,
+        validate: (raw) => validateLightAnswer(raw),
+      });
+      if (!result.ok) return aiFailure(result);
+      return json(result.value);
+    }
+
     const [loaded, profile] = await Promise.all([
       loadPull(ctx.supabase, input.clientId, { previous: true }),
-      userId
-        ? ctx.supabase.from("profiles").select("full_name, email").eq("id", userId).maybeSingle()
-        : Promise.resolve({ data: null }),
+      profileQuery,
     ]);
     if (!loaded.ok) return loadFailure(loaded.error);
 
@@ -51,6 +83,7 @@ export default {
     const result = await groqJson({
       admin: ctx.supabaseAdmin,
       fn: "ask-blip",
+      label: "ask-blip full",
       system: askSystem({ client, firstName: firstName(who?.full_name, who?.email) }),
       user: askUser({ summaryJson, history: input.history, question: input.question }),
       schema: ASK_SCHEMA,

@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { BlipAnswer, BlipInsight, SourcePost } from "../../lib/ai/ai-api";
-import { answerText } from "../../lib/ai/ai-api";
+import { AiError, answerText } from "../../lib/ai/ai-api";
 import {
+  BREATHER_CAP_S,
+  breatherWait,
+  isLightQuestion,
+  withBreather,
   clientShort,
   firstNameOf,
   greeting,
@@ -271,5 +275,105 @@ describe("Ask Blip small talk (answered in code, no Groq call)", () => {
         });
       }
     }
+  });
+});
+
+describe("Ask Blip light mode (no data summary)", () => {
+  const names = ["Hims", "WeightWatchers", "LifeMD", "Found", "Noom Med", "OBU Health", "OBU"];
+
+  it.each([
+    "hehehe",
+    "huh?",
+    "what?",
+    "lol",
+    "do you love me?",
+    "I'm so tired today",
+    "are you a robot?",
+    "you're funny 😄",
+    "what's the weather tomorrow?",
+    "ok cool",
+  ])("light: %j", (text) => {
+    expect(isLightQuestion(text, names)).toBe(true);
+  });
+
+  it.each([
+    ["names a brand", "how's Hims doing?"],
+    ["brand in any case", "what about lifemd"],
+    ["first word of a brand", "and noom?"],
+    ["names the client", "is OBU behind?"],
+    ["platform", "any good tiktoks?"],
+    ["format", "reels or carousels?"],
+    ["metric", "who gets more likes"],
+    ["data word", "what's the best day?"],
+    ["data word", "what's trending"],
+    ["data word", "give me ideas"],
+    ["data word", "compare them"],
+    ["data word", "what changed?"],
+    ["digits", "and 9am?"],
+    ["too long (41+)", "can you tell me a little bit about yourself please"],
+    ["empty", "   "],
+  ])("full (%s): %j", (_why, text) => {
+    expect(isLightQuestion(text, names)).toBe(false);
+  });
+
+  it("whole words only: 'like' stops it, 'likely' / 'topic' don't", () => {
+    expect(isLightQuestion("I like you", names)).toBe(false);
+    expect(isLightQuestion("likely story", names)).toBe(false); // "story" is a format word
+    expect(isLightQuestion("off topic, sorry", names)).toBe(true);
+  });
+});
+
+describe("Ask Blip breather (one automatic retry after a 429)", () => {
+  it("waits Groq's Retry-After, 1–30 s, 30 when unknown", () => {
+    expect(breatherWait(12)).toBe(12);
+    expect(breatherWait(0)).toBe(1);
+    expect(breatherWait(2.2)).toBe(3);
+    expect(breatherWait(60)).toBe(BREATHER_CAP_S);
+    expect(breatherWait(null)).toBe(30);
+  });
+
+  it("no wait when the first try works", async () => {
+    const onWait = vi.fn();
+    const sleep = vi.fn(async () => {});
+    await expect(withBreather(async () => "ok", { onWait, sleep })).resolves.toBe("ok");
+    expect(onWait).not.toHaveBeenCalled();
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("rate limited → shows the breather, waits, retries once and answers", async () => {
+    const run = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(new AiError("rate_limited", 12))
+      .mockResolvedValueOnce("answer");
+    const onWait = vi.fn();
+    const sleep = vi.fn(async () => {});
+    await expect(withBreather(run, { onWait, sleep })).resolves.toBe("answer");
+    expect(onWait).toHaveBeenCalledWith(12);
+    expect(sleep).toHaveBeenCalledWith(12_000);
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it("rate limited twice → the second error is thrown (breather message), no third try", async () => {
+    const run = vi.fn(async () => {
+      throw new AiError("rate_limited", 90);
+    });
+    const sleep = vi.fn(async () => {});
+    await expect(withBreather(run, { onWait: () => {}, sleep })).rejects.toMatchObject({
+      kind: "rate_limited",
+    });
+    expect(sleep).toHaveBeenCalledWith(30_000); // capped
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it("other errors are not retried", async () => {
+    const run = vi.fn(async () => {
+      throw new AiError("failed");
+    });
+    const onWait = vi.fn();
+    await expect(withBreather(run, { onWait, sleep: async () => {} })).rejects.toMatchObject({
+      kind: "failed",
+    });
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(onWait).not.toHaveBeenCalled();
   });
 });

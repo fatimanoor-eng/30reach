@@ -66,8 +66,9 @@ export type BlipInsight = {
 export type BlipChat = { type: "chat"; message: string };
 export type BlipAnswer = BlipInsight | BlipChat;
 
-export const askBlip = (clientId: string, question: string, history: AskTurn[]) =>
-  call<BlipAnswer>("ask-blip", { clientId, question, history });
+/** `light`: small talk, sent without the data summary (see isLightQuestion in blip-rules.ts). */
+export const askBlip = (clientId: string, question: string, history: AskTurn[], light = false) =>
+  call<BlipAnswer>("ask-blip", { clientId, question, history, ...(light && { light: true }) });
 
 /** An answer as one short text: the history Blip gets for follow-ups, and what "Copy" copies. */
 export function answerText(a: BlipAnswer): string {

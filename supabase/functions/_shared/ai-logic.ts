@@ -15,6 +15,8 @@ export const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 /** Size limits. They keep every request well under Groq's 8K tokens/minute. */
 export const LIMITS = {
   question: 500,
+  /** Light mode (no data summary) only for questions this short. The browser decides; we cap it. */
+  lightChars: 40,
   historyTurns: 2,
   historyChars: 600,
   /** ≈ 2.5K tokens at ~4 chars/token. */
@@ -477,6 +479,24 @@ export function parseGroqMeter(h: HeaderBag, model: string): GroqMeter | null {
   return meter.remaining_requests == null && meter.remaining_tokens == null ? null : meter;
 }
 
+/**
+ * One log line per Groq response, for tuning against the free plan's tokens per minute:
+ * "ask-blip light · tokens 412 in + 96 out (reasoning 40) = 508 · 7.4K/min left". Never the content.
+ */
+export function tokenLog(label: string, body: unknown, h: HeaderBag): string {
+  const usage = isObj(body) && isObj(body.usage) ? body.usage : {};
+  const n = (v: unknown) => (typeof v === "number" ? v : null);
+  const details = isObj(usage.completion_tokens_details) ? usage.completion_tokens_details : {};
+  const reasoning = n(details.reasoning_tokens);
+  const left = num(h.get("x-ratelimit-remaining-tokens"));
+  return [
+    `${label} · tokens ${n(usage.prompt_tokens) ?? "?"} in + ${n(usage.completion_tokens) ?? "?"} out`,
+    reasoning != null ? ` (reasoning ${reasoning})` : "",
+    ` = ${n(usage.total_tokens) ?? "?"}`,
+    left != null ? ` · ${left} tokens/min left` : "",
+  ].join("");
+}
+
 /** Seconds to wait after a 429 (Retry-After, capped at 120 s), else 60. */
 export const groqRetryAfter = (h: HeaderBag) => parseRetryAfter(h.get("retry-after")) ?? 60;
 
@@ -523,6 +543,12 @@ export const ASK_SCHEMA = {
   }),
 };
 
+/** Light mode (no data sent): chat only. */
+export const ASK_LIGHT_SCHEMA = {
+  name: "blip_chat",
+  schema: strictObject({ message: { type: "string" } }),
+};
+
 export const PLAN_SCHEMA = {
   name: "month_plan",
   schema: strictObject({
@@ -565,6 +591,8 @@ export type AskInput = {
   clientId: string;
   question: string;
   history: { q: string; a: string }[];
+  /** Small talk: persona + rules + last turns only, no data summary (~400 tokens instead of ~3K). */
+  light: boolean;
 };
 export function parseAskInput(body: Record<string, unknown>): AskInput | InputError {
   if (!isUuid(body.clientId)) return bad("bad_client");
@@ -575,7 +603,8 @@ export function parseAskInput(body: Record<string, unknown>): AskInput | InputEr
     .filter((t): t is { q: string; a: string } => isObj(t) && isStr(t.q) && isStr(t.a))
     .slice(-LIMITS.historyTurns)
     .map((t) => ({ q: clip(t.q, LIMITS.historyChars), a: clip(t.a, LIMITS.historyChars) }));
-  return { clientId: body.clientId, question, history };
+  const light = body.light === true && question.length <= LIMITS.lightChars;
+  return { clientId: body.clientId, question, history, light };
 }
 
 export type PlanEvent = { date: string; name: string; kind: "holiday" | "marketing" | "health" };
@@ -682,11 +711,7 @@ export const CHAT_EMOJI = 2;
  */
 export function validateAskAnswer(raw: unknown, refs: string[]): AskAnswer | null {
   if (!isObj(raw)) return null;
-  if (raw.type === "chat") {
-    if (!isStr(raw.message)) return null;
-    const message = capEmoji(cleanChat(raw.message, CHAT_CHARS), CHAT_EMOJI);
-    return message ? { type: "chat", message } : null;
-  }
+  if (raw.type === "chat") return validateLightAnswer(raw);
   if (raw.type !== "insight") return null;
   if (!isStr(raw.lead) || !Array.isArray(raw.points) || !isStr(raw.for_client)) return null;
   if (!Array.isArray(raw.post_refs) || typeof raw.in_data !== "boolean") return null;
@@ -710,6 +735,13 @@ export function validateAskAnswer(raw: unknown, refs: string[]): AskAnswer | nul
     postIds: postIds.slice(0, 8),
     inData: raw.in_data,
   };
+}
+
+/** A chat reply (light mode, or type "chat"): clipped, ≤ 2 emoji, no p-refs. Empty → null (retry). */
+export function validateLightAnswer(raw: unknown): AskChat | null {
+  if (!isObj(raw) || !isStr(raw.message)) return null;
+  const message = capEmoji(cleanChat(raw.message, CHAT_CHARS), CHAT_EMOJI);
+  return message ? { type: "chat", message } : null;
 }
 
 /** "For OBU Health: try a weekly Q&A 🎯" → "Try a weekly Q&A" (the text saved as an AI idea). */

@@ -370,25 +370,68 @@ test("Ask Blip — chat replies: small talk from Groq, bare hi / thanks answered
   await expect(page).toHaveScreenshot(`ask-blip-chat-${info.project.name}.png`);
 });
 
-test("Ask Blip — rate limit and errors use Blip's voice", async ({ page }) => {
+test("Ask Blip — rate limit: catches its breath, retries once, then the breather line", async ({
+  page,
+}) => {
   let calls = 0;
-  await setup(page, {
+  const { sent } = await setup(page, {
     "ask-blip": (r) =>
-      ++calls === 1
-        ? r.fulfill(json({ error: "rate_limited", retryAfter: 30 }, 429))
+      ++calls <= 2
+        ? r.fulfill(json({ error: "rate_limited", retryAfter: 1 }, 429))
         : r.fulfill(json({ error: "ai_unavailable" }, 502)),
   });
   await open(page, "/overview");
   const dialog = await openAskBlip(page);
   await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
+  await expect(dialog.getByText("One sec, catching my breath…")).toBeVisible();
   await expect(
     dialog.getByText("I need a quick breather. Groq asked me to slow down. Try again in a minute."),
   ).toBeVisible();
+  expect(sent["ask-blip"]).toHaveLength(2); // one automatic retry, no more
   await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
   await expect(
     dialog.getByText("Something went wrong on my side. Nothing’s lost, want to try again?"),
   ).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Try again" })).toBeVisible();
+  expect(sent["ask-blip"]).toHaveLength(3); // other errors aren't retried automatically
+});
+
+test("Ask Blip — a rate limit that clears answers after the retry", async ({ page }) => {
+  let calls = 0;
+  await setup(page, {
+    "ask-blip": (r) =>
+      ++calls === 1
+        ? r.fulfill(json({ error: "rate_limited", retryAfter: 1 }, 429))
+        : r.fulfill(json(ANSWER)),
+  });
+  await open(page, "/overview");
+  const dialog = await openAskBlip(page);
+  await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
+  await expect(dialog.getByText("One sec, catching my breath…")).toBeVisible();
+  await expect(dialog.getByText(ANSWER.lead)).toBeVisible();
+  await expect(dialog.getByText("One sec, catching my breath…")).toHaveCount(0);
+  await expect(dialog.getByText(/quick breather/)).toHaveCount(0);
+});
+
+test("Ask Blip — short small talk goes light (no data), data questions don't", async ({ page }) => {
+  const CHAT = { type: "chat", message: "hehe 😄 that got me. Want to see what changed?" };
+  const { sent } = await setup(page, {
+    "ask-blip": (r) =>
+      r.fulfill(json((r.request().postDataJSON() as { light?: boolean }).light ? CHAT : ANSWER)),
+  });
+  await open(page, "/overview");
+  const dialog = await openAskBlip(page);
+  const box = dialog.getByRole("textbox", { name: "Ask Blip a question" });
+  await box.fill("hehehe");
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByText(CHAT.message)).toBeVisible();
+  expect(sent["ask-blip"][0]).toMatchObject({ question: "hehehe", light: true });
+
+  await box.fill("how is Hims doing?");
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByText(ANSWER.lead)).toBeVisible();
+  expect(sent["ask-blip"][1].light).toBeUndefined();
+  expect(sent["ask-blip"][1].history).toEqual([{ q: "hehehe", a: CHAT.message }]);
 });
 
 test("Ask Blip — “Ask Blip what changed” (05e) opens it with that question", async ({ page }) => {

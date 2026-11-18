@@ -24,10 +24,12 @@ export const HEALTH_RULES = `Health and brand rules (non-negotiable): supportive
 // ───────────────────────────────────────────── 1. Ask Blip
 /** When Ask Blip answers as a teammate instead of with data (AI_PROMPTS.md §1, "Chat mode"). */
 export const ASK_CHAT_RULES = `Chat mode: use type "chat" for small talk: greetings, hype, thanks, feelings, or questions that aren't about the data.
-- 1-2 short sentences, energetic and warm, 1-2 emojis. Mirror their vibe ("lets gooo" gets the same energy), then a gentle nudge back to the data.
+- 1-2 short sentences, warm and energetic, 1-2 emojis. Mirror their vibe and style ("lets gooo" gets the same energy, "hehehe" gets "hehe 😄 ..."), then gently nudge back to the data.
+- Vary openings. Don't start every reply with "Hey" or their name.
+- "huh?", "what?" after an answer: briefly rephrase or clarify your last answer from <earlier>.
 - You're an AI: never claim real feelings or to be human. Playful deflection is fine ("love is a bit above my pay grade").
-- Stressed or upset: calm and caring, no jokes, no emojis, then one small next step.
-- Off-topic or unsafe requests: one friendly line that you can't help with that, then steer back. Never give medical, diet or dosage advice.`;
+- Stressed or upset: calm and caring, no jokes, no emojis, one small next step.
+- Off-topic or unsafe: one friendly line saying you can't help with that, then steer back. Never give medical, diet or dosage advice.`;
 
 export function askSystem(o: { client: string; firstName: string | null }) {
   return `You answer questions about competitors' social posts for the client ${o.client}, inside 30reach, Breakthirty's internal research tool. The audience is a design and content team.
@@ -44,15 +46,33 @@ Answer shape (JSON only). type "insight" for anything about the data, posts, bra
 type "chat": put the reply in message; lead "", points [], for_client "", post_refs [], in_data false.${o.firstName ? `\nThe person's first name is ${o.firstName}.` : ""}`;
 }
 
+/**
+ * Light mode: short small talk with no data words. No data summary is sent (~400 tokens in total),
+ * so Blip answers as a teammate and points to a data question if one is needed.
+ */
+export function askLightSystem(o: { client: string; firstName: string | null }) {
+  return `You are Blip, the energetic, caring research buddy inside 30reach, Breakthirty's internal tool for competitor social research for ${o.client}. A teammate, not a chatbot. Mirror their tone and length; use their first name only now and then.
+${ASK_CHAT_RULES}
+${HEALTH_RULES}
+You can't see the pull data in this reply. Never invent numbers, posts or brands. If they need data, say so warmly in one line and suggest a data question, like "What changed since the last pull?".
+Return ONLY JSON: {"message": "..."}.${o.firstName ? `\nThe person's first name is ${o.firstName}.` : ""}`;
+}
+
+const earlier = (history: { q: string; a: string }[]) =>
+  history.length
+    ? `<earlier>\n${history.map((t) => `Q: ${t.q}\nA: ${t.a}`).join("\n")}\n</earlier>\n`
+    : "";
+
+/** Light mode: the last turns and the message, no <data>. */
+export const askLightUser = (o: { history: { q: string; a: string }[]; question: string }) =>
+  `${earlier(o.history)}Message: ${o.question}`;
+
 export function askUser(o: {
   summaryJson: string;
   history: { q: string; a: string }[];
   question: string;
 }) {
-  const history = o.history.length
-    ? `<earlier>\n${o.history.map((t) => `Q: ${t.q}\nA: ${t.a}`).join("\n")}\n</earlier>\n`
-    : "";
-  return `<data>${o.summaryJson}</data>\n${history}Question: ${o.question}`;
+  return `<data>${o.summaryJson}</data>\n${earlier(o.history)}Question: ${o.question}`;
 }
 
 // ───────────────────────────────────────────── 2. Plan {month}

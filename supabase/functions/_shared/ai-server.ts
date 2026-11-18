@@ -2,7 +2,8 @@
 // Pure logic lives in ai-logic.ts (tested); this file only does I/O.
 //
 // GROQ_API_KEY (and optionally GROQ_MODEL) come from Supabase secrets. The key is never returned or
-// logged. Every Groq response's x-ratelimit-* headers are saved to usage_meters['groq'].
+// logged. Every Groq response's x-ratelimit-* headers are saved to usage_meters['groq'], and its
+// token use is logged (Supabase → Edge Functions → Logs), never the prompt or the answer.
 
 import {
   DEFAULT_GROQ_MODEL,
@@ -14,6 +15,7 @@ import {
   parseGroqMeter,
   type Platform,
   type SummaryPost,
+  tokenLog,
 } from "./ai-logic.ts";
 import { json, type SupabaseClient } from "./server.ts";
 
@@ -43,6 +45,8 @@ async function saveMeter(admin: SupabaseClient, headers: Headers, model: string)
 export async function groqJson<T>(o: {
   admin: SupabaseClient;
   fn: string;
+  /** Log label when it differs from fn ("ask-blip light"). */
+  label?: string;
   system: string;
   user: string;
   schema: JsonSchema;
@@ -92,7 +96,9 @@ export async function groqJson<T>(o: {
       return { ok: false, error: "ai_unavailable" };
     }
 
-    const value = o.validate(parseGroqJson(await res.json()), attempt);
+    const body: unknown = await res.json().catch(() => null);
+    console.log(`${tokenLog(o.label ?? o.fn, body, res.headers)} (attempt ${attempt})`);
+    const value = o.validate(parseGroqJson(body), attempt);
     if (value !== null) return { ok: true, value };
     console.error(`${o.fn}: invalid answer (attempt ${attempt})`);
   }

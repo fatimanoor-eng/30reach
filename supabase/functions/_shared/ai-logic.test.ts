@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ASK_LIGHT_SCHEMA,
   ASK_SCHEMA,
   bestFormat,
   capEmoji,
@@ -27,14 +28,19 @@ import {
   stripEmoji,
   type SummaryPost,
   textHash,
+  tokenLog,
   validateAskAnswer,
+  validateLightAnswer,
   validateClaims,
   validateHooks,
   validatePlan,
 } from "./ai-logic.ts";
 import {
   ASK_CHAT_RULES,
+  askLightSystem,
+  askLightUser,
   askSystem,
+  askUser,
   BLIP_VOICE_CHAT,
   BLIP_VOICE_JSON,
   claimsSystem,
@@ -274,7 +280,9 @@ describe("Groq responses", () => {
       }
       if (s.type === "array") check(s.items as Record<string, unknown>);
     };
-    [ASK_SCHEMA, PLAN_SCHEMA, CLAIMS_SCHEMA, HOOKS_SCHEMA].forEach((s) => check(s.schema));
+    [ASK_SCHEMA, ASK_LIGHT_SCHEMA, PLAN_SCHEMA, CLAIMS_SCHEMA, HOOKS_SCHEMA].forEach((s) =>
+      check(s.schema),
+    );
   });
 });
 
@@ -296,6 +304,17 @@ describe("inputs from the browser", () => {
     if ("error" in ok) throw new Error();
     expect(ok.history.map((t) => t.q)).toEqual(["2", "3"]);
     expect(ok.history[1].a.length).toBeLessThanOrEqual(LIMITS.historyChars);
+    expect(ok.light).toBe(false);
+  });
+
+  it("ask: light mode only when asked for and the question is ≤ 40 chars", () => {
+    const light = (question: string, flag: unknown) =>
+      (parseAskInput({ clientId: CLIENT, question, light: flag }) as { light: boolean }).light;
+    expect(light("hehehe", true)).toBe(true);
+    expect(light("a".repeat(40), true)).toBe(true);
+    expect(light("a".repeat(41), true)).toBe(false); // too long: full mode, data included
+    expect(light("hehehe", "true")).toBe(false);
+    expect(light("hehehe", undefined)).toBe(false);
   });
 
   it("plan: this month up to 3 ahead; only events inside the month", () => {
@@ -450,6 +469,19 @@ describe("validateAskAnswer", () => {
     expect(validateAskAnswer(chat("   "), refs)).toBeNull();
     expect(validateAskAnswer(chat("[p1]"), refs)).toBeNull();
     expect(validateAskAnswer({ ...chat("x"), message: 3 }, refs)).toBeNull();
+  });
+
+  it("light mode: message only, cleaned like chat; empty → retry", () => {
+    expect(
+      validateLightAnswer({ message: "hehe 😄 that one got me. Want to dig into a brand?" }),
+    ).toEqual({ type: "chat", message: "hehe 😄 that one got me. Want to dig into a brand?" });
+    expect(validateLightAnswer({ message: "lol 😂😂😂 ok [p1]" })).toEqual({
+      type: "chat",
+      message: "lol 😂😂 ok",
+    });
+    expect(validateLightAnswer({ message: "  " })).toBeNull();
+    expect(validateLightAnswer({ lead: "x" })).toBeNull();
+    expect(validateLightAnswer(null)).toBeNull();
   });
 
   it("capEmoji counts a ZWJ sequence, skin tone or flag as one", () => {
@@ -638,7 +670,61 @@ describe("hookContext", () => {
   });
 });
 
+describe("tokenLog", () => {
+  const headers = (h: Record<string, string>) => new Headers(h);
+  it("logs tokens in / out / reasoning / total and what's left this minute, never content", () => {
+    const body = {
+      usage: {
+        prompt_tokens: 412,
+        completion_tokens: 96,
+        total_tokens: 508,
+        completion_tokens_details: { reasoning_tokens: 40 },
+      },
+      choices: [{ message: { content: "SECRET ANSWER" } }],
+    };
+    const line = tokenLog(
+      "ask-blip light",
+      body,
+      headers({ "x-ratelimit-remaining-tokens": "7400" }),
+    );
+    expect(line).toBe(
+      "ask-blip light · tokens 412 in + 96 out (reasoning 40) = 508 · 7400 tokens/min left",
+    );
+    expect(line).not.toContain("SECRET");
+  });
+  it("copes with a missing usage block or headers", () => {
+    expect(tokenLog("plan-month", null, headers({}))).toBe("plan-month · tokens ? in + ? out = ?");
+  });
+});
+
 describe("prompts", () => {
+  it("light prompt: persona + chat rules + health rules, no data, never invents, stays ~400 tokens", () => {
+    const p = askLightSystem({ client: "OBU Health", firstName: "Fatima" });
+    expect(p).toContain(ASK_CHAT_RULES);
+    expect(p).toMatch(/Health and brand rules/);
+    expect(p).toMatch(/can't see the pull data/);
+    expect(p).toMatch(/Never invent numbers, posts or brands/);
+    expect(p).toMatch(/suggest a data question/);
+    expect(p).toContain("first name is Fatima");
+    expect(p).not.toContain("<data>");
+    expect(p.length).toBeLessThan(1900); // ≈ 475 tokens incl. the rules
+    const u = askLightUser({
+      history: [{ q: "what's working?", a: "Carousels." }],
+      question: "huh?",
+    });
+    expect(u).toBe("<earlier>\nQ: what's working?\nA: Carousels.\n</earlier>\nMessage: huh?");
+    expect(u).not.toContain("<data>");
+    expect(askUser({ summaryJson: "{}", history: [], question: "q" })).toBe(
+      "<data>{}</data>\nQuestion: q",
+    );
+  });
+
+  it("chat rules: mirror style (hehehe), vary openings, clarify after huh? / what?", () => {
+    expect(ASK_CHAT_RULES).toMatch(/"hehehe" gets "hehe 😄/);
+    expect(ASK_CHAT_RULES).toMatch(/Don't start every reply with "Hey"/);
+    expect(ASK_CHAT_RULES).toMatch(/"huh\?", "what\?".*rephrase or clarify your last answer/);
+  });
+
   it("every prompt carries Blip's voice; JSON prompts forbid emojis", () => {
     expect(askSystem({ client: "OBU Health", firstName: "Fatima" })).toContain(BLIP_VOICE_CHAT);
     expect(askSystem({ client: "OBU Health", firstName: "Fatima" })).toContain(
@@ -683,6 +769,8 @@ describe("prompts", () => {
       claimsSystem(),
       hooksSystem({ client: "OBU Health", platform: null }),
     ].map((s) => s.length);
-    expect(Math.max(...sizes)).toBeLessThan(2800); // ≈ 700 tokens
+    // ≈ 750 tokens. Ask Blip is the biggest (voice + chat rules); its ~2.5K-token data summary is
+    // the real cost, which light mode skips for small talk.
+    expect(Math.max(...sizes)).toBeLessThan(3000);
   });
 });

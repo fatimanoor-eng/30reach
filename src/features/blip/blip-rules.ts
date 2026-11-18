@@ -1,6 +1,12 @@
 // Ask Blip (12 / M11) rules. Pure functions, tested in blip-rules.test.ts.
 
-import { answerText, type AskTurn, type BlipAnswer, type SourcePost } from "../../lib/ai/ai-api";
+import {
+  AiError,
+  answerText,
+  type AskTurn,
+  type BlipAnswer,
+  type SourcePost,
+} from "../../lib/ai/ai-api";
 import { formatCompact, formatShortDate } from "../../lib/format";
 
 export const WHAT_CHANGED = "What changed since the last pull?";
@@ -214,8 +220,139 @@ export function smallTalkReply(m: SmallTalkMatch, firstName: string | null, turn
   return lines[turn % lines.length](firstName, m.stretch, m.word);
 }
 
+// ───────────────────────────── light mode (no data summary sent)
+
+export const LIGHT_MAX_CHARS = 40; // same as LIMITS.lightChars in the ask-blip function
+
+/**
+ * Words that mean the question is about the data: platforms, formats, metrics and research words.
+ * Matched as whole words with an optional plural ("posts", "reels"). Erring towards the full mode
+ * only costs tokens; erring towards light mode gets "ask me a data question" back.
+ */
+const DATA_WORDS = new RegExp(
+  String.raw`\b(?:${[
+    "instagram",
+    "insta",
+    "ig",
+    "tiktok",
+    "tik tok",
+    "reel",
+    "carousel",
+    "image",
+    "photo",
+    "video",
+    "story",
+    "stories",
+    "format",
+    "post",
+    "posting",
+    "like",
+    "comment",
+    "view",
+    "follower",
+    "share",
+    "engagement",
+    "engage",
+    "reach",
+    "caption",
+    "hook",
+    "hashtag",
+    "compare",
+    "comparison",
+    "vs",
+    "versus",
+    "idea",
+    "trend",
+    "trending",
+    "best",
+    "top",
+    "worst",
+    "most",
+    "least",
+    "average",
+    "avg",
+    "stat",
+    "stats",
+    "data",
+    "number",
+    "chart",
+    "pull",
+    "competitor",
+    "brand",
+    "change",
+    "changed",
+    "new",
+    "growth",
+    "grow",
+    "perform",
+    "performing",
+    "performance",
+    "working",
+    "winning",
+    "time",
+    "week",
+    "month",
+    "calendar",
+    "plan",
+    "content",
+  ].join("|")})s?\b`,
+  "i",
+);
+
+/**
+ * Small talk that can skip the data summary (~400 tokens instead of ~3K): at most 40 characters,
+ * no digits, no brand or client names, no data words. Pure greetings / thanks never get here
+ * (they're answered in code). Goes light: "hehehe", "huh?", "do you love me?", "I'm so tired".
+ */
+export function isLightQuestion(text: string, names: string[]): boolean {
+  const t = text.trim();
+  if (!t || t.length > LIGHT_MAX_CHARS || /\d/.test(t)) return false;
+  if (DATA_WORDS.test(t)) return false;
+  const lower = t.toLowerCase();
+  return !names.some((name) => {
+    const n = name.trim().toLowerCase();
+    const first = n.split(/\s+/)[0];
+    return (n && lower.includes(n)) || (first.length >= 3 && lower.includes(first));
+  });
+}
+
+// ───────────────────────────── one automatic retry after a 429
+
+export const BREATHER_CAP_S = 30;
+export const BREATHER_TEXT = "One sec, catching my breath…";
+
+/** Seconds to wait before the one automatic retry: Groq's Retry-After, 1–30 s (30 if unknown). */
+export const breatherWait = (retryAfter: number | null) =>
+  Math.min(BREATHER_CAP_S, Math.max(1, Math.ceil(retryAfter ?? BREATHER_CAP_S)));
+
+/**
+ * Runs `run`; on a rate limit, calls `onWait(seconds)`, waits, and runs it ONCE more. A second rate
+ * limit (or any other error) is thrown, and the panel shows the breather / error message.
+ */
+export async function withBreather<T>(
+  run: () => Promise<T>,
+  o: { onWait: (seconds: number) => void; sleep?: (ms: number) => Promise<void> },
+): Promise<T> {
+  const sleep = o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  try {
+    return await run();
+  } catch (err) {
+    if (!(err instanceof AiError) || err.kind !== "rate_limited") throw err;
+    const seconds = breatherWait(err.retryAfter);
+    o.onWait(seconds);
+    await sleep(seconds * 1000);
+    return run();
+  }
+}
+
 export type Message =
-  | { id: number; question: string; status: "pending" }
+  | {
+      id: number;
+      question: string;
+      status: "pending";
+      /** Waiting out a rate limit before the one automatic retry ("One sec, catching my breath…"). */
+      breather?: boolean;
+    }
   | {
       id: number;
       question: string;
