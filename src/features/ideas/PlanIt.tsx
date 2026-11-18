@@ -9,7 +9,8 @@ import type { CardPlatform } from "../calendar/calendar-ui";
 import type { IsoDay } from "../calendar/events/dates";
 import { formatFor, formatOptions, PLATFORM_OPTIONS } from "../calendar/platform-options";
 import { SelectChip } from "../calendar/SelectChip";
-import { ideaCardTitle, plannedLabel, planSummary, type Idea } from "./idea-rules";
+import { ideaCardTitle, plannedLabel, planSummary, suggestedDay, type Idea } from "./idea-rules";
+import { todayIso } from "../calendar/events/dates";
 import { planIdea, PlanError } from "./ideas-api";
 import { PlanCalendar } from "./PlanCalendar";
 
@@ -35,7 +36,10 @@ export function PlanIt({
   const queryClient = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
-  const [day, setDay] = useState<IsoDay | null>(null);
+  // AI ideas from Plan {month} start on Blip's suggested day (still editable).
+  const [day, setDay] = useState<IsoDay | null>(() =>
+    suggestedDay(idea.source_snapshot, todayIso()),
+  );
   const [platform, setPlatform] = useState<CardPlatform | null>(idea.platform);
   const [formatRequest, setFormatRequest] = useState(0);
   const [format, setFormat] = useState<string | null>(() =>

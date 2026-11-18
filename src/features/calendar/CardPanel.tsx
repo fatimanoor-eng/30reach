@@ -19,6 +19,11 @@ import { shortDay } from "./format";
 import { formatFor, formatOptions as optionsFor, PLATFORM_OPTIONS } from "./platform-options";
 import { DateChip, SelectChip } from "./SelectChip";
 import { StatusPills } from "./StatusPills";
+import { Tooltip } from "../../components/Tooltip";
+import { AiError, checkClaims, suggestHooks } from "../../lib/ai/ai-api";
+import { checkKey, needsCheck, storedCheck } from "./card-check";
+import { HealthCheck, type HealthCheckState } from "./HealthCheck";
+import { HookSuggestions, type HooksState } from "./HookSuggestions";
 
 /**
  * 09 card detail (drawer from 768 px) / M08 (full-screen page with a back arrow and a sticky Save bar).
@@ -27,7 +32,11 @@ import { StatusPills } from "./StatusPills";
  * visual idea. New post = the same panel, empty, with a date. No ✕ (as in Figma): Esc, the dimmed page,
  * or "‹ Calendar" on phones close it.
  * "Inspired by" links to the idea a card was planned from; "Move to idea board" (card_to_idea)
- * sends it back. Not in this slice: the health-claim check (Slice 11).
+ * sends it back.
+ * Slice 11: Save saves first, then (if the text changed since the last check) the drawer stays open
+ * with "Checking for health claims…" and the advisory result; the button becomes "Done". A failed or
+ * rate-limited check says "Couldn't check this time": the card is saved either way. "Suggest hooks"
+ * offers three hooks from the title, caption, platform and what works for competitors.
  */
 export function CardPanel({
   open,
@@ -55,6 +64,15 @@ export function CardPanel({
     visual_idea: card?.visual_idea ?? null,
     status: card?.status ?? "idea",
   }));
+  // After the first save of a new card, later saves update that row (not insert another).
+  const [savedId, setSavedId] = useState<string | null>(card?.id ?? null);
+  const [justSaved, setJustSaved] = useState<string | null>(null); // fields key at the last save
+  // The check result and the text it was for (shown only while the text still matches).
+  const [check, setCheck] = useState<{ key: string; value: HealthCheckState } | null>(() => {
+    const stored = storedCheck(card);
+    return stored && card ? { key: checkKey(card), value: stored } : null;
+  });
+  const [hooks, setHooks] = useState<HooksState>({ state: "idle" });
   const [titleError, setTitleError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,23 +123,79 @@ export function CardPanel({
     setSaving(true);
     setError(null);
     const clean = (v: string | null) => (v?.trim() ? v.trim() : null);
+    const cleaned: CardFields = {
+      ...fields,
+      title,
+      hook: clean(fields.hook),
+      caption: clean(fields.caption),
+      visual_idea: clean(fields.visual_idea),
+    };
+    let id: string;
     try {
-      await saveCard(clientId, card?.id ?? null, {
-        ...fields,
-        title,
-        hook: clean(fields.hook),
-        caption: clean(fields.caption),
-        visual_idea: clean(fields.visual_idea),
-      });
+      id = (await saveCard(clientId, savedId, cleaned)).id;
     } catch {
       setError("Couldn’t save. Check your connection and try again.");
       setSaving(false);
       return;
     }
+    setSavedId(id);
     await queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
     setSaving(false);
-    onClose();
+    const lastChecked =
+      check && (check.value.state === "clear" || check.value.state === "flagged")
+        ? check.key
+        : null;
+    if (!needsCheck(cleaned, lastChecked)) {
+      onClose();
+      return;
+    }
+    // Saved. Now the advisory check: the drawer stays open to show it ("Done" closes).
+    setJustSaved(JSON.stringify(fields));
+    void runCheck(id, cleaned);
   };
+
+  async function runCheck(id: string, f: CardFields) {
+    const key = checkKey(f);
+    setCheck({ key, value: { state: "checking" } });
+    try {
+      const r = await checkClaims(id, {
+        title: f.title,
+        hook: f.hook,
+        caption: f.caption,
+        visualIdea: f.visual_idea,
+      });
+      setCheck({
+        key,
+        value: r.status === "clear" ? { state: "clear" } : { state: "flagged", issues: r.issues },
+      });
+      void queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
+    } catch (err) {
+      const rateLimited = err instanceof AiError && err.kind === "rate_limited";
+      setCheck({ key, value: { state: "failed", rateLimited } });
+    }
+  }
+
+  async function loadHooks() {
+    setHooks({ state: "loading" });
+    try {
+      const r = await suggestHooks(clientId, {
+        title: fields.title.trim(),
+        caption: fields.caption?.trim() || null,
+        platform: fields.platform,
+        format: fields.format,
+      });
+      setHooks({ state: "ready", hooks: r.hooks });
+    } catch (err) {
+      setHooks({
+        state: "failed",
+        rateLimited: err instanceof AiError && err.kind === "rate_limited",
+      });
+    }
+  }
+
+  const done = justSaved !== null && justSaved === JSON.stringify(fields);
+  const shownCheck = check && check.key === checkKey(fields) ? check.value : null;
+  const canSuggest = !!(fields.title.trim() || fields.caption?.trim());
 
   const confirmDelete = async () => {
     if (!card) return;
@@ -259,13 +333,17 @@ export function CardPanel({
               move.reset();
               setMoveOpen(true);
             }}
-            className="hidden md:inline-flex"
+            className="max-md:hidden"
           >
             Move to idea board
           </Button>
         )}
-        <Button onClick={() => void save()} disabled={saving} className="flex-1 md:flex-none">
-          {saving ? "Saving…" : "Save"}
+        <Button
+          onClick={() => (done ? onClose() : void save())}
+          disabled={saving}
+          className="flex-1 md:flex-none"
+        >
+          {saving ? "Saving…" : done ? "Done" : "Save"}
         </Button>
       </div>
     </div>
@@ -283,8 +361,42 @@ export function CardPanel({
         footer={footer}
       >
         <div className="flex flex-col gap-5">
-          <Field label="Hook">
-            {(id) => <TextArea id={id} value={fields.hook} onChange={(v) => set("hook", v)} />}
+          <Field
+            label="Hook"
+            action={
+              <Tooltip content="Add a title or caption first" enabled={!canSuggest}>
+                {(tip) => (
+                  <button
+                    type="button"
+                    aria-disabled={!canSuggest || hooks.state === "loading" || undefined}
+                    aria-describedby={canSuggest ? undefined : tip["aria-describedby"]}
+                    onClick={(e) =>
+                      !canSuggest ? tip.onToggle(e) : hooks.state !== "loading" && void loadHooks()
+                    }
+                    className={`-my-3 min-h-11 text-small font-medium md:my-0 md:min-h-0 ${
+                      canSuggest ? "text-blue hover:underline" : "cursor-not-allowed text-muted"
+                    }`}
+                  >
+                    Suggest hooks
+                  </button>
+                )}
+              </Tooltip>
+            }
+          >
+            {(id) => (
+              <>
+                <TextArea id={id} value={fields.hook} onChange={(v) => set("hook", v)} />
+                <HookSuggestions
+                  value={hooks}
+                  onPick={(h) => {
+                    set("hook", h);
+                    setHooks({ state: "idle" });
+                  }}
+                  onRetry={() => void loadHooks()}
+                  onHide={() => setHooks({ state: "idle" })}
+                />
+              </>
+            )}
           </Field>
           <Field label="Caption">
             {(id) => (
@@ -306,6 +418,22 @@ export function CardPanel({
             )}
           </Field>
           <InspiredBy ideaId={card?.idea_id ?? null} />
+          {shownCheck && (
+            <HealthCheck
+              value={shownCheck}
+              onRetry={() => {
+                if (!savedId) return;
+                const clean = (v: string | null) => (v?.trim() ? v.trim() : null);
+                void runCheck(savedId, {
+                  ...fields,
+                  title: fields.title.trim(),
+                  hook: clean(fields.hook),
+                  caption: clean(fields.caption),
+                  visual_idea: clean(fields.visual_idea),
+                });
+              }}
+            />
+          )}
           {error && (
             <p role="alert" className="text-small text-spark">
               {error}
@@ -351,13 +479,25 @@ export function CardPanel({
   );
 }
 
-function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {
+function Field({
+  label,
+  action,
+  children,
+}: {
+  label: string;
+  /** right side of the label row ("Suggest hooks") */
+  action?: ReactNode;
+  children: (id: string) => ReactNode;
+}) {
   const id = useId();
   return (
     <div>
-      <label htmlFor={id} className="mb-2 block mono-label text-muted">
-        {label}
-      </label>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <label htmlFor={id} className="block mono-label text-muted">
+          {label}
+        </label>
+        {action}
+      </div>
       {children(id)}
     </div>
   );

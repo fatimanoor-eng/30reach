@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { Outlet } from "react-router";
 import { BlipIdle } from "../components/blip/BlipPoses";
 import { ToastProvider } from "../components/ToastProvider";
-import { AskBlipPlaceholder } from "../features/blip/AskBlipPlaceholder";
+import { AskBlipPanel } from "../features/blip/AskBlipPanel";
+import { useBlipThread } from "../features/blip/useBlipThread";
+import { ModalPresence } from "../components/ModalPresence";
+import { useClient } from "../lib/useClient";
 import { IdeaCaptureProvider } from "../features/ideas/IdeaCaptureProvider";
 import { SaveAsIdeaProvider } from "../features/posts/SaveAsIdeaProvider";
 import { PullProvider } from "../features/pulls/PullProvider";
@@ -20,6 +23,9 @@ import { Sidebar } from "./Sidebar";
  */
 export function AppShell() {
   const [askOpen, setAskOpen] = useState(false);
+  // Ask Blip's thread lives here for the session, so the panel can unmount between opens.
+  const client = useClient();
+  const thread = useBlipThread(client.data?.id);
 
   // "/" opens Ask Blip (ANNOTATIONS › Shared rules), unless you're typing.
   useEffect(() => {
@@ -33,7 +39,12 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const openAsk = () => setAskOpen(true);
+  // With a question ("Ask Blip what changed" on 05e), Blip asks it straight away.
+  const openAsk = (question?: string) => {
+    if (question) void thread.ask(question);
+    setAskOpen(true);
+  };
+  const openAskPlain = () => openAsk();
 
   return (
     <BrandSelectionProvider>
@@ -50,8 +61,8 @@ export function AppShell() {
                 </a>
 
                 <div className="min-h-dvh md:flex">
-                  <Sidebar onAskBlip={openAsk} className="hidden xl:flex" />
-                  <IconRail onAskBlip={openAsk} className="hidden md:flex xl:hidden" />
+                  <Sidebar onAskBlip={openAskPlain} className="hidden xl:flex" />
+                  <IconRail onAskBlip={openAskPlain} className="hidden md:flex xl:hidden" />
                   <MobileAppBar className="md:hidden" />
 
                   <main id="main" tabIndex={-1} className="min-w-0 flex-1 pb-28 md:pb-0">
@@ -66,14 +77,16 @@ export function AppShell() {
                 {/* Mobile Ask Blip: floating Blip button; hidden while a sheet/dialog is open. */}
                 <button
                   type="button"
-                  onClick={openAsk}
+                  onClick={openAskPlain}
                   aria-label="Ask Blip"
                   className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 inline-flex size-14 items-center justify-center rounded-full bg-ink shadow-lg md:hidden [body:has(dialog[open])_&]:hidden"
                 >
                   <BlipIdle className="h-auto w-9" />
                 </button>
 
-                <AskBlipPlaceholder open={askOpen} onClose={() => setAskOpen(false)} />
+                <ModalPresence open={askOpen}>
+                  <AskBlipPanel open onClose={() => setAskOpen(false)} thread={thread} />
+                </ModalPresence>
               </AskBlipContext>
             </SaveAsIdeaProvider>
           </IdeaCaptureProvider>

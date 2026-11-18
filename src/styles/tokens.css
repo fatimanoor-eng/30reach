@@ -41,6 +41,8 @@
   --color-status-drafting: #ddf3fc;
   --color-status-approved: #e1eee6;
   --color-status-posted: #ecedee;
+  --color-spark-tint: #fdeaea; /* flagged health-claim note (09) */
+  --color-spark-text: #b42318; /* red text on white / spark-tint: AA (Spark itself is ~3.3:1) */
 
   /* ---------- Fonts ---------- */
   --font-*: initial;

@@ -28,8 +28,9 @@ import { ideaCardTitle, plannedLabel, type Idea } from "../ideas/idea-rules";
 import { planIdea, useIdeas } from "../ideas/ideas-api";
 import { useHolidays } from "./useHolidays";
 import { WeekView } from "./WeekView";
+import { PlanMonthPanel } from "./PlanMonthPanel";
+import { planTarget } from "./plan-month";
 
-const COMING_SOON = "Coming soon";
 const isIsoDay = (v: string | null): v is IsoDay =>
   !!v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
 
@@ -158,34 +159,42 @@ export function CalendarPage() {
   const nextMonthFirst = isoDay(year, month + 1, 1);
   const onTodaysMonth = focus.slice(0, 7) === today.slice(0, 7);
   const planLabel = `Plan ${monthName(nextMonthFirst)}`;
+  // 10 Plan {month}: the month after the one in focus, from this month up to 3 ahead.
+  const target = planTarget(focus, today);
+  const [planOpen, setPlanOpen] = useState(false);
 
   const planButton = (mobile: boolean) => (
-    <Tooltip content={COMING_SOON} side="bottom" className="shrink-0">
-      {(tip) =>
-        mobile ? (
+    <Tooltip content={target.reason} enabled={!target.enabled} side="bottom" className="shrink-0">
+      {(tip) => {
+        const props = target.enabled
+          ? { onClick: () => setPlanOpen(true) }
+          : {
+              "aria-disabled": true as const,
+              "aria-describedby": tip["aria-describedby"],
+              onClick: tip.onToggle,
+            };
+        return mobile ? (
           <button
             type="button"
-            aria-disabled="true"
-            aria-describedby={tip["aria-describedby"]}
-            onClick={tip.onToggle}
-            className="inline-flex min-h-11 shrink-0 cursor-not-allowed items-center"
+            {...props}
+            className={`inline-flex min-h-11 shrink-0 items-center ${target.enabled ? "" : "cursor-not-allowed"}`}
           >
-            <span className="rounded-full bg-ink px-2.5 py-[5px] text-small font-medium text-white opacity-40">
+            <span
+              className={`rounded-full bg-ink px-2.5 py-[5px] text-small font-medium text-white ${target.enabled ? "" : "opacity-40"}`}
+            >
               {planLabel}
             </span>
           </button>
         ) : (
           <Button
-            aria-disabled="true"
-            aria-describedby={tip["aria-describedby"]}
-            onClick={tip.onToggle}
+            {...props}
             icon={<Lightbulb size={16} aria-hidden="true" />}
-            className="cursor-not-allowed opacity-40"
+            className={target.enabled ? "" : "cursor-not-allowed opacity-40"}
           >
             {planLabel}
           </Button>
-        )
-      }
+        );
+      }}
     </Tooltip>
   );
 
@@ -346,6 +355,19 @@ export function CalendarPage() {
             card={panel.card}
             newDate={panel.date}
             clientId={client.data.id}
+          />
+        )}
+      </ModalPresence>
+      <ModalPresence open={planOpen}>
+        {client.data && target.enabled && (
+          <PlanMonthPanel
+            key={target.month}
+            open
+            onClose={() => setPlanOpen(false)}
+            clientId={client.data.id}
+            month={target.month}
+            monthName={monthName(target.first)}
+            year={Number(target.month.slice(0, 4))}
           />
         )}
       </ModalPresence>

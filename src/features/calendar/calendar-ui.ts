@@ -19,6 +19,10 @@ export type CalendarCard = {
   idea_id: string | null;
   /** last save (the 09 "edited … ago") */
   updated_at: string;
+  /** 09 health-claim check (check-claims): null / 'unchecked' until checked. Advisory only. */
+  compliance_status: "unchecked" | "clear" | "flagged" | null;
+  /** check-claims' { v, hash, issues } as JSON text (read with readComplianceNotes). */
+  compliance_notes: string | null;
   /** who made it (profiles.full_name via created_by); null if that profile is gone */
   creator: { full_name: string | null } | null;
 };

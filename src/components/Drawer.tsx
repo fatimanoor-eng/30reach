@@ -12,6 +12,7 @@ import { useNativeModal } from "./useNativeModal";
  * `header` replaces the plain title (09 card detail: meta line + editable title); `title` then names
  * the dialog for screen readers. `backLabel` shows "‹ {backLabel}" instead of ✕ on mobile (M08).
  * `hideClose` drops the ✕ (09 has none in Figma: Esc, the dimmed page or "‹ back" on mobile close it).
+ * `wide` = 600 px instead of 480 (10 Plan {month}).
  */
 export function Drawer({
   open,
@@ -23,6 +24,7 @@ export function Drawer({
   header,
   backLabel,
   hideClose = false,
+  wide = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -33,6 +35,7 @@ export function Drawer({
   header?: ReactNode;
   backLabel?: string;
   hideClose?: boolean;
+  wide?: boolean;
 }) {
   const titleId = useId();
   const descId = useId();
@@ -51,7 +54,7 @@ export function Drawer({
       aria-label={header ? title : undefined}
       aria-describedby={description && !header ? descId : undefined}
       data-motion="drawer"
-      className="m-0 h-dvh w-full bg-surface text-ink md:ml-auto md:w-120 md:shadow-xl"
+      className={`m-0 h-dvh w-full bg-surface text-ink md:ml-auto md:shadow-xl ${wide ? "md:w-150" : "md:w-120"}`}
     >
       <div className="flex h-full flex-col">
         {backLabel && (

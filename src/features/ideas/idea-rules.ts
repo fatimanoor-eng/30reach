@@ -14,8 +14,12 @@ export type SourceSnapshot = {
   format?: string | null;
   likes?: number | null;
   comments?: number | null;
-  /** Where it was saved from: "overview" | "instagram" | "tiktok" */
+  /** Where it was saved from: "overview" | "instagram" | "tiktok" | "ask-blip" | "plan" */
   saved_from?: string;
+  /** Plan {month} (AI ideas): the suggested day ("YYYY-MM-DD"); Plan it starts on it. */
+  suggested_date?: string;
+  /** Plan {month} (AI ideas): Blip's one-line reason. */
+  reason?: string;
 };
 
 export type Idea = {
@@ -191,6 +195,38 @@ export function ideaAuthor(idea: Pick<Idea, "kind" | "creator">): string {
   if (idea.kind === "ai") return "BLIP";
   const first = idea.creator?.full_name?.trim().split(/\s+/)[0];
   return (first || "Team").toUpperCase();
+}
+
+const MONTH_NAMES = [
+  "JANUARY",
+  "FEBRUARY",
+  "MARCH",
+  "APRIL",
+  "MAY",
+  "JUNE",
+  "JULY",
+  "AUGUST",
+  "SEPTEMBER",
+  "OCTOBER",
+  "NOVEMBER",
+  "DECEMBER",
+];
+
+/** Where an AI idea came from: "FROM PLAN JANUARY" (Plan {month}) or "FROM ASK BLIP". */
+export function aiSourceLabel(snap: SourceSnapshot | null): string {
+  const day = snap?.saved_from === "plan" ? snap.suggested_date : undefined;
+  const month =
+    day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? MONTH_NAMES[Number(day.slice(5, 7)) - 1] : null;
+  return month ? `FROM PLAN ${month}` : "FROM ASK BLIP";
+}
+
+/**
+ * Plan it's starting day for an AI idea: Blip's suggested date, if it's still today or later.
+ * Null otherwise (the person picks a day).
+ */
+export function suggestedDay(snap: SourceSnapshot | null, today: string): string | null {
+  const day = snap?.suggested_date;
+  return day && /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= today ? day : null;
 }
 
 /** Main text on a card: the note, else the source post's caption, else nothing. */

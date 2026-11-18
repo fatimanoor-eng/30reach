@@ -6,6 +6,7 @@ import { formatCompact, formatShortDate } from "../../lib/format";
 import { AiTag } from "../calendar/CardTile";
 import {
   formatLabel,
+  aiSourceLabel,
   hasPicture,
   ideaAge,
   ideaAuthor,
@@ -181,7 +182,7 @@ export function IdeaCard({
       {idea.kind === "ai" && (
         <p className="flex items-center gap-1.5 mono-label text-muted">
           <AiTag />
-          FROM ASK BLIP
+          {aiSourceLabel(snap)}
         </p>
       )}
       {isNote && <StickyNote size={18} aria-hidden="true" className="hidden md:block" />}

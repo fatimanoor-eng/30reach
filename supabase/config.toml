@@ -456,3 +456,24 @@ entrypoint = "./functions/check-handle/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/holidays/index.ts"
+
+# AI (Slice 11): Groq via GROQ_API_KEY (+ optional GROQ_MODEL). Same rules: signed-in team users only.
+[functions.ask-blip]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/ask-blip/index.ts"
+
+[functions.plan-month]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/plan-month/index.ts"
+
+[functions.check-claims]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/check-claims/index.ts"
+
+[functions.suggest-hooks]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/suggest-hooks/index.ts"

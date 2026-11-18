@@ -37,6 +37,8 @@ const card = (id: string, date: string, title: string, extra: Partial<Row> = {})
   origin: "manual",
   idea_id: null,
   updated_at: "2026-11-10T09:00:00Z",
+  compliance_status: null,
+  compliance_notes: null,
   creator: { full_name: "Fatima Noor" },
   ...extra,
 });
@@ -52,6 +54,9 @@ const SEED: Row[] = [
       "Three small things our clinicians suggest for holiday dinners: eat before you go, start with protein, and skip the guilt. One meal doesn’t undo your progress.",
     visual_idea: "Talking head, clinician in kitchen, 3 quick text cards. 25–35 s.",
     updated_at: "2026-11-17T10:00:00Z", // 2 h before NOW
+    // Checked earlier (Slice 11): the green note shows, and a status-only save doesn't check again.
+    compliance_status: "clear",
+    compliance_notes: JSON.stringify({ v: 1, hash: "seed", issues: [] }),
   }),
   card("k3", "2026-12-09", "5 swaps for holiday parties", { format: "carousel" }),
   card("k4", "2026-12-11", "Doctor Q&A: travel and meds", {
@@ -175,6 +180,10 @@ async function setup(page: Page) {
       ? r.fulfill(json({ code: "PGRST116", message: "no rows" }, 406))
       : r.fulfill(json([]));
   });
+  // Slice 11 health check: always clear here (ai.spec.ts covers flagged / failed).
+  await page.route("**/functions/v1/check-claims**", (r) =>
+    r.fulfill(json({ status: "clear", issues: [], hash: "x", checkedAt: NOW.toISOString() })),
+  );
   await page.route("**/functions/v1/holidays**", (r) => {
     const { year } = r.request().postDataJSON() as { year: number };
     holidayFnYears.push(year);
@@ -287,6 +296,10 @@ test("calendar — 09 card detail", async ({ page }, info) => {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300); // drawer slide-in
   if (!isDesktop(page)) await tapTargetsOk(page);
+  // M08 has Delete + Save only; "Move to idea board" is tablet/desktop.
+  await expect(dialog.getByRole("button", { name: "Move to idea board" })).toBeVisible({
+    visible: isDesktop(page),
+  });
   await expect(page).toHaveScreenshot(`card-detail-${info.project.name}.png`);
 });
 
@@ -324,6 +337,12 @@ test("calendar — new post needs a title, then saves", async ({ page }) => {
   await dialog.getByRole("option", { name: "Instagram" }).click();
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Gift guide for healthy habits")).toBeVisible();
+  // Saved; the advisory check shows in the drawer, then "Done" closes it.
+  await expect(
+    dialog.getByText("No health claims found. Supportive tone, no food guilt."),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await expect(dialog).toBeHidden();
   expect(calls[0]).toMatchObject({
     method: "POST",
     body: {

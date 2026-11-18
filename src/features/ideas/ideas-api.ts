@@ -95,6 +95,8 @@ export async function createIdea(clientId: string, idea: NewIdea): Promise<{ id:
     image_height: imagePath ? (idea.imageHeight ?? null) : null,
     source_post_id: idea.source_post_id ?? null,
     source_snapshot: idea.source_snapshot ?? null,
+    // AI ideas (Ask Blip, Plan {month}) have no creator, so only admins can delete them (Slice 10 rules).
+    ...(idea.kind === "ai" ? { created_by: null } : {}),
   });
   if (error) {
     if (imagePath) await supabase.storage.from(IDEA_BUCKET).remove([imagePath]);

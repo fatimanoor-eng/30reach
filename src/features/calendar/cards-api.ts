@@ -7,7 +7,7 @@ import type { CalendarCard } from "./calendar-ui";
 // many-to-one link, so PostgREST returns one object; without generated types supabase-js guesses an
 // array, hence the `as unknown as` casts below.
 const COLUMNS =
-  "id, date, platform, format, title, hook, caption, visual_idea, status, origin, idea_id, updated_at, creator:profiles(full_name)";
+  "id, date, platform, format, title, hook, caption, visual_idea, status, origin, idea_id, updated_at, compliance_status, compliance_notes, creator:profiles(full_name)";
 
 export type CardFields = Pick<
   CalendarCard,

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { useAskBlip } from "../../app/ask-blip-context";
 import { formatShortDate } from "../../lib/format";
+import { WHAT_CHANGED } from "../blip/blip-rules";
 
 const DISMISSED_KEY = "30reach:whats-new-dismissed"; // = id of the latest pull it was dismissed for
 
@@ -64,7 +65,7 @@ export function WhatsNewBar({
       <div className="flex items-center gap-1">
         <button
           type="button"
-          onClick={askBlip}
+          onClick={() => askBlip(WHAT_CHANGED)}
           className="min-h-11 px-2 text-body-sm text-flash hover:underline md:min-h-9"
         >
           Ask Blip what changed
