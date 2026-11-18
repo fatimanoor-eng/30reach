@@ -33,6 +33,7 @@
   --color-amber: #e39a00; /* stale data dot */
   --color-amber-text: #b26b00; /* stale data text */
   --color-line-strong: #d6d6d0; /* select chips (09 card header) */
+  --color-line-dash: #bfc4c8; /* dashed capture / drop zone (14b) */
   --color-muted-strong: #4e5a63; /* secondary text on tinted panels (09 who/when line, STATUS label) */
   --color-tint-instagram: #feeaf0; /* 09 card header, Instagram card */
   --color-tint-tiktok: #e9f8fe; /* 09 card header, TikTok card */

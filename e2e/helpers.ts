@@ -92,6 +92,8 @@ export async function stubSupabase(
     ),
   );
   await page.route("**/rest/v1/pull_tasks**", (route) => route.fulfill(ok([])));
+  // No saved ideas by default (ideas.spec.ts has its own table).
+  await page.route("**/rest/v1/ideas**", (route) => route.fulfill(ok([])));
   await page.route("**/rest/v1/profiles**", (route) =>
     route.fulfill({
       status: 200,

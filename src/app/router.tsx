@@ -6,9 +6,9 @@ import { WrongAccountPage } from "../features/auth/WrongAccountPage";
 import { MorePage } from "../features/more/MorePage";
 import { NotFoundPage } from "../features/NotFoundPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
-import { PlaceholderPage } from "../features/PlaceholderPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { CalendarPage } from "../features/calendar/CalendarPage";
+import { IdeasPage } from "../features/ideas/IdeasPage";
 import { CompetitorsPage } from "../features/competitors/CompetitorsPage";
 import { SocialPage } from "../features/social/SocialPage";
 import { AppShell } from "./AppShell";
@@ -52,16 +52,7 @@ const appRoutes: RouteObject[] = [
         element: <CompetitorsPage />,
       },
       { path: "calendar", element: <CalendarPage /> },
-      {
-        path: "ideas",
-        element: (
-          <PlaceholderPage
-            title="Idea board"
-            slice={10}
-            text="Save screenshots, links, notes and competitor posts, then plan them onto the calendar."
-          />
-        ),
-      },
+      { path: "ideas", element: <IdeasPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "more", element: <MorePage /> },
       ...devRoutes,

@@ -34,7 +34,7 @@ describe("App shell", () => {
       "/calendar",
       /^(January|February|March|April|May|June|July|August|September|October|November|December)( \d{4})?$/,
     ],
-    ["/ideas", "Idea board"],
+    ["/ideas", /^Ideas\s*Idea board$/],
     ["/settings", "Settings"],
     ["/more", "More"],
   ])("%s renders its page", async (path, title) => {
