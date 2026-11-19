@@ -1,6 +1,6 @@
 import { Card } from "../../components/Card";
 import { formatNumber, formatShortDate } from "../../lib/format";
-import { useCredits } from "../../lib/useCredits";
+import { creditsLeft, useCredits } from "../../lib/useCredits";
 import { useGroqMeter, useUsageSizes } from "./settings-api";
 import {
   ago,
@@ -30,11 +30,13 @@ export function UsageCard({ now }: { now: number }) {
   return (
     <Card title="Free-tier usage">
       <div className="flex flex-col">
+        {/* Firecrawl reads as credits LEFT, the same as the sidebar ("919 left of 1,000"); the bar is
+            what's left, in Flash. Groq, Database and Storage stay used / limit. */}
         <Meter
           label="Firecrawl credits"
-          used={c ? Math.max(0, c.plan - c.remaining) : null}
+          used={c ? c.remaining : null}
           limit={c?.plan ?? 1000}
-          value={(u, l) => `${formatNumber(u)} / ${formatNumber(l)}`}
+          value={(left, plan) => creditsLeft(left, plan)}
           tone="flash"
           note={
             credits.status === "error"

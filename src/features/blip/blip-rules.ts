@@ -220,6 +220,99 @@ export function smallTalkReply(m: SmallTalkMatch, firstName: string | null, turn
   return lines[turn % lines.length](firstName, m.stretch, m.word);
 }
 
+// ───────────────────────────── hesitation and "how do you work?" (answered in code, no Groq call)
+
+export type HelpTalk = "hesitation" | "how";
+
+/** Normalised like small talk (lowercase, no punctuation / emoji, repeats squashed). */
+const HELP: Record<string, HelpTalk> = Object.fromEntries(
+  (
+    [
+      ...[
+        "um",
+        "umm",
+        "hm",
+        "hmm",
+        "uh",
+        "uhm",
+        "erm",
+        "eh",
+        "idk",
+        "i dont know",
+        "i don't know",
+        "dunno",
+        "i dunno",
+        "not sure",
+        "im not sure",
+        "i'm not sure",
+        "no idea",
+        "no clue",
+        "idk what to ask",
+        "not sure what to ask",
+        "what should i ask",
+        "where do i start",
+      ].map((w) => [w, "hesitation"] as const),
+      ...[
+        "how do you work",
+        "how does this work",
+        "how does blip work",
+        "how does 30reach work",
+        "how do you know",
+        "how do you get your data",
+        "how do you get data",
+        "where does your data come from",
+        "where do you get your data",
+        "where do you get your info",
+        "what data do you use",
+        "what can you do",
+        "what do you do",
+        "what are you",
+        "who are you",
+        "what can i ask",
+        "what can i ask you",
+        "are you online",
+        "can you browse the web",
+        "can you search the web",
+        "can you search the internet",
+        "do you have internet",
+        "do you have internet access",
+        "are you connected to the internet",
+      ].map((w) => [w, "how"] as const),
+    ] as const
+  ).map(([w, kind]) => [normaliseSmallTalk(w), kind]),
+);
+
+/** Hesitation ("ummm", "idk", "not sure") or "how do you work?" said on its own; null otherwise. */
+export function matchHelpTalk(text: string): HelpTalk | null {
+  return HELP[normaliseSmallTalk(text)] ?? null;
+}
+
+const HESITATION_LINES = [
+  "No worries, let’s start easy. Pick one 👇",
+  "All good, I’ll get us going. Try one of these 👇",
+  "Happens to the best of us 🙂 Start here:",
+];
+
+/** A hesitation reply in Blip's voice with two starting points (tappable chips). Rotates. */
+export function hesitationReply(
+  chips: string[],
+  turn: number,
+): { message: string; suggestions: string[] } {
+  return {
+    message: HESITATION_LINES[turn % HESITATION_LINES.length],
+    suggestions: chips.slice(0, 2),
+  };
+}
+
+/** One line on how Blip works: it reads the saved pull; no live internet. */
+export function howReply(pull: { date: string; posts: number; brands: number } | null): string {
+  if (!pull)
+    return "I read the saved pull, and there isn’t one yet. Press Refresh on the Overview to make one.";
+  const posts = pull.posts === 1 ? "1 post" : `${pull.posts.toLocaleString("en-US")} posts`;
+  const brands = pull.brands === 1 ? "1 brand" : `${pull.brands} brands`;
+  return `I read the saved pull from ${pull.date}: ${posts} from ${brands}. No live internet, so press Refresh on the Overview for newer posts.`;
+}
+
 // ───────────────────────────── light mode (no data summary sent)
 
 export const LIGHT_MAX_CHARS = 40; // same as LIMITS.lightChars in the ask-blip function
@@ -387,8 +480,8 @@ export type Message =
       answer: BlipAnswer;
       /** New answer still to be revealed word by word (cleared when the reveal ends or is skipped). */
       animate?: boolean;
-      /** Answered in code (small talk): not sent back to Groq as history. */
-      local?: SmallTalk;
+      /** Answered in code (small talk, hesitation, "how do you work"): not sent back to Groq. */
+      local?: SmallTalk | HelpTalk;
     }
   | { id: number; question: string; status: "error"; kind: "rate_limited" | "no_pull" | "failed" };
 

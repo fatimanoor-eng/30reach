@@ -63,7 +63,12 @@ export type BlipInsight = {
   pull: { id: string; startedAt: string };
 };
 /** Small talk: one or two warm sentences, no sources, nothing to add to the board. */
-export type BlipChat = { type: "chat"; message: string };
+export type BlipChat = {
+  type: "chat";
+  message: string;
+  /** Starting points under the line (hesitation replies, written in code): tapping one asks it. */
+  suggestions?: string[];
+};
 export type BlipAnswer = BlipInsight | BlipChat;
 
 /** `light`: small talk, sent without the data summary (see isLightQuestion in blip-rules.ts). */

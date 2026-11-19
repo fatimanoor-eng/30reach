@@ -1,6 +1,12 @@
-import { creditsFraction, formatNumber } from "../lib/format";
+import { creditsFraction } from "../lib/format";
 import { BlipError } from "./blip/BlipPoses";
-import { creditsSummary, formatResetDate, formatTime, type CreditsState } from "../lib/useCredits";
+import {
+  creditsLeft,
+  creditsSummary,
+  formatResetDate,
+  formatTime,
+  type CreditsState,
+} from "../lib/useCredits";
 
 /**
  * Firecrawl credits meter (sidebar, More page). Live from the `credits` Edge Function.
@@ -28,8 +34,13 @@ export function CreditsMeter({
       aria-busy={state.status === "loading" || undefined}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <span className="mono-label text-sidebar-text">Firecrawl credits</span>
-        <span className="mono-label">{ready ? formatNumber(ready.remaining) : "—"} left</span>
+        {/* The 216 px sidebar fits "Firecrawl · 588 left of 1,000" on one line; the More card says more. */}
+        <span className="mono-label whitespace-nowrap text-sidebar-text">
+          {card ? "Firecrawl credits" : "Firecrawl"}
+        </span>
+        <span className="mono-label whitespace-nowrap">
+          {ready ? creditsLeft(ready.remaining, ready.plan) : "— left"}
+        </span>
       </div>
 
       <div
@@ -50,7 +61,6 @@ export function CreditsMeter({
       <div className={`mt-2 text-sidebar-text ${card ? "text-small" : "text-label"}`}>
         {state.status === "ready" && ready && (
           <p>
-            of {formatNumber(ready.plan)} ·{" "}
             {ready.stale ? `as of ${formatTime(ready.updatedAt)}` : "live"}
             {reset ? ` · resets ${reset}` : ""}
           </p>

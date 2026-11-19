@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useNavigate } from "react-router";
 import { ModalPresence } from "../../components/ModalPresence";
 import { useToast } from "../../components/toast-context";
-import { formatNumber, plural } from "../../lib/format";
+import { plural } from "../../lib/format";
 import {
   listTasks,
   type Platform,
@@ -16,10 +16,10 @@ import { progressOf, PullInterrupted, runPull, toProgress } from "../../lib/pull
 import { supabase } from "../../lib/supabase";
 import { useClient } from "../../lib/useClient";
 import type { Competitor } from "../../lib/useCompetitors";
-import { CREDITS_QUERY_KEY } from "../../lib/useCredits";
+import { CREDITS_QUERY_KEY, creditsLeft } from "../../lib/useCredits";
 import { PullContext, type PullUiState } from "./pull-context";
 import { PullProgressDialog } from "./PullProgressDialog";
-import { problemSentence } from "./pull-text";
+import { problemSentence, tookLabel } from "./pull-text";
 import { RefreshDialog } from "./RefreshDialog";
 
 const deps = { listTasks, pullTask, pullFinish };
@@ -68,7 +68,7 @@ export function PullProvider({ children }: { children: ReactNode }) {
   }, [clientId]);
 
   const showResult = useCallback(
-    async (r: PullFinishResponse) => {
+    async (r: PullFinishResponse, tookMs: number | null = null) => {
       const label = r.isTest ? "Test pull" : "Pull";
       const seeWhatsNew =
         !r.isTest && r.status !== "failed" && (await hasPreviousPull())
@@ -79,11 +79,12 @@ export function PullProvider({ children }: { children: ReactNode }) {
           : undefined;
       if (r.status === "done") {
         toast.show({
-          title: `${label} complete`,
+          // Blip's voice (one emoji at most, only in Blip's own messages).
+          title: `${label} complete! ${plural(r.postsFound, "fresh post")} 🎉`,
           detail: [
-            plural(r.postsFound, "post"),
+            tookMs !== null ? tookLabel(tookMs) : null,
             `${plural(r.creditsUsed, "credit")} used`,
-            r.credits ? `${formatNumber(r.credits.remaining)} left` : null,
+            r.credits ? creditsLeft(r.credits.remaining, r.credits.plan) : null,
           ]
             .filter(Boolean)
             .join(" · "),
@@ -134,6 +135,7 @@ export function PullProvider({ children }: { children: ReactNode }) {
       if (driving.current) return;
       driving.current = true;
       setState({ kind: "running", pullId, progress: null, cardOpen: true });
+      const started = Date.now(); // this run (a resumed pull counts from the resume)
       try {
         const result = await runPull(
           pullId,
@@ -142,14 +144,14 @@ export function PullProvider({ children }: { children: ReactNode }) {
             setState((s) => (s.kind === "running" && s.pullId === pullId ? { ...s, progress } : s)),
           (notice) =>
             toast.show({
-              title: "Firecrawl asked us to slow down",
-              detail: `Resuming in ${Math.round(notice.waitMs / 1000)} s — nothing to do.`,
+              title: "Firecrawl asked Blip to slow down",
+              detail: `Back in ${Math.round(notice.waitMs / 1000)} s, nothing to do.`,
               pose: "idle",
             }),
         );
         setState({ kind: "idle" });
         await refreshData(); // new pull → Overview reloads before the toast points at it
-        void showResult(result);
+        void showResult(result, Date.now() - started);
       } catch (err) {
         if (
           err instanceof PullInterrupted &&

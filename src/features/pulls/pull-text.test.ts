@@ -9,6 +9,7 @@ import {
   problemSentence,
   refreshIntro,
   selectionCost,
+  tookLabel,
 } from "./pull-text";
 
 const task = (platform: "instagram" | "tiktok", status: TaskProgress["status"]): TaskProgress => ({
@@ -106,5 +107,15 @@ describe("durationText", () => {
   it("estimates from expected pages at ~13 s each", () => {
     expect(durationText(60)).toBe("about 7 minutes"); // 30 pages
     expect(durationText(4)).toBe("about 1 minute"); // test pull
+  });
+});
+
+describe("tookLabel (pull-complete toast)", () => {
+  it("seconds, minutes, hours", () => {
+    expect(tookLabel(800)).toBe("in 1 s");
+    expect(tookLabel(45_000)).toBe("in 45 s");
+    expect(tookLabel(170_000)).toBe("in 3 min");
+    expect(tookLabel(65 * 60_000)).toBe("in 1 h 5 min");
+    expect(tookLabel(120 * 60_000)).toBe("in 2 h");
   });
 });

@@ -15,8 +15,8 @@ const credits: Credits = {
 describe("CreditsMeter", () => {
   it("ready: number, bar and reset date", () => {
     render(<CreditsMeter state={{ status: "ready", credits }} />);
-    expect(screen.getByText("588 left")).toBeInTheDocument();
-    expect(screen.getByText(/of 1,000 · live · resets 1 Dec/)).toBeInTheDocument();
+    expect(screen.getByText("588 left of 1,000")).toBeInTheDocument(); // the same words everywhere
+    expect(screen.getByText("live · resets 1 Dec")).toBeInTheDocument();
     const meter = screen.getByRole("meter");
     expect(meter).toHaveAttribute("aria-valuenow", "588");
     expect(meter).toHaveAttribute("aria-valuemax", "1000");
@@ -26,8 +26,7 @@ describe("CreditsMeter", () => {
     const { container } = render(
       <CreditsMeter state={{ status: "ready", credits: { ...credits, remaining: 1021 } }} />,
     );
-    expect(screen.getByText("1,021 left")).toBeInTheDocument();
-    expect(screen.getByText(/of 1,000/)).toBeInTheDocument();
+    expect(screen.getByText("1,021 left of 1,000")).toBeInTheDocument();
     expect(container.querySelector<HTMLElement>("[role=meter] > div")!.style.width).toBe("100%");
     const meter = screen.getByRole("meter");
     expect(meter).toHaveAttribute("aria-valuenow", "1021");

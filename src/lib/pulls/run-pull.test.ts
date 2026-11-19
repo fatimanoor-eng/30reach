@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { FnResult, PullFinishResponse, PullTaskResponse, TaskRow } from "./api";
 import {
   PAGE_GAP_MS,
+  START_CONCURRENCY,
   progressOf,
   PullInterrupted,
   RATE_LIMIT_BACKOFF_MS,
@@ -149,7 +150,7 @@ describe("runPull", () => {
     expect(d.pullFinish).toHaveBeenCalled();
   });
 
-  it("runs one task at a time, with a gap between page calls (free-plan pacing)", async () => {
+  it("starts fast: 2 tasks in parallel, no gap between page calls", async () => {
     let inFlight = 0;
     let maxInFlight = 0;
     const sleeps: number[] = [];
@@ -158,14 +159,68 @@ describe("runPull", () => {
       sleep: async (ms) => void sleeps.push(ms),
       pullTask: vi.fn(async (id: string): Promise<TaskResult> => {
         maxInFlight = Math.max(maxInFlight, ++inFlight);
-        await Promise.resolve();
+        await new Promise((r) => setTimeout(r, 1));
         inFlight--;
         return page(id, false, 1);
       }),
     });
     await runPull("p1", d);
-    expect(maxInFlight).toBe(1);
-    expect(sleeps).toEqual([PAGE_GAP_MS, PAGE_GAP_MS]); // 3 calls → 2 gaps
+    expect(START_CONCURRENCY).toBe(2);
+    expect(maxInFlight).toBe(2);
+    expect(sleeps).toEqual([]);
+  });
+
+  it("after the first 429: one page call at a time with the gap, for the rest of the pull", async () => {
+    let inFlight = 0;
+    let maxAfter = 0;
+    let limited = false;
+    const sleeps: number[] = [];
+    const calls: string[] = [];
+    const d = deps({
+      listTasks: async () => [row("a"), row("b"), row("c"), row("d")],
+      sleep: async (ms) => {
+        sleeps.push(ms);
+      },
+      pullTask: vi.fn(async (id: string): Promise<TaskResult> => {
+        calls.push(id);
+        inFlight++;
+        if (limited) maxAfter = Math.max(maxAfter, inFlight);
+        await new Promise((r) => setTimeout(r, 1));
+        inFlight--;
+        if (id === "a" && !limited) {
+          limited = true;
+          return { ok: false, status: 429, data: { error: "rate_limited", retryable: true } };
+        }
+        return page(id, false, 1);
+      }),
+    });
+    await runPull("p1", d);
+    expect(calls.sort()).toEqual(["a", "a", "b", "c", "d"]);
+    // From the 429 on, one call at a time (the retry even waits for b, already in flight).
+    expect(maxAfter).toBe(1);
+    expect(sleeps[0]).toBe(RATE_LIMIT_BACKOFF_MS[0]); // the back-off for that 429
+    expect(sleeps.filter((ms) => ms === PAGE_GAP_MS).length).toBeGreaterThanOrEqual(2); // gaps after
+  });
+
+  it("paced calls never overlap once the pull has slowed down", async () => {
+    let inFlight = 0;
+    let max = 0;
+    let first = true;
+    const d = deps({
+      listTasks: async () => [row("a"), row("b"), row("c"), row("d"), row("e")],
+      pullTask: vi.fn(async (id: string): Promise<TaskResult> => {
+        if (first) {
+          first = false;
+          return { ok: false, status: 429, data: { error: "rate_limited", retryAfter: 1 } };
+        }
+        max = Math.max(max, ++inFlight);
+        await new Promise((r) => setTimeout(r, 1));
+        inFlight--;
+        return page(id, false, 1);
+      }),
+    });
+    await runPull("p1", d);
+    expect(max).toBe(1);
   });
 
   it("on 429 waits for Retry-After, tells the UI, then carries on", async () => {
@@ -193,7 +248,7 @@ describe("runPull", () => {
       },
     );
     expect(notices).toEqual([12_000]);
-    expect(sleeps).toEqual([12_000, PAGE_GAP_MS]);
+    expect(sleeps).toEqual([12_000]); // no extra gap right after a back-off
   });
 
   it("on 429 without Retry-After backs off 10 s, 20 s, 40 s, then pauses (resumable)", async () => {

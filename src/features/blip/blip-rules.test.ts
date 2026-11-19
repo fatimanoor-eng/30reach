@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { BlipAnswer, BlipInsight, SourcePost } from "../../lib/ai/ai-api";
 import { AiError, answerText } from "../../lib/ai/ai-api";
 import {
+  hesitationReply,
+  howReply,
+  matchHelpTalk,
   REVEAL_WPS,
   revealSegments,
   typingDelay,
@@ -419,5 +422,56 @@ describe("Ask Blip typing and reveal", () => {
       expect(d).toBeGreaterThanOrEqual(400);
       expect(d).toBeLessThanOrEqual(700);
     }
+  });
+});
+
+describe("Ask Blip: hesitation and “how do you work?” (code, no Groq)", () => {
+  it.each([
+    "ummm",
+    "Hmm…",
+    "idk",
+    "IDK!!",
+    "I don't know",
+    "not sure",
+    "no idea 🤷",
+    "dunno",
+    "uhh",
+  ])("hesitation: %j", (t) => expect(matchHelpTalk(t)).toBe("hesitation"));
+  it.each([
+    "how do you work?",
+    "How does this work",
+    "what can you do?",
+    "Where does your data come from?",
+    "can you browse the web?",
+    "how does 30reach work?",
+  ])("how: %j", (t) => expect(matchHelpTalk(t)).toBe("how"));
+  it.each([
+    "hmm, what changed?",
+    "how do you work out engagement?",
+    "what's working for Hims?",
+    "huh?",
+    "hi",
+  ])("not these: %j", (t) => expect(matchHelpTalk(t)).toBeNull());
+
+  it("hesitation: a short line (1 emoji max) and two starting points, rotating", () => {
+    const chips = [
+      "What changed since the last pull?",
+      "What’s working for Hims?",
+      "Give me 3 post ideas for OBU",
+    ];
+    const a = hesitationReply(chips, 0);
+    expect(a.suggestions).toEqual(chips.slice(0, 2));
+    expect(hesitationReply(chips, 1).message).not.toBe(a.message);
+    for (let i = 0; i < 3; i++)
+      expect(
+        hesitationReply(chips, i).message.match(/\p{Extended_Pictographic}/gu)?.length ?? 0,
+      ).toBeLessThanOrEqual(1);
+  });
+
+  it("how: one line about the saved pull, no live internet", () => {
+    expect(howReply({ date: "16 Nov", posts: 169, brands: 6 })).toBe(
+      "I read the saved pull from 16 Nov: 169 posts from 6 brands. No live internet, so press Refresh on the Overview for newer posts.",
+    );
+    expect(howReply(null)).toMatch(/there isn’t one yet\. Press Refresh/);
   });
 });

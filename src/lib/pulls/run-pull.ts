@@ -35,11 +35,12 @@ export type RunDeps = {
 export type PullNotice = { kind: "rate_limited"; waitMs: number; attempt: number };
 
 /**
- * Free-plan pacing (first real pull hit Firecrawl 429s with 2 tasks in parallel):
- * one task at a time, a short gap between page calls, long back-off on 429.
+ * Adaptive pacing (Slice 13b). Start fast: 2 tasks in parallel, no gap. Firecrawl's free plan can
+ * answer that with 429 (the first real pull did), so after the FIRST 429 the rest of that pull is
+ * paced: one page call at a time, a gap between calls, and the long back-off on every 429.
  */
-export const CONCURRENCY = 1;
-export const PAGE_GAP_MS = 3000; // pause before every page call after the first
+export const START_CONCURRENCY = 2;
+export const PAGE_GAP_MS = 3000; // once paced: pause before every page call after the first
 export const RATE_LIMIT_BACKOFF_MS = [10_000, 20_000, 40_000]; // when 429 has no Retry-After
 const MAX_RETRIES = 3; // per task, for other retryable Firecrawl / save errors
 const BUSY_WAIT_MS = 3000; // another tab holds the task's lease
@@ -66,7 +67,7 @@ export const toProgress = (t: TaskRow): TaskProgress => ({
 });
 
 /**
- * Drives a pull from the browser: pull-task for every unfinished task (one at a time, paced) until
+ * Drives a pull from the browser: pull-task for every unfinished task (2 at a time; paced after a 429) until
  * `more` is false, then pull-finish. Works the same for a fresh pull and for Resume after a reload.
  * Throws PullInterrupted if it has to stop; the pull stays `running` and can be resumed later.
  */
@@ -82,7 +83,33 @@ export async function runPull(
   emit();
 
   const queue = tasks.filter((t) => t.status === "queued" || t.status === "running");
-  let pageCalls = 0;
+
+  // Paced mode (after the first 429): every page call joins one chain, so only one is in flight,
+  // with PAGE_GAP_MS between them. Before that, calls go straight out (2 tasks in parallel).
+  let paced = false;
+  let chain: Promise<unknown> = Promise.resolve();
+  let pacedCalls = 0;
+  const direct = new Set<Promise<unknown>>(); // fast-mode calls still in flight
+  function slowDown() {
+    if (paced) return;
+    paced = true;
+    // The other task's call may still be out: the first paced call waits for it too.
+    chain = Promise.allSettled([...direct]);
+  }
+  function pageCall(taskId: string): Promise<FnResult<PullTaskResponse>> {
+    if (!paced) {
+      const call = deps.pullTask(taskId);
+      direct.add(call);
+      void call.finally(() => direct.delete(call)).catch(() => {});
+      return call;
+    }
+    const call = chain.then(async () => {
+      if (pacedCalls++ > 0) await sleep(PAGE_GAP_MS); // stay under Firecrawl's free-plan limit
+      return deps.pullTask(taskId);
+    });
+    chain = call.catch(() => {});
+    return call;
+  }
 
   async function runTask(task: TaskProgress) {
     let retries = 0;
@@ -91,8 +118,7 @@ export async function runPull(
     task.status = "running";
     emit();
     for (;;) {
-      if (pageCalls++ > 0) await sleep(PAGE_GAP_MS); // stay under Firecrawl's free-plan rate limit
-      const res = await deps.pullTask(task.id);
+      const res = await pageCall(task.id);
       if (res.ok) {
         Object.assign(task, {
           status: res.data.status,
@@ -109,6 +135,7 @@ export async function runPull(
       }
       const code = (res.data?.error as string | undefined) ?? `http_${res.status}`;
       if (res.status === 429 || code === "rate_limited") {
+        slowDown(); // for the rest of this pull
         if (rateLimits >= RATE_LIMIT_BACKOFF_MS.length) throw new PullInterrupted("rate_limited");
         const retryAfter = typeof res.data?.retryAfter === "number" ? res.data.retryAfter : null;
         const waitMs = retryAfter ? retryAfter * 1000 : RATE_LIMIT_BACKOFF_MS[rateLimits];
@@ -133,7 +160,7 @@ export async function runPull(
   async function worker() {
     for (let task = queue.shift(); task; task = queue.shift()) await runTask(task);
   }
-  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  await Promise.all(Array.from({ length: START_CONCURRENCY }, worker));
 
   for (let attempt = 0; ; attempt++) {
     const res = await deps.pullFinish(pullId);

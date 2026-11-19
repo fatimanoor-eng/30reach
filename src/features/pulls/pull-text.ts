@@ -79,3 +79,14 @@ export function durationText(expectedCredits: number): string {
   const minutes = Math.max(1, Math.round((Math.ceil(expectedCredits / 2) * SECONDS_PER_PAGE) / 60));
   return `about ${plural(minutes, "minute")}`;
 }
+
+/** How long the pull took, for the toast: "in 45 s", "in 3 min", "in 1 h 5 min". */
+export function tookLabel(ms: number): string {
+  const s = Math.max(1, Math.round(ms / 1000));
+  if (s < 60) return `in ${s} s`;
+  const min = Math.round(s / 60);
+  if (min < 60) return `in ${min} min`;
+  const h = Math.floor(min / 60);
+  const rest = min % 60;
+  return rest ? `in ${h} h ${rest} min` : `in ${h} h`;
+}

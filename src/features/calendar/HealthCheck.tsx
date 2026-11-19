@@ -21,7 +21,7 @@ export function HealthCheck({ value, onRetry }: { value: HealthCheckState; onRet
         className="flex items-center gap-2.5 rounded-tile bg-bg px-3 py-2.5 text-small text-muted"
       >
         <BlipThinking className="h-7 w-auto shrink-0" />
-        Checking for health claims…
+        Blip’s checking for health claims…
       </p>
     );
 

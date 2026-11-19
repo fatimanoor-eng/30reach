@@ -110,7 +110,7 @@ test("05 / M03 confirm cost", async ({ page }) => {
 });
 
 test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, info) => {
-  test.setTimeout(60_000); // remaining tasks run one at a time with the real 3 s gap
+  test.setTimeout(60_000); // remaining tasks run 2 at a time (paced only after a 429)
   await setup(page);
   await page.route("**/rest/v1/pull_tasks**", (r) => r.fulfill(json(tasks(5)))); // 5 of 12 done
   const startBodies: Record<string, unknown>[] = [];
@@ -141,11 +141,12 @@ test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, inf
   await openRefresh(page);
   await page.getByRole("button", { name: "Pull now" }).click();
 
-  const card = page.getByRole("dialog", { name: "Blip is pulling fresh posts…" });
+  const card = page.getByRole("dialog", { name: "Blip’s scanning the competition…" });
   await expect(card).toBeVisible();
   await expect(card.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "42");
   if (info.project.name === "mobile-390") {
-    await expect(card.getByText("Instagram 5 of 6 brands · TikTok waiting")).toBeVisible();
+    // 2 tasks in parallel: the first TikTok task starts alongside the 6th Instagram one.
+    await expect(card.getByText("Instagram 5 of 6 brands · TikTok 0 of 6 brands")).toBeVisible();
   } else {
     await expect(card.getByRole("row", { name: /Found/ })).toBeVisible();
     await expect(card.getByText("Credits used so far · 20")).toBeVisible();
@@ -166,8 +167,9 @@ test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, inf
 
   release();
   const toast = page.getByRole("status");
-  await expect(toast).toContainText("Pull complete", { timeout: 40_000 }); // 7 tasks × 3 s gap
-  await expect(toast).toContainText("228 posts · 64 credits used · 957 left");
+  await expect(toast).toContainText("Pull complete! 228 fresh posts 🎉", { timeout: 40_000 });
+  // How long it took, then credits in the same words as everywhere else.
+  await expect(toast).toContainText(/in \d+ (s|min) · 64 credits used · 957 left of 1,000/);
   await expect(
     page
       .getByRole("button", { name: /^(Refresh|Pull data now)$/ })
@@ -293,8 +295,8 @@ test("Firecrawl 429 → slow-down toast, then carries on by itself", async ({ pa
   );
   await openRefresh(page);
   await page.getByRole("button", { name: "Pull now" }).click();
-  await expect(page.getByRole("status")).toContainText("Firecrawl asked us to slow down");
-  await expect(page.getByRole("status")).toContainText("Resuming in 1 s");
+  await expect(page.getByRole("status")).toContainText("Firecrawl asked Blip to slow down");
+  await expect(page.getByRole("status")).toContainText("Back in 1 s");
   await expect(page.getByRole("status")).toContainText("Pull complete", { timeout: 15_000 });
   expect(calls).toBe(2);
 });

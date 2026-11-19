@@ -96,7 +96,7 @@ export function PlanMonthPanel({
     if (added < picked.length) return; // stay open: the error says what happened
     onClose();
     toast.show({
-      title: `Added ${added} ${added === 1 ? "idea" : "ideas"} to the idea board`,
+      title: `Added ${added} ${added === 1 ? "idea" : "ideas"} to the board 💡`,
       detail: "Nothing is scheduled until you plan it.",
       pose: "success",
       action: { label: "Open", onClick: () => navigate("/ideas?tab=ai") },

@@ -32,7 +32,7 @@ export function PullProgressDialog() {
       align="center"
       size="lg"
       illustration={<BlipScanning />}
-      title="Blip is pulling fresh posts…"
+      title="Blip’s scanning the competition…"
       description={
         tabletUp
           ? "This can take a little while. Keep using 30reach, we’ll let you know when it’s done."
@@ -62,7 +62,7 @@ export function PullProgressDialog() {
           <BrandGrid tasks={tasks} />
         ) : (
           <p className="text-center font-mono text-small text-muted" aria-live="polite">
-            {tasks.length ? mobileProgressLine(tasks) : "Starting…"}
+            {tasks.length ? mobileProgressLine(tasks) : "Warming up…"}
           </p>
         )}
       </div>
@@ -76,7 +76,7 @@ function BrandGrid({ tasks }: { tasks: TaskProgress[] }) {
     tasks.some((t) => t.platform === p),
   );
   const brands = [...new Set(tasks.map((t) => t.brand))];
-  if (!tasks.length) return <p className="font-mono text-small text-muted">Starting…</p>;
+  if (!tasks.length) return <p className="font-mono text-small text-muted">Warming up…</p>;
 
   return (
     // Border lives on a wrapper: tables (border-collapse) don't draw rounded borders.

@@ -252,6 +252,8 @@ export function AskBlipPanel({
                       answer={m.answer}
                       animate={!!m.animate && !reduced}
                       onDone={() => finishReveal(m.id)}
+                      onAsk={ask}
+                      askDisabled={busy || revealing || noPull}
                     />
                   </BlipSays>
                 )}
@@ -393,18 +395,46 @@ function ChatReply({
   answer,
   animate,
   onDone,
+  onAsk,
+  askDisabled,
 }: {
   answer: BlipChat;
   animate: boolean;
   onDone: () => void;
+  /** A starting point was tapped (hesitation replies): ask it. */
+  onAsk: (question: string) => void;
+  askDisabled: boolean;
 }) {
   const shown = useReveal(wordCount(answer.message), animate, onDone);
   const [text] = revealSegments([answer.message], shown);
+  const [fadeIn] = useState(animate);
   // Hidden from screen readers while it builds up; the live region reads it once, in full.
   return (
-    <p className="text-body-sm" aria-hidden={animate || undefined}>
-      {text}
-    </p>
+    <div className="flex flex-col gap-2">
+      <p className="text-body-sm" aria-hidden={animate || undefined}>
+        {text}
+      </p>
+      {!animate && answer.suggestions && answer.suggestions.length > 0 && (
+        <div className={`flex flex-wrap gap-1.5 ${fadeIn ? "blip-fade-in" : ""}`}>
+          {answer.suggestions.map((q) => (
+            <button
+              key={q}
+              type="button"
+              disabled={askDisabled}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAsk(q);
+              }}
+              className="inline-flex min-h-11 items-center md:min-h-0"
+            >
+              <span className="rounded-full border border-ink bg-surface px-2.5 py-1 font-mono text-label text-ink hover:bg-bg">
+                {q}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

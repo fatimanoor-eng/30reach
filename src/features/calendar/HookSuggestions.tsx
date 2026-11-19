@@ -30,7 +30,7 @@ export function HookSuggestions({
     return (
       <p role="status" className="mt-2 flex items-center gap-2 text-small text-muted">
         <BlipThinking className="h-7 w-auto shrink-0" />
-        Blip is writing {noun}s…
+        Blip’s writing {noun}s…
       </p>
     );
   if (value.state === "failed")

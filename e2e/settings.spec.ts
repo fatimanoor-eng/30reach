@@ -211,7 +211,7 @@ test("Settings — Team, usage, data and account like Figma 13 (admin)", async (
   await expect(page.getByText("Signed in on 2 Nov")).toBeVisible(); // Sherry
 
   // Usage: used / limit, like Figma.
-  await expect(page.getByText("412 / 1,000")).toBeVisible(); // Firecrawl 588 left of 1,000
+  await expect(page.getByText("588 left of 1,000").last()).toBeVisible(); // Firecrawl, like the sidebar
   await expect(page.getByText("38 / 1,000")).toBeVisible(); // Groq
   await expect(page.getByText("42 MB / 500 MB")).toBeVisible();
   await expect(page.getByText("86 MB / 1 GB")).toBeVisible();

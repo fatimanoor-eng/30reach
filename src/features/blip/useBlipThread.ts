@@ -1,4 +1,6 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { formatShortDate } from "../../lib/format";
 import { AiError, askBlip } from "../../lib/ai/ai-api";
 import { useProfile } from "../../lib/auth/useProfile";
 import { useClient } from "../../lib/useClient";
@@ -6,11 +8,16 @@ import { useCompetitors } from "../../lib/useCompetitors";
 import {
   clientShort,
   firstNameOf,
+  hesitationReply,
   historyFrom,
+  howReply,
   isLightQuestion,
   MAX_QUESTION,
+  matchHelpTalk,
   matchSmallTalk,
   smallTalkReply,
+  suggestions,
+  topBrand,
   type Message,
   typingDelay,
   withBreather,
@@ -20,7 +27,8 @@ import {
  * The Ask Blip thread for this session (no table: a reload clears it). Owned by the app shell, so the
  * panel can mount and unmount like any drawer while the conversation stays.
  *
- * A pure greeting / thanks ("hiiii!!", "thx") is answered here with a rotating line (no Groq call,
+ * Hesitation ("ummm", "idk") and "how do you work?" are answered here too (two starting points; one
+ * line on reading the saved pull). A pure greeting / thanks ("hiiii!!", "thx") is answered here with a rotating line (no Groq call,
  * no tokens). Other short small talk goes in light mode (no data summary). A rate limit shows
  * "One sec, catching my breath…", waits (≤ 30 s) and retries once before the breather message.
  *
@@ -33,6 +41,7 @@ export function useBlipThread(clientId: string | undefined) {
   const client = useClient();
   const competitors = useCompetitors();
   const clientName = client.data?.name;
+  const queryClient = useQueryClient();
   // Brand and client names: a question naming one is about the data, so it never goes light.
   const names = useMemo(
     () => [
@@ -57,10 +66,52 @@ export function useBlipThread(clientId: string | undefined) {
       if (!q || !clientId || inFlight.current) return;
       const id = nextId.current++;
       const small = matchSmallTalk(q);
+      const help = small ? null : matchHelpTalk(q);
       inFlight.current = true;
-      if (small) {
-        const turn = current.filter((m) => m.status === "done" && m.local === small.kind).length;
-        const message = smallTalkReply(small, firstName, turn);
+      if (small || help) {
+        const kind = small ? small.kind : help!;
+        const turn = current.filter((m) => m.status === "done" && m.local === kind).length;
+        // The saved pull the open panel already loaded (no extra request for a one-liner).
+        const pulls = queryClient.getQueryData<{
+          latest: { id: string; started_at: string } | null;
+        }>(["pulls", "saved", clientId]);
+        const latestPull = pulls?.latest ?? null;
+        const posts = latestPull
+          ? (queryClient.getQueryData<
+              {
+                competitor_id: string;
+                likes: number | null;
+                comments: number | null;
+                counts_hidden: boolean;
+              }[]
+            >(["posts", latestPull.id]) ?? null)
+          : null;
+        let answer: { type: "chat"; message: string; suggestions?: string[] };
+        if (small) answer = { type: "chat", message: smallTalkReply(small, firstName, turn) };
+        else if (help === "hesitation")
+          answer = {
+            type: "chat",
+            ...hesitationReply(
+              suggestions(
+                clientName ?? "the client",
+                topBrand(posts ?? [], competitors.data ?? []),
+              ),
+              turn,
+            ),
+          };
+        else
+          answer = {
+            type: "chat",
+            message: howReply(
+              latestPull && posts
+                ? {
+                    date: formatShortDate(latestPull.started_at) ?? "",
+                    posts: posts.length,
+                    brands: new Set(posts.map((p) => p.competitor_id)).size,
+                  }
+                : null,
+            ),
+          };
         setMessages((m) => [...m, { id, question: q, status: "pending" }]);
         window.setTimeout(() => {
           setMessages((m) =>
@@ -70,9 +121,9 @@ export function useBlipThread(clientId: string | undefined) {
                     id,
                     question: q,
                     status: "done",
-                    local: small.kind,
+                    local: kind,
                     animate: true,
-                    answer: { type: "chat", message },
+                    answer,
                   }
                 : x,
             ),
@@ -110,7 +161,7 @@ export function useBlipThread(clientId: string | undefined) {
         inFlight.current = false;
       }
     },
-    [clientId, firstName, names],
+    [clientId, firstName, names, queryClient, clientName, competitors.data],
   );
 
   /** The reveal ended or was skipped: show the message in full from now on (no replay on reopen). */
