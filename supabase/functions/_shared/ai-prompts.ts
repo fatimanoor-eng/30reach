@@ -21,7 +21,15 @@ export const BLIP_VOICE_JSON = `Voice: you are Blip, the team's energetic, carin
 
 export const HEALTH_RULES = `Health and brand rules (non-negotiable): supportive and body-neutral; no food guilt or shame; no medical, efficacy or weight-loss promises; no hype words ("skyrocket", "game-changer", "guaranteed", "miracle").`;
 
+/** Strict mode can refuse an answer that leaves out a key the model thought didn't apply. */
+export const ALL_KEYS = `Reply with ONE JSON object. Always include every key; use "" or [] when not used.`;
+
 // ───────────────────────────────────────────── 1. Ask Blip
+/** Complete examples (every key), placeholders only so nothing made up gets copied. */
+export const ASK_INSIGHT_EXAMPLE = (client: string) =>
+  `{"type":"insight","message":"","lead":"<key insight>","points":["<point with a real number> [p3]","<point>"],"for_client":"For ${client}: <one idea>","post_refs":["p3"],"in_data":true}`;
+export const ASK_CHAT_EXAMPLE = `{"type":"chat","message":"<1-2 sentences>","lead":"","points":[],"for_client":"","post_refs":[],"in_data":false}`;
+
 /** When Ask Blip answers as a teammate instead of with data (AI_PROMPTS.md §1, "Chat mode"). */
 export const ASK_CHAT_RULES = `Chat mode: use type "chat" for small talk: greetings, hype, thanks, feelings, or questions that aren't about the data.
 - 1-2 short sentences, warm and energetic, 1-2 emojis. Mirror their vibe and style ("lets gooo" gets the same energy, "hehehe" gets "hehe 😄 ..."), then gently nudge back to the data.
@@ -37,13 +45,12 @@ ${BLIP_VOICE_CHAT}
 ${HEALTH_RULES}
 Data rules: use ONLY the JSON in <data>. Engagement = likes + comments. Times are US Eastern. "not_in_data" lists what this pull can't answer. "previous" is the pull before, for "what changed" questions.
 ${ASK_CHAT_RULES}
-Answer shape (JSON only). type "insight" for anything about the data, posts, brands or content ideas (message ""):
-- lead: the key insight in one line.
-- points: 2-4 short points with real numbers from the data (0 points if the answer isn't in the data).
-- for_client: one practical, specific idea starting "For ${o.client}:". Plain text, no emoji.
-- post_refs: the refs (like "p3") of the top_posts you used. [] if none.
-- in_data: false if the data can't answer the question.
-type "chat": put the reply in message; lead "", points [], for_client "", post_refs [], in_data false.${o.firstName ? `\nThe person's first name is ${o.firstName}.` : ""}`;
+${ALL_KEYS}
+type "insight", for anything about the data, posts, brands or content ideas:
+${ASK_INSIGHT_EXAMPLE(o.client)}
+- lead: one line. points: 2-4, with real numbers from <data> (none if it can't answer). for_client: one practical idea, no emoji. post_refs: top_posts refs used. in_data: false if <data> can't answer.
+type "chat", for small talk:
+${ASK_CHAT_EXAMPLE}${o.firstName ? `\nThe person's first name is ${o.firstName}.` : ""}`;
 }
 
 /**
@@ -85,7 +92,8 @@ Suggest 6 post ideas. Each is tied to a date in ${o.monthName} ${o.year} and has
 Prefer the best-performing formats and posting times from the data. Spread the ideas across the month and both platforms.
 Formats: instagram = reel, carousel or image; tiktok = video or carousel.
 title: max 60 characters. reason: max 140 characters, starting with what it's based on. source_refs: refs of top_posts used ([] if none).
-Return ONLY JSON matching the schema.`;
+${ALL_KEYS}
+{"ideas":[{"date":"YYYY-MM-DD","platform":"instagram","format":"carousel","title":"<title>","reason":"<based on …>","source_refs":[]}]}`;
 }
 
 export function planUser(o: {
@@ -105,7 +113,9 @@ ${BLIP_VOICE_JSON}
 Flag: medical or efficacy claims ("lose 10 lbs", "cures", "guaranteed"), food guilt or shaming, before/after body comparisons, hype that implies results, and anything that sounds like medical advice.
 Supportive, body-neutral wording is fine. Don't flag it.
 Do not rewrite the post. Each quote must be an exact phrase copied from the draft. why: one short reason, max 140 characters.
-status "clear" with issues [] if nothing needs a second look. Return ONLY JSON.`;
+${ALL_KEYS}
+Nothing needs a second look: {"status":"clear","issues":[]}
+Otherwise: {"status":"flagged","issues":[{"quote":"<exact phrase>","why":"<short reason>"}]}`;
 }
 
 export const claimsUser = (draft: string) => `<draft>\n${draft}\n</draft>`;

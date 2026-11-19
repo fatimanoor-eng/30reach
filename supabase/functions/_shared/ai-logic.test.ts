@@ -10,8 +10,10 @@ import {
   clip,
   CLAIMS_SCHEMA,
   firstName,
+  groqErrorCode,
   groqErrorLog,
   groqRequestBody,
+  retryModeAfter,
   healthRedFlags,
   hookContext,
   HOOKS_SCHEMA,
@@ -38,6 +40,9 @@ import {
   validatePlan,
 } from "./ai-logic.ts";
 import {
+  ALL_KEYS,
+  ASK_CHAT_EXAMPLE,
+  ASK_INSIGHT_EXAMPLE,
   ASK_CHAT_RULES,
   askLightSystem,
   askLightUser,
@@ -405,6 +410,13 @@ describe("inputs from the browser", () => {
   });
 });
 
+/** A copy of `o` without key `k` (a key the model left out, not one set to undefined). */
+const without = (o: Record<string, unknown>, k: string) => {
+  const copy = { ...o };
+  delete copy[k];
+  return copy;
+};
+
 describe("validateAskAnswer", () => {
   const refs = ["id-1", "id-2", "id-3"];
   const good = {
@@ -433,12 +445,48 @@ describe("validateAskAnswer", () => {
     expect(a.lead).toContain("🎯"); // emojis are fine in chat
   });
 
-  it("rejects the wrong shape", () => {
-    expect(validateAskAnswer({ ...good, in_data: "yes" }, refs)).toBeNull();
-    expect(validateAskAnswer({ ...good, lead: "" }, refs)).toBeNull();
+  it("rejects answers without the content their type needs", () => {
+    expect(validateAskAnswer({ ...good, lead: "" }, refs)).toBeNull(); // insight needs a lead
+    expect(validateAskAnswer({ ...good, lead: "[p1]" }, refs)).toBeNull(); // …that isn't only a ref
+    expect(validateAskAnswer(without(good, "points"), refs)).toBeNull(); // …and a points array
+    expect(validateAskAnswer({ type: "insight" }, refs)).toBeNull();
+    expect(validateAskAnswer({}, refs)).toBeNull();
     expect(validateAskAnswer(null, refs)).toBeNull();
-    expect(validateAskAnswer({ ...good, type: undefined }, refs)).toBeNull();
-    expect(validateAskAnswer({ ...good, type: "joke" }, refs)).toBeNull();
+    expect(validateAskAnswer("hi", refs)).toBeNull();
+  });
+
+  // The real-Groq failure: "json_validate_failed … missing properties: 'message'".
+  it("insight without message (the real Groq answer): accepted, message isn't needed", () => {
+    expect(insight(without(good, "message"))).toMatchObject({
+      type: "insight",
+      lead: insight(good).lead,
+    });
+  });
+
+  it("insight: missing for_client / post_refs / in_data get safe defaults", () => {
+    const a = insight({ type: "insight", lead: "Carousels lead [p2]", points: ["3× the likes"] });
+    expect(a).toEqual({
+      type: "insight",
+      lead: "Carousels lead",
+      points: ["3× the likes"],
+      forClient: "",
+      postIds: ["id-2"], // the inline ref still counts
+      inData: true, // has points
+    });
+    expect(insight({ lead: "Can't see that in this pull", points: [] }).inData).toBe(false);
+    expect(insight({ ...good, in_data: "yes" }).inData).toBe(true); // wrong type → default
+    expect(insight({ ...good, post_refs: "p1" }).postIds).toEqual(["id-1", "id-2", "id-3"]);
+  });
+
+  it("works out a missing or unknown type from the content", () => {
+    expect(insight({ ...good, type: undefined }).type).toBe("insight");
+    expect(insight({ ...good, type: "joke" }).type).toBe("insight");
+    expect(validateAskAnswer({ message: "hehe 😄 good one" }, refs)).toEqual({
+      type: "chat",
+      message: "hehe 😄 good one",
+    });
+    // Says "chat" but only filled the insight fields: treated as the insight it is.
+    expect(insight({ ...good, type: "chat", message: "" }).lead).toBe(insight(good).lead);
   });
 
   it("caps points at 5", () => {
@@ -476,6 +524,13 @@ describe("validateAskAnswer", () => {
     ],
   ])("chat (%s): message only, no sources or idea", (_case, message) => {
     expect(validateAskAnswer(chat(message), refs)).toEqual({ type: "chat", message });
+  });
+
+  it("chat without the insight keys (lead, points…): accepted", () => {
+    expect(validateAskAnswer({ type: "chat", message: "Anytime! 🙌" }, refs)).toEqual({
+      type: "chat",
+      message: "Anytime! 🙌",
+    });
   });
 
   it("chat: ignores insight fields the model filled anyway", () => {
@@ -657,7 +712,26 @@ describe("validateClaims", () => {
     expect(
       validateClaims({ status: "flagged", issues: [{ quote: "nope", why: "x" }] }, "Hook: hi"),
     ).toBeNull();
-    expect(validateClaims({ status: "maybe", issues: [] }, "Hook: hi")).toBeNull();
+    expect(validateClaims({}, "Hook: hi")).toBeNull(); // neither status nor issues
+    expect(validateClaims(null, "Hook: hi")).toBeNull();
+  });
+});
+
+describe("validateClaims, lenient shape", () => {
+  it("clear without issues, or issues without status: status comes from the issues", () => {
+    expect(validateClaims({ status: "clear" }, "Hook: Small swaps that feel good")).toEqual({
+      status: "clear",
+      issues: [],
+    });
+    expect(
+      validateClaims({ issues: [{ quote: "lose 10 lbs" }] }, "Hook: Lose 10 lbs in a week"),
+    ).toMatchObject({ status: "flagged", issues: [{ quote: "lose 10 lbs" }] });
+    // Code red flags still run when the model said clear and left out issues.
+    expect(validateClaims({ status: "clear" }, "Hook: Lose 10 lbs fast").status).toBe("flagged");
+    expect(validateClaims({ status: "maybe", issues: [] }, "Hook: hi")).toEqual({
+      status: "clear",
+      issues: [],
+    });
   });
 });
 
@@ -769,6 +843,55 @@ describe("Groq request and errors", () => {
   });
 });
 
+describe("json_validate_failed fallback", () => {
+  const vf = JSON.stringify({
+    error: {
+      message: "Generated JSON does not match the expected schema: missing properties: 'message'",
+      type: "invalid_request_error",
+      code: "json_validate_failed",
+    },
+  });
+  const other = JSON.stringify({ error: { message: "bad param", code: "invalid_request" } });
+
+  it("reads Groq's error code", () => {
+    expect(groqErrorCode(vf)).toBe("json_validate_failed");
+    expect(groqErrorCode("nope")).toBeNull();
+    expect(groqErrorCode("{}")).toBeNull();
+  });
+
+  it("only a strict json_validate_failed on the first try gets ONE json_object retry", () => {
+    expect(retryModeAfter(400, vf, 1, "strict")).toBe("json_object");
+    expect(retryModeAfter(400, vf, 2, "strict")).toBeNull();
+    expect(retryModeAfter(400, vf, 1, "json_object")).toBeNull();
+    expect(retryModeAfter(400, other, 1, "strict")).toBeNull(); // other 400s fail the same way
+    expect(retryModeAfter(500, vf, 1, "strict")).toBeNull();
+    expect(retryModeAfter(413, "", 1, "strict")).toBeNull();
+  });
+
+  it("json_object mode: same params, no schema", () => {
+    const body = groqRequestBody({
+      model: "m",
+      system: "Reply with JSON",
+      user: "u",
+      schema: ASK_SCHEMA,
+      maxTokens: 3000,
+      mode: "json_object",
+    });
+    expect(body.response_format).toEqual({ type: "json_object" });
+    expect(body.reasoning_effort).toBe("low");
+    expect(body.max_completion_tokens).toBe(3000);
+  });
+
+  it("the mocked fallback answer (insight, no message) passes our validator", () => {
+    const answer = { type: "insight", lead: "Carousels lead", points: ["3× the likes [p1]"] };
+    expect(validateAskAnswer(answer, ["id-1"])).toMatchObject({
+      type: "insight",
+      postIds: ["id-1"],
+      forClient: "",
+    });
+  });
+});
+
 describe("tokenLog", () => {
   const headers = (h: Record<string, string>) => new Headers(h);
   it("logs tokens in / out / reasoning / total and what's left this minute, never content", () => {
@@ -797,6 +920,67 @@ describe("tokenLog", () => {
 });
 
 describe("prompts", () => {
+  /** The {...} example lines in a prompt, parsed. */
+  const examples = (prompt: string) =>
+    prompt
+      .split("\n")
+      .map((l) => l.replace(/^[^{]*/, ""))
+      .filter((l) => l.startsWith("{"))
+      .map((l) => JSON.parse(l) as Record<string, unknown>);
+  const keysOf = (schema: { properties: Record<string, unknown> }) =>
+    Object.keys(schema.properties).sort();
+
+  it("ask prompt: a complete insight and chat example, every key, plus 'always include every key'", () => {
+    const p = askSystem({ client: "OBU Health", firstName: "Fatima" });
+    expect(p).toContain(ALL_KEYS);
+    expect(ALL_KEYS).toMatch(/Always include every key; use "" or \[\] when not used/);
+    expect(p).toContain(ASK_INSIGHT_EXAMPLE("OBU Health"));
+    expect(p).toContain(ASK_CHAT_EXAMPLE);
+    const [ins, chat] = examples(p);
+    const keys = keysOf(ASK_SCHEMA.schema as { properties: Record<string, unknown> });
+    expect(Object.keys(ins).sort()).toEqual(keys);
+    expect(Object.keys(chat).sort()).toEqual(keys);
+    expect(ins).toMatchObject({ type: "insight", message: "", in_data: true });
+    expect(chat).toMatchObject({
+      type: "chat",
+      lead: "",
+      points: [],
+      for_client: "",
+      post_refs: [],
+      in_data: false,
+    });
+    expect(validateAskAnswer(ins, ["id-1", "id-2", "id-3"])?.type).toBe("insight");
+    expect(validateAskAnswer(chat, [])?.type).toBe("chat");
+  });
+
+  it("plan and claims prompts show complete examples too (for the json_object fallback)", () => {
+    const plan = planSystem({ client: "OBU Health", monthName: "January", year: 2027 });
+    expect(plan).toContain(ALL_KEYS);
+    const [p] = examples(plan);
+    const item = (PLAN_SCHEMA.schema.properties.ideas as { items: { properties: object } }).items;
+    expect(Object.keys((p.ideas as object[])[0]).sort()).toEqual(
+      Object.keys(item.properties).sort(),
+    );
+
+    const claims = claimsSystem();
+    expect(claims).toContain(ALL_KEYS);
+    const [clear, flagged] = examples(claims);
+    expect(clear).toEqual({ status: "clear", issues: [] });
+    expect(Object.keys(flagged).sort()).toEqual(["issues", "status"]);
+    expect(Object.keys((flagged.issues as object[])[0]).sort()).toEqual(["quote", "why"]);
+  });
+
+  it("every system prompt says JSON (json_object mode needs the word)", () => {
+    for (const p of [
+      askSystem({ client: "OBU Health", firstName: null }),
+      askLightSystem({ client: "OBU Health", firstName: null }),
+      planSystem({ client: "OBU Health", monthName: "January", year: 2027 }),
+      claimsSystem(),
+      hooksSystem({ client: "OBU Health", platform: null }),
+    ])
+      expect(p).toMatch(/JSON/);
+  });
+
   it("light prompt: persona + chat rules + health rules, no data, never invents, stays ~400 tokens", () => {
     const p = askLightSystem({ client: "OBU Health", firstName: "Fatima" });
     expect(p).toContain(ASK_CHAT_RULES);

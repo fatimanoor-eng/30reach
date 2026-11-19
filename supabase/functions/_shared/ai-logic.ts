@@ -484,13 +484,19 @@ export function parseGroqMeter(h: HeaderBag, model: string): GroqMeter | null {
  * (all properties required, additionalProperties false), reasoning_effort low|medium|high,
  * include_reasoning false (reasoning_format isn't supported on gpt-oss, so it's never sent). No
  * streaming or tools: Groq doesn't support them with Structured Outputs.
+ *
+ * mode "json_object" is the fallback after a strict json_validate_failed: valid JSON, no schema (the
+ * prompts carry complete examples, and our validators fill missing keys). Groq needs the word
+ * "JSON" in the messages for it; every system prompt has it (tested).
  */
+export type GroqMode = "strict" | "json_object";
 export function groqRequestBody(o: {
   model: string;
   system: string;
   user: string;
   schema: { name: string; schema: Record<string, unknown> };
   maxTokens: number;
+  mode?: GroqMode;
 }) {
   return {
     model: o.model,
@@ -499,12 +505,46 @@ export function groqRequestBody(o: {
     max_completion_tokens: o.maxTokens,
     reasoning_effort: "low",
     include_reasoning: false,
-    response_format: { type: "json_schema", json_schema: { ...o.schema, strict: true } },
+    response_format:
+      o.mode === "json_object"
+        ? { type: "json_object" }
+        : { type: "json_schema", json_schema: { ...o.schema, strict: true } },
     messages: [
       { role: "system", content: o.system },
       { role: "user", content: o.user },
     ],
   };
+}
+
+/** Groq's error code ("json_validate_failed"), or null. */
+export function groqErrorCode(body: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return isObj(parsed) && isObj(parsed.error) && isStr(parsed.error.code)
+      ? parsed.error.code
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * After a Groq HTTP error: the mode for ONE more try, or null for "give up". Only a strict-mode
+ * json_validate_failed (400) on the first attempt is retried, in json_object mode. Every other
+ * error would fail the same way again.
+ */
+export function retryModeAfter(
+  status: number,
+  body: string,
+  attempt: number,
+  mode: GroqMode,
+): GroqMode | null {
+  return status === 400 &&
+    attempt === 1 &&
+    mode === "strict" &&
+    groqErrorCode(body) === "json_validate_failed"
+    ? "json_object"
+    : null;
 }
 
 /**
@@ -764,24 +804,41 @@ export const CHAT_CHARS = 280;
 export const CHAT_EMOJI = 2;
 
 /**
- * Ask Blip answer. Chat: a non-empty message (clipped, ≤ 2 emoji, no p-refs). Insight: citations are
- * mapped back to real post ids; unknown refs are dropped.
+ * Ask Blip answer, lenient about the SHAPE and strict about the CONTENT. Missing or wrong-typed
+ * fields get safe defaults ("" / [] / in_data = has points) instead of a rejection: Groq's strict
+ * mode can still refuse an answer that leaves out a key (json_validate_failed), and the json_object
+ * fallback has no schema at all. What each type needs:
+ * - chat: a non-empty message (clipped, ≤ 2 emoji, no p-refs);
+ * - insight: a non-empty lead and a points array (0 points is fine when the data can't answer).
+ * A missing / unknown type is worked out from the content (lead → insight, message → chat).
+ * Citations are mapped back to real post ids; unknown refs are dropped.
  */
 export function validateAskAnswer(raw: unknown, refs: string[]): AskAnswer | null {
   if (!isObj(raw)) return null;
-  if (raw.type === "chat") return validateLightAnswer(raw);
-  if (raw.type !== "insight") return null;
-  if (!isStr(raw.lead) || !Array.isArray(raw.points) || !isStr(raw.for_client)) return null;
-  if (!Array.isArray(raw.post_refs) || typeof raw.in_data !== "boolean") return null;
-  const lead = cleanChat(raw.lead, 300);
-  if (!lead) return null;
-  const points = raw.points
-    .filter(isStr)
+  const hasLead = isStr(raw.lead) && !!cleanChat(raw.lead, 300);
+  const hasMessage = isStr(raw.message) && !!raw.message.trim();
+  const type =
+    raw.type === "chat" && (hasMessage || !hasLead)
+      ? "chat"
+      : raw.type === "insight" || hasLead
+        ? "insight"
+        : hasMessage
+          ? "chat"
+          : null;
+  if (type === "chat") return validateLightAnswer(raw);
+  if (type !== "insight" || !hasLead || !Array.isArray(raw.points)) return null;
+  const lead = cleanChat(raw.lead as string, 300);
+  const pointTexts = raw.points.filter(isStr);
+  const points = pointTexts
     .map((p) => cleanChat(p, 400))
     .filter(Boolean)
     .slice(0, 5);
-  const texts = [raw.lead, ...raw.points.filter(isStr), raw.for_client];
-  const cited = [...raw.post_refs.filter(isStr), ...texts.flatMap((t) => inlineRefs(t))];
+  const forClient = isStr(raw.for_client) ? raw.for_client : "";
+  const postRefs = Array.isArray(raw.post_refs) ? raw.post_refs.filter(isStr) : [];
+  const cited = [
+    ...postRefs,
+    ...[raw.lead as string, ...pointTexts, forClient].flatMap(inlineRefs),
+  ];
   const postIds = [
     ...new Set(cited.map((r) => refToId(r, refs)).filter((id): id is string => !!id)),
   ];
@@ -789,9 +846,9 @@ export function validateAskAnswer(raw: unknown, refs: string[]): AskAnswer | nul
     type: "insight",
     lead,
     points,
-    forClient: cleanChat(raw.for_client, 300),
+    forClient: cleanChat(forClient, 300),
     postIds: postIds.slice(0, 8),
-    inData: raw.in_data,
+    inData: typeof raw.in_data === "boolean" ? raw.in_data : points.length > 0,
   };
 }
 
@@ -884,8 +941,12 @@ export type ClaimsResult = { status: "clear" | "flagged"; issues: Issue[] };
  * of its quotes are in the draft and code found nothing either.
  */
 export function validateClaims(raw: unknown, draft: string): ClaimsResult | null {
-  if (!isObj(raw) || !Array.isArray(raw.issues)) return null;
-  if (raw.status !== "clear" && raw.status !== "flagged") return null;
+  if (!isObj(raw)) return null;
+  // Lenient shape: a clear answer often leaves out "issues", or "status". The status is worked out
+  // from the issues anyway; only an answer with neither key is rejected.
+  const hasStatus = raw.status === "clear" || raw.status === "flagged";
+  if (!hasStatus && !Array.isArray(raw.issues)) return null;
+  const rawIssues: unknown[] = Array.isArray(raw.issues) ? raw.issues : [];
   const haystack = norm(draft);
   const issues: Issue[] = [];
   const add = (quote: string, why: string) => {
@@ -895,11 +956,11 @@ export function validateClaims(raw: unknown, draft: string): ClaimsResult | null
       return;
     issues.push({ quote: q, why: clip(stripEmoji(why) || "Check this wording.", LIMITS.whyChars) });
   };
-  for (const i of raw.issues)
+  for (const i of rawIssues)
     if (isObj(i) && isStr(i.quote)) add(i.quote, isStr(i.why) ? i.why : "");
   for (const f of healthRedFlags(draft.replace(/^(Title|Hook|Caption|Visual idea): /gm, "")))
     add(f.quote, f.why);
-  if (raw.status === "flagged" && raw.issues.length > 0 && issues.length === 0) return null;
+  if (raw.status !== "clear" && rawIssues.length > 0 && issues.length === 0) return null;
   return { status: issues.length ? "flagged" : "clear", issues: issues.slice(0, 8) };
 }
 

@@ -10,12 +10,14 @@ import {
   type Format,
   GROQ_URL,
   groqErrorLog,
+  type GroqMode,
   groqRequestBody,
   groqRetryAfter,
   type PullData,
   parseGroqJson,
   parseGroqMeter,
   type Platform,
+  retryModeAfter,
   type SummaryPost,
   tokenLog,
 } from "./ai-logic.ts";
@@ -43,7 +45,9 @@ async function saveMeter(admin: SupabaseClient, headers: Headers, model: string)
  * One JSON answer from Groq (strict schema), validated by `validate`. If the JSON is cut off,
  * invalid or fails validation, asks ONCE more (`validate` gets the attempt number, so the last try
  * can be a little more lenient). 429 → rate_limited (the browser decides about waiting).
- * Any other HTTP error (400 included) is logged with Groq's error body (groqErrorLog) and NOT
+ * Every HTTP error is logged with Groq's error body (groqErrorLog). One exception to "never retry a
+ * 400": json_validate_failed (strict mode refused an answer, e.g. a missing key) is retried ONCE in
+ * json_object mode, and `validate` fills missing keys with safe defaults. Other errors aren't
  * retried: the same request would fail the same way.
  */
 export async function groqJson<T>(o: {
@@ -60,8 +64,10 @@ export async function groqJson<T>(o: {
   const key = Deno.env.get("GROQ_API_KEY");
   if (!key) return { ok: false, error: "not_configured" };
   const model = groqModel();
+  let mode: GroqMode = "strict";
 
   for (let attempt = 1; attempt <= 2; attempt++) {
+    const label = `${o.label ?? o.fn}${mode === "json_object" ? " (json_object)" : ""}`;
     let res: Response;
     try {
       res = await fetch(GROQ_URL, {
@@ -74,6 +80,7 @@ export async function groqJson<T>(o: {
             user: o.user,
             schema: o.schema,
             maxTokens: o.maxTokens,
+            mode,
           }),
         ),
         signal: AbortSignal.timeout(45_000),
@@ -90,17 +97,20 @@ export async function groqJson<T>(o: {
       return { ok: false, error: "rate_limited", retryAfter: groqRetryAfter(res.headers) };
     }
     if (!res.ok) {
-      // Not retried: a 400 (bad request, or a JSON Groq couldn't finish) fails the same way twice.
+      // Only a strict json_validate_failed gets one json_object retry; anything else would fail again.
       const text = await res.text().catch(() => "");
-      console.error(`${groqErrorLog(o.label ?? o.fn, res.status, text)} (attempt ${attempt})`);
-      return { ok: false, error: "ai_unavailable" };
+      console.error(`${groqErrorLog(label, res.status, text)} (attempt ${attempt})`);
+      const next = retryModeAfter(res.status, text, attempt, mode);
+      if (!next) return { ok: false, error: "ai_unavailable" };
+      mode = next;
+      continue;
     }
 
     const body: unknown = await res.json().catch(() => null);
-    console.log(`${tokenLog(o.label ?? o.fn, body, res.headers)} (attempt ${attempt})`);
+    console.log(`${tokenLog(label, body, res.headers)} (attempt ${attempt})`);
     const value = o.validate(parseGroqJson(body), attempt);
     if (value !== null) return { ok: true, value };
-    console.error(`${o.fn}: invalid answer (attempt ${attempt})`);
+    console.error(`${label}: invalid answer (attempt ${attempt})`);
   }
   return { ok: false, error: "ai_invalid" };
 }
