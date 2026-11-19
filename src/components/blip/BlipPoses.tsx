@@ -1,240 +1,52 @@
 // Generated from Figma (Blip/Idle 6914:2607, Blip/Success 6916:2639, Blip/Error 6916:2671, Blip/Scanning 6916:2579,
-// Blip/Thinking 6916:2607).
-// Static poses for now; animation comes in Slice 13. Illustration colours are part of the art.
-import type { SVGProps } from "react";
+// Blip/Thinking 6916:2607). Illustration colours are part of the art.
+//
+// Slice 13: the parts are grouped (b-body, b-antenna, b-arm-l, b-eye, …) and animated with CSS keyframes
+// in src/styles/blip.css (transform and opacity only; DESIGN_SYSTEM › Blip). Frame zero of every loop
+// is exactly the static pose, so a paused or reduced-motion Blip looks like the Figma component.
+// • Paused while off-screen (IntersectionObserver) and while the tab is hidden.
+// • prefers-reduced-motion: no animation at all.
+// • `still`: never animate here (e.g. the small avatar on every chat message).
+// • Success plays once; with `settle` it then becomes the Idle loop (welcome 01b).
+import { useEffect, useRef, useState, type AnimationEvent, type SVGProps } from "react";
 
-type BlipProps = Omit<SVGProps<SVGSVGElement>, "viewBox"> & { title?: string };
+type BlipProps = Omit<SVGProps<SVGSVGElement>, "viewBox" | "ref"> & {
+  title?: string;
+  /** Show the static pose here even when motion is allowed. */
+  still?: boolean;
+};
 
-export function BlipIdle({ title, ...props }: BlipProps) {
-  return (
-    <svg
-      viewBox="0 0 260 280"
-      fill="none"
-      role={title ? "img" : undefined}
-      aria-label={title}
-      aria-hidden={title ? undefined : true}
-      {...props}
-    >
-      <path
-        opacity="0.1"
-        d="M130 258C155.405 258 176 255.314 176 252C176 248.686 155.405 246 130 246C104.595 246 84 248.686 84 252C84 255.314 104.595 258 130 258Z"
-        fill="black"
-      />
-      <path
-        d="M110 214H104C100.686 214 98 216.686 98 220V238C98 241.314 100.686 244 104 244H110C113.314 244 116 241.314 116 238V220C116 216.686 113.314 214 110 214Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M156 214H150C146.686 214 144 216.686 144 220V238C144 241.314 146.686 244 150 244H156C159.314 244 162 241.314 162 238V220C162 216.686 159.314 214 156 214Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M114.5 236H99.5C95.9101 236 93 238.91 93 242.5C93 246.09 95.9101 249 99.5 249H114.5C118.09 249 121 246.09 121 242.5C121 238.91 118.09 236 114.5 236Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M160.5 236H145.5C141.91 236 139 238.91 139 242.5C139 246.09 141.91 249 145.5 249H160.5C164.09 249 167 246.09 167 242.5C167 238.91 164.09 236 160.5 236Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M130 98C130 86 130 74 130 62"
-        stroke="#0B0B0C"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M130 73C136.075 73 141 68.0751 141 62C141 55.9249 136.075 51 130 51C123.925 51 119 55.9249 119 62C119 68.0751 123.925 73 130 73Z"
-        fill="#F8678F"
-      />
-      <path
-        opacity="0.8"
-        d="M133.5 61.5C135.157 61.5 136.5 60.1569 136.5 58.5C136.5 56.8431 135.157 55.5 133.5 55.5C131.843 55.5 130.5 56.8431 130.5 58.5C130.5 60.1569 131.843 61.5 133.5 61.5Z"
-        fill="white"
-      />
-      <path
-        d="M72 160C60 168 54.6667 178.667 56 192"
-        stroke="#F4EB02"
-        strokeWidth="15"
-        strokeLinecap="round"
-      />
-      <path
-        d="M56 203.5C61.2467 203.5 65.5 199.247 65.5 194C65.5 188.753 61.2467 184.5 56 184.5C50.7533 184.5 46.5 188.753 46.5 194C46.5 199.247 50.7533 203.5 56 203.5Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M188 160C200 168 205.333 178.667 204 192"
-        stroke="#F4EB02"
-        strokeWidth="15"
-        strokeLinecap="round"
-      />
-      <path
-        d="M204 203.5C209.247 203.5 213.5 199.247 213.5 194C213.5 188.753 209.247 184.5 204 184.5C198.753 184.5 194.5 188.753 194.5 194C194.5 199.247 198.753 203.5 204 203.5Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M130 96C176 96 192 108 194 146C196 190 184 222 130 222C76 222 64 190 66 146C68 108 84 96 130 96Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M79 203C83.8281 215.667 99.9219 222 130.5 222C161.078 222 177.172 215.667 182 203C154.641 212.5 106.359 212.5 79 203Z"
-        fill="#DCCB00"
-      />
-      <path d="M87 192H80V199H87V192Z" fill="#0B0B0C" />
-      <path d="M94 199H87V206H94V199Z" fill="#0B0B0C" />
-      <path
-        opacity="0.8"
-        d="M94 175C98.9706 175 103 170.971 103 166C103 161.029 98.9706 157 94 157C89.0294 157 85 161.029 85 166C85 170.971 89.0294 175 94 175Z"
-        fill="#F8678F"
-      />
-      <path
-        opacity="0.8"
-        d="M166 175C170.971 175 175 170.971 175 166C175 161.029 170.971 157 166 157C161.029 157 157 161.029 157 166C157 170.971 161.029 175 166 175Z"
-        fill="#F8678F"
-      />
-      <path
-        d="M106 151C110.694 151 114.5 146.075 114.5 140C114.5 133.925 110.694 129 106 129C101.306 129 97.5 133.925 97.5 140C97.5 146.075 101.306 151 106 151Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M109 139C110.657 139 112 137.657 112 136C112 134.343 110.657 133 109 133C107.343 133 106 134.343 106 136C106 137.657 107.343 139 109 139Z"
-        fill="white"
-      />
-      <path
-        d="M154 151C158.694 151 162.5 146.075 162.5 140C162.5 133.925 158.694 129 154 129C149.306 129 145.5 133.925 145.5 140C145.5 146.075 149.306 151 154 151Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M157 139C158.657 139 160 137.657 160 136C160 134.343 158.657 133 157 133C155.343 133 154 134.343 154 136C154 137.657 155.343 139 157 139Z"
-        fill="white"
-      />
-      <path
-        d="M120 170C126.667 176.667 133.333 176.667 140 170"
-        stroke="#0B0B0C"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+// One listener for the whole app: every Blip pauses while the tab is hidden.
+if (typeof document !== "undefined") {
+  const sync = () => document.documentElement.toggleAttribute("data-tab-hidden", document.hidden);
+  document.addEventListener("visibilitychange", sync);
+  sync();
 }
 
-export function BlipSuccess({ title, ...props }: BlipProps) {
-  return (
-    <svg
-      viewBox="0 0 260 280"
-      fill="none"
-      role={title ? "img" : undefined}
-      aria-label={title}
-      aria-hidden={title ? undefined : true}
-      {...props}
-    >
-      <path
-        opacity="0.1"
-        d="M130 258C155.405 258 176 255.314 176 252C176 248.686 155.405 246 130 246C104.595 246 84 248.686 84 252C84 255.314 104.595 258 130 258Z"
-        fill="black"
-      />
-      <path
-        d="M110 214H104C100.686 214 98 216.686 98 220V238C98 241.314 100.686 244 104 244H110C113.314 244 116 241.314 116 238V220C116 216.686 113.314 214 110 214Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M156 214H150C146.686 214 144 216.686 144 220V238C144 241.314 146.686 244 150 244H156C159.314 244 162 241.314 162 238V220C162 216.686 159.314 214 156 214Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M114.5 236H99.5C95.9101 236 93 238.91 93 242.5C93 246.09 95.9101 249 99.5 249H114.5C118.09 249 121 246.09 121 242.5C121 238.91 118.09 236 114.5 236Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M160.5 236H145.5C141.91 236 139 238.91 139 242.5C139 246.09 141.91 249 145.5 249H160.5C164.09 249 167 246.09 167 242.5C167 238.91 164.09 236 160.5 236Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M130 98C130 86 130 74 130 62"
-        stroke="#0B0B0C"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M130 73C136.075 73 141 68.0751 141 62C141 55.9249 136.075 51 130 51C123.925 51 119 55.9249 119 62C119 68.0751 123.925 73 130 73Z"
-        fill="#F8678F"
-      />
-      <path
-        opacity="0.8"
-        d="M133.5 61.5C135.157 61.5 136.5 60.1569 136.5 58.5C136.5 56.8431 135.157 55.5 133.5 55.5C131.843 55.5 130.5 56.8431 130.5 58.5C130.5 60.1569 131.843 61.5 133.5 61.5Z"
-        fill="white"
-      />
-      <path
-        d="M72 156C56 150.667 47.3333 136 46 112"
-        stroke="#F4EB02"
-        strokeWidth="15"
-        strokeLinecap="round"
-      />
-      <path
-        d="M46 119.5C51.2467 119.5 55.5 115.247 55.5 110C55.5 104.753 51.2467 100.5 46 100.5C40.7533 100.5 36.5 104.753 36.5 110C36.5 115.247 40.7533 119.5 46 119.5Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M188 156C204 150.667 212.667 136 214 112"
-        stroke="#F4EB02"
-        strokeWidth="15"
-        strokeLinecap="round"
-      />
-      <path
-        d="M214 119.5C219.247 119.5 223.5 115.247 223.5 110C223.5 104.753 219.247 100.5 214 100.5C208.753 100.5 204.5 104.753 204.5 110C204.5 115.247 208.753 119.5 214 119.5Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M130 96C176 96 192 108 194 146C196 190 184 222 130 222C76 222 64 190 66 146C68 108 84 96 130 96Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M79 203C83.8281 215.667 99.9219 222 130.5 222C161.078 222 177.172 215.667 182 203C154.641 212.5 106.359 212.5 79 203Z"
-        fill="#DCCB00"
-      />
-      <path d="M87 192H80V199H87V192Z" fill="#0B0B0C" />
-      <path d="M94 199H87V206H94V199Z" fill="#0B0B0C" />
-      <path
-        opacity="0.8"
-        d="M94 175C98.9706 175 103 170.971 103 166C103 161.029 98.9706 157 94 157C89.0294 157 85 161.029 85 166C85 170.971 89.0294 175 94 175Z"
-        fill="#F8678F"
-      />
-      <path
-        opacity="0.8"
-        d="M166 175C170.971 175 175 170.971 175 166C175 161.029 170.971 157 166 157C161.029 157 157 161.029 157 166C157 170.971 161.029 175 166 175Z"
-        fill="#F8678F"
-      />
-      <path
-        d="M96 142C102.667 132.667 109.333 132.667 116 142"
-        stroke="#0B0B0C"
-        strokeWidth="5.5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M144 142C150.667 132.667 157.333 132.667 164 142"
-        stroke="#0B0B0C"
-        strokeWidth="5.5"
-        strokeLinecap="round"
-      />
-      <path d="M114 166C124.667 184.667 135.333 184.667 146 166H114Z" fill="#0B0B0C" />
-      <path
-        d="M122 178C127.333 174 132.667 174 138 178C132.667 183.333 127.333 183.333 122 178Z"
-        fill="#F8678F"
-      />
-      <path d="M43.2999 64.1H36.7V83.9H43.2999V64.1Z" fill="#FAD7FF" />
-      <path d="M49.9 70.7H30.1V77.3H49.9V70.7Z" fill="#FAD7FF" />
-      <path d="M224.75 45.75H219.25V62.25H224.75V45.75Z" fill="#F4EB02" />
-      <path d="M230.25 51.25H213.75V56.75H230.25V51.25Z" fill="#F4EB02" />
-      <path d="M230.2 137.4H225.8V150.6H230.2V137.4Z" fill="#FAD7FF" />
-      <path d="M234.6 141.8H221.4V146.2H234.6V141.8Z" fill="#FAD7FF" />
-      <path d="M32.2001 157.4H27.8V170.6H32.2001V157.4Z" fill="#F4EB02" />
-      <path d="M36.6 161.8H23.4V166.2H36.6V161.8Z" fill="#F4EB02" />
-    </svg>
-  );
+/** Marks the SVG `data-offscreen` while it's out of view, so its CSS animations pause. */
+function useOffscreenPause() {
+  const ref = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([entry]) =>
+      el.toggleAttribute("data-offscreen", !entry.isIntersecting),
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return ref;
 }
 
-export function BlipError({ title, ...props }: BlipProps) {
+const blipClass = (pose: string, still: boolean, className = "") =>
+  `blip blip-${pose}${still ? " blip-still" : ""} ${className}`.trim();
+
+export function BlipIdle({ title, still = false, className, ...props }: BlipProps) {
+  const ref = useOffscreenPause();
   return (
     <svg
+      ref={ref}
+      className={blipClass("idle", still, className)}
       viewBox="0 0 260 280"
       fill="none"
       role={title ? "img" : undefined}
@@ -247,142 +59,468 @@ export function BlipError({ title, ...props }: BlipProps) {
         d="M130 258C155.405 258 176 255.314 176 252C176 248.686 155.405 246 130 246C104.595 246 84 248.686 84 252C84 255.314 104.595 258 130 258Z"
         fill="black"
       />
-      <path
-        d="M110 214H104C100.686 214 98 216.686 98 220V238C98 241.314 100.686 244 104 244H110C113.314 244 116 241.314 116 238V220C116 216.686 113.314 214 110 214Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M156 214H150C146.686 214 144 216.686 144 220V238C144 241.314 146.686 244 150 244H156C159.314 244 162 241.314 162 238V220C162 216.686 159.314 214 156 214Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M114.5 236H99.5C95.9101 236 93 238.91 93 242.5C93 246.09 95.9101 249 99.5 249H114.5C118.09 249 121 246.09 121 242.5C121 238.91 118.09 236 114.5 236Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M160.5 236H145.5C141.91 236 139 238.91 139 242.5C139 246.09 141.91 249 145.5 249H160.5C164.09 249 167 246.09 167 242.5C167 238.91 164.09 236 160.5 236Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M130 98C128.173 86 124.307 74.7 118.4 64.1"
-        stroke="#0B0B0C"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M118.4 75.1C124.475 75.1 129.4 70.1751 129.4 64.1C129.4 58.0248 124.475 53.1 118.4 53.1C112.325 53.1 107.4 58.0248 107.4 64.1C107.4 70.1751 112.325 75.1 118.4 75.1Z"
-        fill="#F95050"
-      />
-      <path
-        opacity="0.8"
-        d="M121.9 63.6C123.557 63.6 124.9 62.2568 124.9 60.6C124.9 58.9431 123.557 57.6 121.9 57.6C120.243 57.6 118.9 58.9431 118.9 60.6C118.9 62.2568 120.243 63.6 121.9 63.6Z"
-        fill="white"
-      />
-      <path
-        d="M132.4 58.1L140.4 52.1L137.4 59.1L146.4 54.1"
-        stroke="#F95050"
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        opacity="0.8"
-        d="M104.4 60.1L96.4 54.1L99.4 61.1L90.4 57.1"
-        stroke="#F95050"
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M72 162C56 171.333 47.3333 182.667 46 196"
-        stroke="#F4EB02"
-        strokeWidth="15"
-        strokeLinecap="round"
-      />
-      <path
-        d="M46 217C51.5228 217 56 212.075 56 206C56 199.925 51.5228 195 46 195C40.4772 195 36 199.925 36 206C36 212.075 40.4772 217 46 217Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M54 204.5C56.2091 204.5 58 202.038 58 199C58 195.962 56.2091 193.5 54 193.5C51.7909 193.5 50 195.962 50 199C50 202.038 51.7909 204.5 54 204.5Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M188 162C204 171.333 212.667 182.667 214 196"
-        stroke="#F4EB02"
-        strokeWidth="15"
-        strokeLinecap="round"
-      />
-      <path
-        d="M214 217C219.523 217 224 212.075 224 206C224 199.925 219.523 195 214 195C208.477 195 204 199.925 204 206C204 212.075 208.477 217 214 217Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M206 204.5C208.209 204.5 210 202.038 210 199C210 195.962 208.209 193.5 206 193.5C203.791 193.5 202 195.962 202 199C202 202.038 203.791 204.5 206 204.5Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M130 96C176 96 192 108 194 146C196 190 184 222 130 222C76 222 64 190 66 146C68 108 84 96 130 96Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M79 203C83.8281 215.667 99.9219 222 130.5 222C161.078 222 177.172 215.667 182 203C154.641 212.5 106.359 212.5 79 203Z"
-        fill="#DCCB00"
-      />
-      <path d="M87 192H80V199H87V192Z" fill="#0B0B0C" />
-      <path d="M94 199H87V206H94V199Z" fill="#0B0B0C" />
-      <path
-        opacity="0.8"
-        d="M94 175C98.9706 175 103 170.971 103 166C103 161.029 98.9706 157 94 157C89.0294 157 85 161.029 85 166C85 170.971 89.0294 175 94 175Z"
-        fill="#F8678F"
-      />
-      <path
-        opacity="0.8"
-        d="M166 175C170.971 175 175 170.971 175 166C175 161.029 170.971 157 166 157C161.029 157 157 161.029 157 166C157 170.971 161.029 175 166 175Z"
-        fill="#F8678F"
-      />
-      <path
-        d="M106 148.5C109.314 148.5 112 144.694 112 140C112 135.306 109.314 131.5 106 131.5C102.686 131.5 100 135.306 100 140C100 144.694 102.686 148.5 106 148.5Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M109 139C110.657 139 112 137.657 112 136C112 134.343 110.657 133 109 133C107.343 133 106 134.343 106 136C106 137.657 107.343 139 109 139Z"
-        fill="white"
-      />
-      <path
-        d="M154 148.5C157.314 148.5 160 144.694 160 140C160 135.306 157.314 131.5 154 131.5C150.686 131.5 148 135.306 148 140C148 144.694 150.686 148.5 154 148.5Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M157 139C158.657 139 160 137.657 160 136C160 134.343 158.657 133 157 133C155.343 133 154 134.343 154 136C154 137.657 155.343 139 157 139Z"
-        fill="white"
-      />
-      <g>
-        <path d="M94 124L112 118L94 124Z" fill="black" />
-        <path d="M94 124L112 118" stroke="#0B0B0C" strokeWidth="5" strokeLinecap="round" />
+      <g className="b-legs">
+        <path
+          d="M110 214H104C100.686 214 98 216.686 98 220V238C98 241.314 100.686 244 104 244H110C113.314 244 116 241.314 116 238V220C116 216.686 113.314 214 110 214Z"
+          fill="#DCCB00"
+        />
+        <path
+          d="M156 214H150C146.686 214 144 216.686 144 220V238C144 241.314 146.686 244 150 244H156C159.314 244 162 241.314 162 238V220C162 216.686 159.314 214 156 214Z"
+          fill="#DCCB00"
+        />
+        <path
+          d="M114.5 236H99.5C95.9101 236 93 238.91 93 242.5C93 246.09 95.9101 249 99.5 249H114.5C118.09 249 121 246.09 121 242.5C121 238.91 118.09 236 114.5 236Z"
+          fill="#0B0B0C"
+        />
+        <path
+          d="M160.5 236H145.5C141.91 236 139 238.91 139 242.5C139 246.09 141.91 249 145.5 249H160.5C164.09 249 167 246.09 167 242.5C167 238.91 164.09 236 160.5 236Z"
+          fill="#0B0B0C"
+        />
       </g>
-      <g>
-        <path d="M166 124L148 118L166 124Z" fill="black" />
-        <path d="M166 124L148 118" stroke="#0B0B0C" strokeWidth="5" strokeLinecap="round" />
+      <g className="b-body">
+        <g className="b-antenna">
+          <path
+            d="M130 98C130 86 130 74 130 62"
+            stroke="#0B0B0C"
+            strokeWidth="6"
+            strokeLinecap="round"
+          />
+          <path
+            d="M130 73C136.075 73 141 68.0751 141 62C141 55.9249 136.075 51 130 51C123.925 51 119 55.9249 119 62C119 68.0751 123.925 73 130 73Z"
+            fill="#F8678F"
+          />
+          <path
+            opacity="0.8"
+            d="M133.5 61.5C135.157 61.5 136.5 60.1569 136.5 58.5C136.5 56.8431 135.157 55.5 133.5 55.5C131.843 55.5 130.5 56.8431 130.5 58.5C130.5 60.1569 131.843 61.5 133.5 61.5Z"
+            fill="white"
+          />
+        </g>
+        <g className="b-arm-l">
+          <path
+            d="M72 160C60 168 54.6667 178.667 56 192"
+            stroke="#F4EB02"
+            strokeWidth="15"
+            strokeLinecap="round"
+          />
+          <path
+            d="M56 203.5C61.2467 203.5 65.5 199.247 65.5 194C65.5 188.753 61.2467 184.5 56 184.5C50.7533 184.5 46.5 188.753 46.5 194C46.5 199.247 50.7533 203.5 56 203.5Z"
+            fill="#F4EB02"
+          />
+        </g>
+        <g className="b-arm-r">
+          <path
+            d="M188 160C200 168 205.333 178.667 204 192"
+            stroke="#F4EB02"
+            strokeWidth="15"
+            strokeLinecap="round"
+          />
+          <path
+            d="M204 203.5C209.247 203.5 213.5 199.247 213.5 194C213.5 188.753 209.247 184.5 204 184.5C198.753 184.5 194.5 188.753 194.5 194C194.5 199.247 198.753 203.5 204 203.5Z"
+            fill="#F4EB02"
+          />
+        </g>
+        <path
+          d="M130 96C176 96 192 108 194 146C196 190 184 222 130 222C76 222 64 190 66 146C68 108 84 96 130 96Z"
+          fill="#F4EB02"
+        />
+        <path
+          d="M79 203C83.8281 215.667 99.9219 222 130.5 222C161.078 222 177.172 215.667 182 203C154.641 212.5 106.359 212.5 79 203Z"
+          fill="#DCCB00"
+        />
+        <path d="M87 192H80V199H87V192Z" fill="#0B0B0C" />
+        <path d="M94 199H87V206H94V199Z" fill="#0B0B0C" />
+        <path
+          opacity="0.8"
+          d="M94 175C98.9706 175 103 170.971 103 166C103 161.029 98.9706 157 94 157C89.0294 157 85 161.029 85 166C85 170.971 89.0294 175 94 175Z"
+          fill="#F8678F"
+        />
+        <path
+          opacity="0.8"
+          d="M166 175C170.971 175 175 170.971 175 166C175 161.029 170.971 157 166 157C161.029 157 157 161.029 157 166C157 170.971 161.029 175 166 175Z"
+          fill="#F8678F"
+        />
+        <g className="b-eyes">
+          <g className="b-eye">
+            <path
+              d="M106 151C110.694 151 114.5 146.075 114.5 140C114.5 133.925 110.694 129 106 129C101.306 129 97.5 133.925 97.5 140C97.5 146.075 101.306 151 106 151Z"
+              fill="#0B0B0C"
+            />
+            <path
+              d="M109 139C110.657 139 112 137.657 112 136C112 134.343 110.657 133 109 133C107.343 133 106 134.343 106 136C106 137.657 107.343 139 109 139Z"
+              fill="white"
+            />
+          </g>
+          <g className="b-eye">
+            <path
+              d="M154 151C158.694 151 162.5 146.075 162.5 140C162.5 133.925 158.694 129 154 129C149.306 129 145.5 133.925 145.5 140C145.5 146.075 149.306 151 154 151Z"
+              fill="#0B0B0C"
+            />
+            <path
+              d="M157 139C158.657 139 160 137.657 160 136C160 134.343 158.657 133 157 133C155.343 133 154 134.343 154 136C154 137.657 155.343 139 157 139Z"
+              fill="white"
+            />
+          </g>
+        </g>
+        <g className="b-mouth">
+          <path
+            d="M120 170C126.667 176.667 133.333 176.667 140 170"
+            stroke="#0B0B0C"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+        </g>
       </g>
-      <path
-        d="M116 176C118.333 172 120.667 172 123 176C125.333 180 127.667 180 130 176C132.333 172 134.667 172 137 176C139.333 180 141.667 180 144 176"
-        stroke="#0B0B0C"
-        strokeWidth="4.5"
-        strokeLinecap="round"
-      />
-      <path
-        opacity="0.88"
-        d="M200 104C194 113.333 194 119.333 200 122C206 119.333 206 113.333 200 104Z"
-        fill="#B0E9FD"
-      />
     </svg>
   );
 }
 
-export function BlipScanning({ title, ...props }: BlipProps) {
+/**
+ * Success: crouch → big jump → two smaller bounces, once. With `settle` (it stays on screen, e.g. welcome
+ * 01b) it becomes the Idle loop when the jump ends; toasts just end on the Success pose.
+ */
+export function BlipSuccess({ settle = false, ...props }: BlipProps & { settle?: boolean }) {
+  const [settled, setSettled] = useState(false);
+  if (settled) return <BlipIdle {...props} />;
+  return (
+    <SuccessArt
+      {...props}
+      onAnimationEnd={(e: AnimationEvent<SVGSVGElement>) => {
+        props.onAnimationEnd?.(e);
+        if (settle && e.animationName === "blip-success-jump") setSettled(true);
+      }}
+    />
+  );
+}
+
+function SuccessArt({ title, still = false, className, ...props }: BlipProps) {
+  const ref = useOffscreenPause();
   return (
     <svg
+      ref={ref}
+      className={blipClass("success", still, className)}
+      viewBox="0 0 260 280"
+      fill="none"
+      role={title ? "img" : undefined}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+      {...props}
+    >
+      <g className="b-shadow">
+        <path
+          opacity="0.1"
+          d="M130 258C155.405 258 176 255.314 176 252C176 248.686 155.405 246 130 246C104.595 246 84 248.686 84 252C84 255.314 104.595 258 130 258Z"
+          fill="black"
+        />
+      </g>
+      <g className="b-figure">
+        <g className="b-legs">
+          <path
+            d="M110 214H104C100.686 214 98 216.686 98 220V238C98 241.314 100.686 244 104 244H110C113.314 244 116 241.314 116 238V220C116 216.686 113.314 214 110 214Z"
+            fill="#DCCB00"
+          />
+          <path
+            d="M156 214H150C146.686 214 144 216.686 144 220V238C144 241.314 146.686 244 150 244H156C159.314 244 162 241.314 162 238V220C162 216.686 159.314 214 156 214Z"
+            fill="#DCCB00"
+          />
+          <path
+            d="M114.5 236H99.5C95.9101 236 93 238.91 93 242.5C93 246.09 95.9101 249 99.5 249H114.5C118.09 249 121 246.09 121 242.5C121 238.91 118.09 236 114.5 236Z"
+            fill="#0B0B0C"
+          />
+          <path
+            d="M160.5 236H145.5C141.91 236 139 238.91 139 242.5C139 246.09 141.91 249 145.5 249H160.5C164.09 249 167 246.09 167 242.5C167 238.91 164.09 236 160.5 236Z"
+            fill="#0B0B0C"
+          />
+        </g>
+        <g className="b-body">
+          <g className="b-antenna">
+            <path
+              d="M130 98C130 86 130 74 130 62"
+              stroke="#0B0B0C"
+              strokeWidth="6"
+              strokeLinecap="round"
+            />
+            <path
+              d="M130 73C136.075 73 141 68.0751 141 62C141 55.9249 136.075 51 130 51C123.925 51 119 55.9249 119 62C119 68.0751 123.925 73 130 73Z"
+              fill="#F8678F"
+            />
+            <path
+              opacity="0.8"
+              d="M133.5 61.5C135.157 61.5 136.5 60.1569 136.5 58.5C136.5 56.8431 135.157 55.5 133.5 55.5C131.843 55.5 130.5 56.8431 130.5 58.5C130.5 60.1569 131.843 61.5 133.5 61.5Z"
+              fill="white"
+            />
+          </g>
+          <g className="b-arm-l">
+            <path
+              d="M72 156C56 150.667 47.3333 136 46 112"
+              stroke="#F4EB02"
+              strokeWidth="15"
+              strokeLinecap="round"
+            />
+            <path
+              d="M46 119.5C51.2467 119.5 55.5 115.247 55.5 110C55.5 104.753 51.2467 100.5 46 100.5C40.7533 100.5 36.5 104.753 36.5 110C36.5 115.247 40.7533 119.5 46 119.5Z"
+              fill="#F4EB02"
+            />
+          </g>
+          <g className="b-arm-r">
+            <path
+              d="M188 156C204 150.667 212.667 136 214 112"
+              stroke="#F4EB02"
+              strokeWidth="15"
+              strokeLinecap="round"
+            />
+            <path
+              d="M214 119.5C219.247 119.5 223.5 115.247 223.5 110C223.5 104.753 219.247 100.5 214 100.5C208.753 100.5 204.5 104.753 204.5 110C204.5 115.247 208.753 119.5 214 119.5Z"
+              fill="#F4EB02"
+            />
+          </g>
+          <path
+            d="M130 96C176 96 192 108 194 146C196 190 184 222 130 222C76 222 64 190 66 146C68 108 84 96 130 96Z"
+            fill="#F4EB02"
+          />
+          <path
+            d="M79 203C83.8281 215.667 99.9219 222 130.5 222C161.078 222 177.172 215.667 182 203C154.641 212.5 106.359 212.5 79 203Z"
+            fill="#DCCB00"
+          />
+          <path d="M87 192H80V199H87V192Z" fill="#0B0B0C" />
+          <path d="M94 199H87V206H94V199Z" fill="#0B0B0C" />
+          <path
+            opacity="0.8"
+            d="M94 175C98.9706 175 103 170.971 103 166C103 161.029 98.9706 157 94 157C89.0294 157 85 161.029 85 166C85 170.971 89.0294 175 94 175Z"
+            fill="#F8678F"
+          />
+          <path
+            opacity="0.8"
+            d="M166 175C170.971 175 175 170.971 175 166C175 161.029 170.971 157 166 157C161.029 157 157 161.029 157 166C157 170.971 161.029 175 166 175Z"
+            fill="#F8678F"
+          />
+          <path
+            d="M96 142C102.667 132.667 109.333 132.667 116 142"
+            stroke="#0B0B0C"
+            strokeWidth="5.5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M144 142C150.667 132.667 157.333 132.667 164 142"
+            stroke="#0B0B0C"
+            strokeWidth="5.5"
+            strokeLinecap="round"
+          />
+          <path d="M114 166C124.667 184.667 135.333 184.667 146 166H114Z" fill="#0B0B0C" />
+          <path
+            d="M122 178C127.333 174 132.667 174 138 178C132.667 183.333 127.333 183.333 122 178Z"
+            fill="#F8678F"
+          />
+        </g>
+      </g>
+      <g className="b-spark b-spark-1">
+        <path d="M43.2999 64.1H36.7V83.9H43.2999V64.1Z" fill="#FAD7FF" />
+        <path d="M49.9 70.7H30.1V77.3H49.9V70.7Z" fill="#FAD7FF" />
+      </g>
+      <g className="b-spark b-spark-2">
+        <path d="M224.75 45.75H219.25V62.25H224.75V45.75Z" fill="#F4EB02" />
+        <path d="M230.25 51.25H213.75V56.75H230.25V51.25Z" fill="#F4EB02" />
+      </g>
+      <g className="b-spark b-spark-3">
+        <path d="M230.2 137.4H225.8V150.6H230.2V137.4Z" fill="#FAD7FF" />
+        <path d="M234.6 141.8H221.4V146.2H234.6V141.8Z" fill="#FAD7FF" />
+      </g>
+      <g className="b-spark b-spark-4">
+        <path d="M32.2001 157.4H27.8V170.6H32.2001V157.4Z" fill="#F4EB02" />
+        <path d="M36.6 161.8H23.4V166.2H36.6V161.8Z" fill="#F4EB02" />
+      </g>
+    </svg>
+  );
+}
+
+export function BlipError({ title, still = false, className, ...props }: BlipProps) {
+  const ref = useOffscreenPause();
+  return (
+    <svg
+      ref={ref}
+      className={blipClass("error", still, className)}
+      viewBox="0 0 260 280"
+      fill="none"
+      role={title ? "img" : undefined}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+      {...props}
+    >
+      <g className="b-shadow">
+        <path
+          opacity="0.1"
+          d="M130 258C155.405 258 176 255.314 176 252C176 248.686 155.405 246 130 246C104.595 246 84 248.686 84 252C84 255.314 104.595 258 130 258Z"
+          fill="black"
+        />
+      </g>
+      <g className="b-legs">
+        <path
+          d="M110 214H104C100.686 214 98 216.686 98 220V238C98 241.314 100.686 244 104 244H110C113.314 244 116 241.314 116 238V220C116 216.686 113.314 214 110 214Z"
+          fill="#DCCB00"
+        />
+        <path
+          d="M156 214H150C146.686 214 144 216.686 144 220V238C144 241.314 146.686 244 150 244H156C159.314 244 162 241.314 162 238V220C162 216.686 159.314 214 156 214Z"
+          fill="#DCCB00"
+        />
+        <path
+          d="M114.5 236H99.5C95.9101 236 93 238.91 93 242.5C93 246.09 95.9101 249 99.5 249H114.5C118.09 249 121 246.09 121 242.5C121 238.91 118.09 236 114.5 236Z"
+          fill="#0B0B0C"
+        />
+        <path
+          d="M160.5 236H145.5C141.91 236 139 238.91 139 242.5C139 246.09 141.91 249 145.5 249H160.5C164.09 249 167 246.09 167 242.5C167 238.91 164.09 236 160.5 236Z"
+          fill="#0B0B0C"
+        />
+      </g>
+      <g className="b-body">
+        <g className="b-antenna">
+          <path
+            d="M130 98C128.173 86 124.307 74.7 118.4 64.1"
+            stroke="#0B0B0C"
+            strokeWidth="6"
+            strokeLinecap="round"
+          />
+          <g className="b-bulb">
+            <path
+              d="M118.4 75.1C124.475 75.1 129.4 70.1751 129.4 64.1C129.4 58.0248 124.475 53.1 118.4 53.1C112.325 53.1 107.4 58.0248 107.4 64.1C107.4 70.1751 112.325 75.1 118.4 75.1Z"
+              fill="#F95050"
+            />
+            <path
+              opacity="0.8"
+              d="M121.9 63.6C123.557 63.6 124.9 62.2568 124.9 60.6C124.9 58.9431 123.557 57.6 121.9 57.6C120.243 57.6 118.9 58.9431 118.9 60.6C118.9 62.2568 120.243 63.6 121.9 63.6Z"
+              fill="white"
+            />
+          </g>
+          <path
+            className="b-bulb-dim"
+            opacity="0"
+            d="M118.4 75.1C124.475 75.1 129.4 70.1751 129.4 64.1C129.4 58.0249 124.475 53.1 118.4 53.1C112.325 53.1 107.4 58.0249 107.4 64.1C107.4 70.1751 112.325 75.1 118.4 75.1Z"
+            fill="#8E3A4E"
+          />
+          <g className="b-sparks">
+            <path
+              d="M132.4 58.1L140.4 52.1L137.4 59.1L146.4 54.1"
+              stroke="#F95050"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              opacity="0.8"
+              d="M104.4 60.1L96.4 54.1L99.4 61.1L90.4 57.1"
+              stroke="#F95050"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </g>
+        </g>
+        <g className="b-arm-l">
+          <path
+            d="M72 162C56 171.333 47.3333 182.667 46 196"
+            stroke="#F4EB02"
+            strokeWidth="15"
+            strokeLinecap="round"
+          />
+          <path
+            d="M46 217C51.5228 217 56 212.075 56 206C56 199.925 51.5228 195 46 195C40.4772 195 36 199.925 36 206C36 212.075 40.4772 217 46 217Z"
+            fill="#F4EB02"
+          />
+          <path
+            d="M54 204.5C56.2091 204.5 58 202.038 58 199C58 195.962 56.2091 193.5 54 193.5C51.7909 193.5 50 195.962 50 199C50 202.038 51.7909 204.5 54 204.5Z"
+            fill="#DCCB00"
+          />
+        </g>
+        <g className="b-arm-r">
+          <path
+            d="M188 162C204 171.333 212.667 182.667 214 196"
+            stroke="#F4EB02"
+            strokeWidth="15"
+            strokeLinecap="round"
+          />
+          <path
+            d="M214 217C219.523 217 224 212.075 224 206C224 199.925 219.523 195 214 195C208.477 195 204 199.925 204 206C204 212.075 208.477 217 214 217Z"
+            fill="#F4EB02"
+          />
+          <path
+            d="M206 204.5C208.209 204.5 210 202.038 210 199C210 195.962 208.209 193.5 206 193.5C203.791 193.5 202 195.962 202 199C202 202.038 203.791 204.5 206 204.5Z"
+            fill="#DCCB00"
+          />
+        </g>
+        <path
+          d="M130 96C176 96 192 108 194 146C196 190 184 222 130 222C76 222 64 190 66 146C68 108 84 96 130 96Z"
+          fill="#F4EB02"
+        />
+        <path
+          d="M79 203C83.8281 215.667 99.9219 222 130.5 222C161.078 222 177.172 215.667 182 203C154.641 212.5 106.359 212.5 79 203Z"
+          fill="#DCCB00"
+        />
+        <path d="M87 192H80V199H87V192Z" fill="#0B0B0C" />
+        <path d="M94 199H87V206H94V199Z" fill="#0B0B0C" />
+        <path
+          opacity="0.8"
+          d="M94 175C98.9706 175 103 170.971 103 166C103 161.029 98.9706 157 94 157C89.0294 157 85 161.029 85 166C85 170.971 89.0294 175 94 175Z"
+          fill="#F8678F"
+        />
+        <path
+          opacity="0.8"
+          d="M166 175C170.971 175 175 170.971 175 166C175 161.029 170.971 157 166 157C161.029 157 157 161.029 157 166C157 170.971 161.029 175 166 175Z"
+          fill="#F8678F"
+        />
+        <g className="b-eyes">
+          <g className="b-eye">
+            <path
+              d="M106 148.5C109.314 148.5 112 144.694 112 140C112 135.306 109.314 131.5 106 131.5C102.686 131.5 100 135.306 100 140C100 144.694 102.686 148.5 106 148.5Z"
+              fill="#0B0B0C"
+            />
+            <path
+              d="M109 139C110.657 139 112 137.657 112 136C112 134.343 110.657 133 109 133C107.343 133 106 134.343 106 136C106 137.657 107.343 139 109 139Z"
+              fill="white"
+            />
+          </g>
+          <g className="b-eye">
+            <path
+              d="M154 148.5C157.314 148.5 160 144.694 160 140C160 135.306 157.314 131.5 154 131.5C150.686 131.5 148 135.306 148 140C148 144.694 150.686 148.5 154 148.5Z"
+              fill="#0B0B0C"
+            />
+            <path
+              d="M157 139C158.657 139 160 137.657 160 136C160 134.343 158.657 133 157 133C155.343 133 154 134.343 154 136C154 137.657 155.343 139 157 139Z"
+              fill="white"
+            />
+          </g>
+        </g>
+        <g>
+          <path d="M94 124L112 118L94 124Z" fill="black" />
+          <path d="M94 124L112 118" stroke="#0B0B0C" strokeWidth="5" strokeLinecap="round" />
+        </g>
+        <g>
+          <path d="M166 124L148 118L166 124Z" fill="black" />
+          <path d="M166 124L148 118" stroke="#0B0B0C" strokeWidth="5" strokeLinecap="round" />
+        </g>
+        <g className="b-mouth">
+          <path
+            d="M116 176C118.333 172 120.667 172 123 176C125.333 180 127.667 180 130 176C132.333 172 134.667 172 137 176C139.333 180 141.667 180 144 176"
+            stroke="#0B0B0C"
+            strokeWidth="4.5"
+            strokeLinecap="round"
+          />
+        </g>
+        <g className="b-sweat">
+          <path
+            opacity="0.88"
+            d="M200 104C194 113.333 194 119.333 200 122C206 119.333 206 113.333 200 104Z"
+            fill="#B0E9FD"
+          />
+        </g>
+      </g>
+    </svg>
+  );
+}
+
+export function BlipScanning({ title, still = false, className, ...props }: BlipProps) {
+  const ref = useOffscreenPause();
+  return (
+    <svg
+      ref={ref}
+      className={blipClass("scanning", still, className)}
       viewBox="0 0 260 280"
       fill="none"
       role={title ? "img" : undefined}
@@ -395,118 +533,145 @@ export function BlipScanning({ title, ...props }: BlipProps) {
         d="M130 258C155.405 258 176 255.314 176 252C176 248.686 155.405 246 130 246C104.595 246 84 248.686 84 252C84 255.314 104.595 258 130 258Z"
         fill="black"
       />
-      <path
-        d="M110 214H104C100.686 214 98 216.686 98 220V238C98 241.314 100.686 244 104 244H110C113.314 244 116 241.314 116 238V220C116 216.686 113.314 214 110 214Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M156 214H150C146.686 214 144 216.686 144 220V238C144 241.314 146.686 244 150 244H156C159.314 244 162 241.314 162 238V220C162 216.686 159.314 214 156 214Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M114.5 236H99.5C95.9101 236 93 238.91 93 242.5C93 246.09 95.9101 249 99.5 249H114.5C118.09 249 121 246.09 121 242.5C121 238.91 118.09 236 114.5 236Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M160.5 236H145.5C141.91 236 139 238.91 139 242.5C139 246.09 141.91 249 145.5 249H160.5C164.09 249 167 246.09 167 242.5C167 238.91 164.09 236 160.5 236Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M108 47C108 41.1652 110.318 35.5695 114.444 31.4437C118.569 27.3179 124.165 25 130 25C135.835 25 141.431 27.3179 145.556 31.4437C149.682 35.5695 152 41.1652 152 47"
-        stroke="#B0E9FD"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-      <path
-        opacity="0.5"
-        d="M94.67 40.33C94.67 30.9599 98.3923 21.9736 105.018 15.3479C111.644 8.72226 120.63 5 130 5C139.37 5 148.356 8.72226 154.982 15.3479C161.608 21.9736 165.33 30.9599 165.33 40.33"
-        stroke="#B0E9FD"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M130 98C130 86 130 74 130 62"
-        stroke="#0B0B0C"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M130 73C136.075 73 141 68.0751 141 62C141 55.9249 136.075 51 130 51C123.925 51 119 55.9249 119 62C119 68.0751 123.925 73 130 73Z"
-        fill="#F8678F"
-      />
-      <path
-        opacity="0.8"
-        d="M133.5 61.5C135.157 61.5 136.5 60.1569 136.5 58.5C136.5 56.8431 135.157 55.5 133.5 55.5C131.843 55.5 130.5 56.8431 130.5 58.5C130.5 60.1569 131.843 61.5 133.5 61.5Z"
-        fill="white"
-      />
-      <path
-        d="M72 156C54 142 46.6667 125.333 50 106"
-        stroke="#F4EB02"
-        strokeWidth="15"
-        strokeLinecap="round"
-      />
-      <path
-        d="M50 115.5C55.2467 115.5 59.5 111.247 59.5 106C59.5 100.753 55.2467 96.5 50 96.5C44.7533 96.5 40.5 100.753 40.5 106C40.5 111.247 44.7533 115.5 50 115.5Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M188 156C206 146 213.333 133.333 210 118"
-        stroke="#F4EB02"
-        strokeWidth="15"
-        strokeLinecap="round"
-      />
-      <path
-        d="M210 127.5C215.247 127.5 219.5 123.247 219.5 118C219.5 112.753 215.247 108.5 210 108.5C204.753 108.5 200.5 112.753 200.5 118C200.5 123.247 204.753 127.5 210 127.5Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M130 96C176 96 192 108 194 146C196 190 184 222 130 222C76 222 64 190 66 146C68 108 84 96 130 96Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M79 203C83.8281 215.667 99.9219 222 130.5 222C161.078 222 177.172 215.667 182 203C154.641 212.5 106.359 212.5 79 203Z"
-        fill="#DCCB00"
-      />
-      <path d="M87 192H80V199H87V192Z" fill="#0B0B0C" />
-      <path d="M94 199H87V206H94V199Z" fill="#0B0B0C" />
-      <path
-        opacity="0.8"
-        d="M94 175C98.9706 175 103 170.971 103 166C103 161.029 98.9706 157 94 157C89.0294 157 85 161.029 85 166C85 170.971 89.0294 175 94 175Z"
-        fill="#F8678F"
-      />
-      <path
-        opacity="0.8"
-        d="M166 175C170.971 175 175 170.971 175 166C175 161.029 170.971 157 166 157C161.029 157 157 161.029 157 166C157 170.971 161.029 175 166 175Z"
-        fill="#F8678F"
-      />
-      <path
-        d="M109 148C113.694 148 117.5 143.075 117.5 137C117.5 130.925 113.694 126 109 126C104.306 126 100.5 130.925 100.5 137C100.5 143.075 104.306 148 109 148Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M112 136C113.657 136 115 134.657 115 133C115 131.343 113.657 130 112 130C110.343 130 109 131.343 109 133C109 134.657 110.343 136 112 136Z"
-        fill="white"
-      />
-      <path
-        d="M157 148C161.694 148 165.5 143.075 165.5 137C165.5 130.925 161.694 126 157 126C152.306 126 148.5 130.925 148.5 137C148.5 143.075 152.306 148 157 148Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M160 136C161.657 136 163 134.657 163 133C163 131.343 161.657 130 160 130C158.343 130 157 131.343 157 133C157 134.657 158.343 136 160 136Z"
-        fill="white"
-      />
-      <path
-        d="M132.1 181.1C135.966 181.1 139.1 177.518 139.1 173.1C139.1 168.682 135.966 165.1 132.1 165.1C128.234 165.1 125.1 168.682 125.1 173.1C125.1 177.518 128.234 181.1 132.1 181.1Z"
-        fill="#0B0B0C"
-      />
+      <g className="b-legs">
+        <path
+          d="M110 214H104C100.686 214 98 216.686 98 220V238C98 241.314 100.686 244 104 244H110C113.314 244 116 241.314 116 238V220C116 216.686 113.314 214 110 214Z"
+          fill="#DCCB00"
+        />
+        <path
+          d="M156 214H150C146.686 214 144 216.686 144 220V238C144 241.314 146.686 244 150 244H156C159.314 244 162 241.314 162 238V220C162 216.686 159.314 214 156 214Z"
+          fill="#DCCB00"
+        />
+        <path
+          d="M114.5 236H99.5C95.9101 236 93 238.91 93 242.5C93 246.09 95.9101 249 99.5 249H114.5C118.09 249 121 246.09 121 242.5C121 238.91 118.09 236 114.5 236Z"
+          fill="#0B0B0C"
+        />
+        <path
+          d="M160.5 236H145.5C141.91 236 139 238.91 139 242.5C139 246.09 141.91 249 145.5 249H160.5C164.09 249 167 246.09 167 242.5C167 238.91 164.09 236 160.5 236Z"
+          fill="#0B0B0C"
+        />
+      </g>
+      <g className="b-body">
+        <g className="b-wave b-wave-1">
+          <path
+            d="M108 47C108 41.1652 110.318 35.5695 114.444 31.4437C118.569 27.3179 124.165 25 130 25C135.835 25 141.431 27.3179 145.556 31.4437C149.682 35.5695 152 41.1652 152 47"
+            stroke="#B0E9FD"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+        </g>
+        <g className="b-wave b-wave-2">
+          <path
+            opacity="0.5"
+            d="M94.67 40.33C94.67 30.9599 98.3923 21.9736 105.018 15.3479C111.644 8.72226 120.63 5 130 5C139.37 5 148.356 8.72226 154.982 15.3479C161.608 21.9736 165.33 30.9599 165.33 40.33"
+            stroke="#B0E9FD"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+        </g>
+        <g className="b-antenna">
+          <path
+            d="M130 98C130 86 130 74 130 62"
+            stroke="#0B0B0C"
+            strokeWidth="6"
+            strokeLinecap="round"
+          />
+          <path
+            d="M130 73C136.075 73 141 68.0751 141 62C141 55.9249 136.075 51 130 51C123.925 51 119 55.9249 119 62C119 68.0751 123.925 73 130 73Z"
+            fill="#F8678F"
+          />
+          <path
+            opacity="0.8"
+            d="M133.5 61.5C135.157 61.5 136.5 60.1569 136.5 58.5C136.5 56.8431 135.157 55.5 133.5 55.5C131.843 55.5 130.5 56.8431 130.5 58.5C130.5 60.1569 131.843 61.5 133.5 61.5Z"
+            fill="white"
+          />
+        </g>
+        <g className="b-arm-l">
+          <path
+            d="M72 156C54 142 46.6667 125.333 50 106"
+            stroke="#F4EB02"
+            strokeWidth="15"
+            strokeLinecap="round"
+          />
+          <path
+            d="M50 115.5C55.2467 115.5 59.5 111.247 59.5 106C59.5 100.753 55.2467 96.5 50 96.5C44.7533 96.5 40.5 100.753 40.5 106C40.5 111.247 44.7533 115.5 50 115.5Z"
+            fill="#F4EB02"
+          />
+        </g>
+        <g className="b-arm-r">
+          <path
+            d="M188 156C206 146 213.333 133.333 210 118"
+            stroke="#F4EB02"
+            strokeWidth="15"
+            strokeLinecap="round"
+          />
+          <path
+            d="M210 127.5C215.247 127.5 219.5 123.247 219.5 118C219.5 112.753 215.247 108.5 210 108.5C204.753 108.5 200.5 112.753 200.5 118C200.5 123.247 204.753 127.5 210 127.5Z"
+            fill="#F4EB02"
+          />
+        </g>
+        <path
+          d="M130 96C176 96 192 108 194 146C196 190 184 222 130 222C76 222 64 190 66 146C68 108 84 96 130 96Z"
+          fill="#F4EB02"
+        />
+        <path
+          d="M79 203C83.8281 215.667 99.9219 222 130.5 222C161.078 222 177.172 215.667 182 203C154.641 212.5 106.359 212.5 79 203Z"
+          fill="#DCCB00"
+        />
+        <path d="M87 192H80V199H87V192Z" fill="#0B0B0C" />
+        <path d="M94 199H87V206H94V199Z" fill="#0B0B0C" />
+        <path
+          opacity="0.8"
+          d="M94 175C98.9706 175 103 170.971 103 166C103 161.029 98.9706 157 94 157C89.0294 157 85 161.029 85 166C85 170.971 89.0294 175 94 175Z"
+          fill="#F8678F"
+        />
+        <path
+          opacity="0.8"
+          d="M166 175C170.971 175 175 170.971 175 166C175 161.029 170.971 157 166 157C161.029 157 157 161.029 157 166C157 170.971 161.029 175 166 175Z"
+          fill="#F8678F"
+        />
+        <g className="b-look">
+          <g className="b-eyes">
+            <g className="b-eye">
+              <path
+                d="M109 148C113.694 148 117.5 143.075 117.5 137C117.5 130.925 113.694 126 109 126C104.306 126 100.5 130.925 100.5 137C100.5 143.075 104.306 148 109 148Z"
+                fill="#0B0B0C"
+              />
+              <path
+                d="M112 136C113.657 136 115 134.657 115 133C115 131.343 113.657 130 112 130C110.343 130 109 131.343 109 133C109 134.657 110.343 136 112 136Z"
+                fill="white"
+              />
+            </g>
+            <g className="b-eye">
+              <path
+                d="M157 148C161.694 148 165.5 143.075 165.5 137C165.5 130.925 161.694 126 157 126C152.306 126 148.5 130.925 148.5 137C148.5 143.075 152.306 148 157 148Z"
+                fill="#0B0B0C"
+              />
+              <path
+                d="M160 136C161.657 136 163 134.657 163 133C163 131.343 161.657 130 160 130C158.343 130 157 131.343 157 133C157 134.657 158.343 136 160 136Z"
+                fill="white"
+              />
+            </g>
+          </g>
+          <g className="b-mouth">
+            <path
+              d="M132.1 181.1C135.966 181.1 139.1 177.518 139.1 173.1C139.1 168.682 135.966 165.1 132.1 165.1C128.234 165.1 125.1 168.682 125.1 173.1C125.1 177.518 128.234 181.1 132.1 181.1Z"
+              fill="#0B0B0C"
+            />
+          </g>
+        </g>
+      </g>
     </svg>
   );
 }
 
 /** Blip/Thinking (Figma 6916:2607): shown while Blip answers (12 / M11). Static until Slice 13. */
-export function BlipThinking({ title, ...props }: BlipProps) {
+export function BlipThinking({ title, still = false, className, ...props }: BlipProps) {
+  const ref = useOffscreenPause();
   return (
     <svg
+      ref={ref}
+      className={blipClass("thinking", still, className)}
       viewBox="0 0 260 280"
       fill="none"
       role={title ? "img" : undefined}
@@ -519,109 +684,133 @@ export function BlipThinking({ title, ...props }: BlipProps) {
         d="M130 258C155.405 258 176 255.314 176 252C176 248.686 155.405 246 130 246C104.595 246 84 248.686 84 252C84 255.314 104.595 258 130 258Z"
         fill="black"
       />
-      <path
-        d="M110 214H104C100.686 214 98 216.686 98 220V238C98 241.314 100.686 244 104 244H110C113.314 244 116 241.314 116 238V220C116 216.686 113.314 214 110 214Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M156 214H150C146.686 214 144 216.686 144 220V238C144 241.314 146.686 244 150 244H156C159.314 244 162 241.314 162 238V220C162 216.686 159.314 214 156 214Z"
-        fill="#DCCB00"
-      />
-      <path
-        d="M114.5 236H99.5C95.9101 236 93 238.91 93 242.5C93 246.09 95.9101 249 99.5 249H114.5C118.09 249 121 246.09 121 242.5C121 238.91 118.09 236 114.5 236Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M160.5 236H145.5C141.91 236 139 238.91 139 242.5C139 246.09 141.91 249 145.5 249H160.5C164.09 249 167 246.09 167 242.5C167 238.91 164.09 236 160.5 236Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M130 98C130 86 130 74 130 62"
-        strokeWidth="6"
-        strokeLinecap="round"
-        stroke="#0B0B0C"
-      />
-      <path
-        d="M130 73C136.075 73 141 68.0751 141 62C141 55.9249 136.075 51 130 51C123.925 51 119 55.9249 119 62C119 68.0751 123.925 73 130 73Z"
-        fill="#F8678F"
-      />
-      <path
-        opacity="0.8"
-        d="M133.5 61.5C135.157 61.5 136.5 60.1569 136.5 58.5C136.5 56.8431 135.157 55.5 133.5 55.5C131.843 55.5 130.5 56.8431 130.5 58.5C130.5 60.1569 131.843 61.5 133.5 61.5Z"
-        fill="white"
-      />
-      <path
-        d="M72 160C60 168 54.6667 178.667 56 192"
-        strokeWidth="15"
-        strokeLinecap="round"
-        stroke="#F4EB02"
-      />
-      <path
-        d="M56 203.5C61.2467 203.5 65.5 199.247 65.5 194C65.5 188.753 61.2467 184.5 56 184.5C50.7533 184.5 46.5 188.753 46.5 194C46.5 199.247 50.7533 203.5 56 203.5Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M188 168C202.667 172 206 166 198 150"
-        strokeWidth="15"
-        strokeLinecap="round"
-        stroke="#F4EB02"
-      />
-      <path
-        d="M196 159.5C201.247 159.5 205.5 155.247 205.5 150C205.5 144.753 201.247 140.5 196 140.5C190.753 140.5 186.5 144.753 186.5 150C186.5 155.247 190.753 159.5 196 159.5Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M130 96C176 96 192 108 194 146C196 190 184 222 130 222C76 222 64 190 66 146C68 108 84 96 130 96Z"
-        fill="#F4EB02"
-      />
-      <path
-        d="M79 203C83.8281 215.667 99.9219 222 130.5 222C161.078 222 177.172 215.667 182 203C154.641 212.5 106.359 212.5 79 203Z"
-        fill="#DCCB00"
-      />
-      <path d="M87 192H80V199H87V192Z" fill="#0B0B0C" />
-      <path d="M94 199H87V206H94V199Z" fill="#0B0B0C" />
-      <path
-        opacity="0.8"
-        d="M94 175C98.9706 175 103 170.971 103 166C103 161.029 98.9706 157 94 157C89.0294 157 85 161.029 85 166C85 170.971 89.0294 175 94 175Z"
-        fill="#F8678F"
-      />
-      <path
-        opacity="0.8"
-        d="M166 175C170.971 175 175 170.971 175 166C175 161.029 170.971 157 166 157C161.029 157 157 161.029 157 166C157 170.971 161.029 175 166 175Z"
-        fill="#F8678F"
-      />
-      <path
-        d="M110 146C114.694 146 118.5 141.075 118.5 135C118.5 128.925 114.694 124 110 124C105.306 124 101.5 128.925 101.5 135C101.5 141.075 105.306 146 110 146Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M113 134C114.657 134 116 132.657 116 131C116 129.343 114.657 128 113 128C111.343 128 110 129.343 110 131C110 132.657 111.343 134 113 134Z"
-        fill="white"
-      />
-      <path
-        d="M158 146C162.694 146 166.5 141.075 166.5 135C166.5 128.925 162.694 124 158 124C153.306 124 149.5 128.925 149.5 135C149.5 141.075 153.306 146 158 146Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M161 134C162.657 134 164 132.657 164 131C164 129.343 162.657 128 161 128C159.343 128 158 129.343 158 131C158 132.657 159.343 134 161 134Z"
-        fill="white"
-      />
-      <path
-        d="M140 179.5C142.761 179.5 145 177.038 145 174C145 170.962 142.761 168.5 140 168.5C137.239 168.5 135 170.962 135 174C135 177.038 137.239 179.5 140 179.5Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M206 104C208.209 104 210 102.209 210 100C210 97.7909 208.209 96 206 96C203.791 96 202 97.7909 202 100C202 102.209 203.791 104 206 104Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M220 95.5C223.038 95.5 225.5 93.0376 225.5 90C225.5 86.9624 223.038 84.5 220 84.5C216.962 84.5 214.5 86.9624 214.5 90C214.5 93.0376 216.962 95.5 220 95.5Z"
-        fill="#0B0B0C"
-      />
-      <path
-        d="M234 87C237.866 87 241 83.866 241 80C241 76.134 237.866 73 234 73C230.134 73 227 76.134 227 80C227 83.866 230.134 87 234 87Z"
-        fill="#0B0B0C"
-      />
+      <g className="b-legs">
+        <path
+          d="M110 214H104C100.686 214 98 216.686 98 220V238C98 241.314 100.686 244 104 244H110C113.314 244 116 241.314 116 238V220C116 216.686 113.314 214 110 214Z"
+          fill="#DCCB00"
+        />
+        <path
+          d="M156 214H150C146.686 214 144 216.686 144 220V238C144 241.314 146.686 244 150 244H156C159.314 244 162 241.314 162 238V220C162 216.686 159.314 214 156 214Z"
+          fill="#DCCB00"
+        />
+        <path
+          d="M114.5 236H99.5C95.9101 236 93 238.91 93 242.5C93 246.09 95.9101 249 99.5 249H114.5C118.09 249 121 246.09 121 242.5C121 238.91 118.09 236 114.5 236Z"
+          fill="#0B0B0C"
+        />
+        <path
+          d="M160.5 236H145.5C141.91 236 139 238.91 139 242.5C139 246.09 141.91 249 145.5 249H160.5C164.09 249 167 246.09 167 242.5C167 238.91 164.09 236 160.5 236Z"
+          fill="#0B0B0C"
+        />
+      </g>
+      <g className="b-body">
+        <g className="b-antenna">
+          <path
+            d="M130 98C130 86 130 74 130 62"
+            strokeWidth="6"
+            strokeLinecap="round"
+            stroke="#0B0B0C"
+          />
+          <path
+            d="M130 73C136.075 73 141 68.0751 141 62C141 55.9249 136.075 51 130 51C123.925 51 119 55.9249 119 62C119 68.0751 123.925 73 130 73Z"
+            fill="#F8678F"
+          />
+          <path
+            opacity="0.8"
+            d="M133.5 61.5C135.157 61.5 136.5 60.1569 136.5 58.5C136.5 56.8431 135.157 55.5 133.5 55.5C131.843 55.5 130.5 56.8431 130.5 58.5C130.5 60.1569 131.843 61.5 133.5 61.5Z"
+            fill="white"
+          />
+        </g>
+        <g className="b-arm-l">
+          <path
+            d="M72 160C60 168 54.6667 178.667 56 192"
+            strokeWidth="15"
+            strokeLinecap="round"
+            stroke="#F4EB02"
+          />
+          <path
+            d="M56 203.5C61.2467 203.5 65.5 199.247 65.5 194C65.5 188.753 61.2467 184.5 56 184.5C50.7533 184.5 46.5 188.753 46.5 194C46.5 199.247 50.7533 203.5 56 203.5Z"
+            fill="#F4EB02"
+          />
+        </g>
+        <g className="b-arm-r">
+          <path
+            d="M188 168C202.667 172 206 166 198 150"
+            strokeWidth="15"
+            strokeLinecap="round"
+            stroke="#F4EB02"
+          />
+          <path
+            d="M196 159.5C201.247 159.5 205.5 155.247 205.5 150C205.5 144.753 201.247 140.5 196 140.5C190.753 140.5 186.5 144.753 186.5 150C186.5 155.247 190.753 159.5 196 159.5Z"
+            fill="#F4EB02"
+          />
+        </g>
+        <path
+          d="M130 96C176 96 192 108 194 146C196 190 184 222 130 222C76 222 64 190 66 146C68 108 84 96 130 96Z"
+          fill="#F4EB02"
+        />
+        <path
+          d="M79 203C83.8281 215.667 99.9219 222 130.5 222C161.078 222 177.172 215.667 182 203C154.641 212.5 106.359 212.5 79 203Z"
+          fill="#DCCB00"
+        />
+        <path d="M87 192H80V199H87V192Z" fill="#0B0B0C" />
+        <path d="M94 199H87V206H94V199Z" fill="#0B0B0C" />
+        <path
+          opacity="0.8"
+          d="M94 175C98.9706 175 103 170.971 103 166C103 161.029 98.9706 157 94 157C89.0294 157 85 161.029 85 166C85 170.971 89.0294 175 94 175Z"
+          fill="#F8678F"
+        />
+        <path
+          opacity="0.8"
+          d="M166 175C170.971 175 175 170.971 175 166C175 161.029 170.971 157 166 157C161.029 157 157 161.029 157 166C157 170.971 161.029 175 166 175Z"
+          fill="#F8678F"
+        />
+        <g className="b-eyes">
+          <g className="b-eye">
+            <path
+              d="M110 146C114.694 146 118.5 141.075 118.5 135C118.5 128.925 114.694 124 110 124C105.306 124 101.5 128.925 101.5 135C101.5 141.075 105.306 146 110 146Z"
+              fill="#0B0B0C"
+            />
+            <path
+              d="M113 134C114.657 134 116 132.657 116 131C116 129.343 114.657 128 113 128C111.343 128 110 129.343 110 131C110 132.657 111.343 134 113 134Z"
+              fill="white"
+            />
+          </g>
+          <g className="b-eye">
+            <path
+              d="M158 146C162.694 146 166.5 141.075 166.5 135C166.5 128.925 162.694 124 158 124C153.306 124 149.5 128.925 149.5 135C149.5 141.075 153.306 146 158 146Z"
+              fill="#0B0B0C"
+            />
+            <path
+              d="M161 134C162.657 134 164 132.657 164 131C164 129.343 162.657 128 161 128C159.343 128 158 129.343 158 131C158 132.657 159.343 134 161 134Z"
+              fill="white"
+            />
+          </g>
+        </g>
+        <g className="b-mouth">
+          <path
+            d="M140 179.5C142.761 179.5 145 177.038 145 174C145 170.962 142.761 168.5 140 168.5C137.239 168.5 135 170.962 135 174C135 177.038 137.239 179.5 140 179.5Z"
+            fill="#0B0B0C"
+          />
+        </g>
+        <g className="b-dot b-dot-1">
+          <path
+            d="M206 104C208.209 104 210 102.209 210 100C210 97.7909 208.209 96 206 96C203.791 96 202 97.7909 202 100C202 102.209 203.791 104 206 104Z"
+            fill="#0B0B0C"
+          />
+        </g>
+        <g className="b-dot b-dot-2">
+          <path
+            d="M220 95.5C223.038 95.5 225.5 93.0376 225.5 90C225.5 86.9624 223.038 84.5 220 84.5C216.962 84.5 214.5 86.9624 214.5 90C214.5 93.0376 216.962 95.5 220 95.5Z"
+            fill="#0B0B0C"
+          />
+        </g>
+        <g className="b-dot b-dot-3">
+          <path
+            d="M234 87C237.866 87 241 83.866 241 80C241 76.134 237.866 73 234 73C230.134 73 227 76.134 227 80C227 83.866 230.134 87 234 87Z"
+            fill="#0B0B0C"
+          />
+        </g>
+      </g>
     </svg>
   );
 }

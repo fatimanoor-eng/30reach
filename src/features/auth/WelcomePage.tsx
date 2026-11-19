@@ -48,7 +48,8 @@ export function WelcomePage() {
 
   return (
     <AuthLayout>
-      <BlipSuccess className="mx-auto h-auto w-28" />
+      {/* 01b: one jump, then Blip settles into the Idle loop. */}
+      <BlipSuccess settle className="mx-auto h-auto w-28" />
       <h1 className="mt-6 text-heading md:text-heading-lg">
         Welcome in{user?.firstName ? `, ${user.firstName}` : ""}!
       </h1>

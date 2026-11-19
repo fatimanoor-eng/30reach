@@ -229,7 +229,7 @@ export function AskBlipPanel({
                       {BREATHER_TEXT}
                     </p>
                   ) : (
-                    <BlipSays>
+                    <BlipSays typing>
                       <TypingDots />
                     </BlipSays>
                   ))}
@@ -350,11 +350,24 @@ export function AskBlipPanel({
 }
 
 /** A Blip message: the small idle avatar beside it (greeting, chat replies and insights). */
-function BlipSays({ children, onSkip }: { children: ReactNode; onSkip?: () => void }) {
+function BlipSays({
+  children,
+  onSkip,
+  typing = false,
+}: {
+  children: ReactNode;
+  onSkip?: () => void;
+  /** Blip is typing: the Thinking pose, animated. Message avatars stay still (a long thread). */
+  typing?: boolean;
+}) {
   // Click / tap mid-reveal shows it all (keyboard: any key, or Stop).
   return (
     <div className="flex items-start gap-2.5" onClick={onSkip}>
-      <BlipIdle className="h-8 w-auto shrink-0" />
+      {typing ? (
+        <BlipThinking className="h-8 w-auto shrink-0" />
+      ) : (
+        <BlipIdle still className="h-8 w-auto shrink-0" />
+      )}
       <div className="min-w-0 flex-1 pt-1">{children}</div>
     </div>
   );

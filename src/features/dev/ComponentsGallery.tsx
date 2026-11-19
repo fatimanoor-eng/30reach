@@ -2,7 +2,13 @@ import { Plus, RefreshCw } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { PageHeader } from "../../app/PageHeader";
 import { Avatar } from "../../components/Avatar";
-import { BlipError, BlipIdle, BlipSuccess } from "../../components/blip/BlipPoses";
+import {
+  BlipError,
+  BlipIdle,
+  BlipScanning,
+  BlipSuccess,
+  BlipThinking,
+} from "../../components/blip/BlipPoses";
 import { BottomSheet } from "../../components/BottomSheet";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { BrandPills } from "../../components/BrandPills";
@@ -175,12 +181,8 @@ export function ComponentsGallery() {
           </div>
         </Section>
 
-        <Section title="Blip (static poses until Slice 13)">
-          <div className="flex flex-wrap gap-6">
-            <BlipIdle className="h-auto w-24" title="Blip idle" />
-            <BlipSuccess className="h-auto w-24" title="Blip success" />
-            <BlipError className="h-auto w-24" title="Blip error" />
-          </div>
+        <Section title="Blip (animated)">
+          <BlipGallery />
         </Section>
 
         <Card title="Empty state" info="Blip/Idle + mono label + title + one line + actions.">
@@ -234,5 +236,44 @@ function Section({ title, info, children }: { title: string; info?: string; chil
     <Card title={title} info={info}>
       {children}
     </Card>
+  );
+}
+
+/** The five poses side by side, at the size they're reviewed in Figma; Success can be replayed. */
+function BlipGallery() {
+  const [run, setRun] = useState(0);
+  const poses = [
+    ["Idle", <BlipIdle key="i" className="h-auto w-28" title="Blip idle" />],
+    ["Scanning", <BlipScanning key="s" className="h-auto w-28" title="Blip scanning" />],
+    ["Thinking", <BlipThinking key="t" className="h-auto w-28" title="Blip thinking" />],
+    [
+      "Success (once)",
+      <BlipSuccess key={`ok-${run}`} className="h-auto w-28" title="Blip success" />,
+    ],
+    [
+      "Success → Idle",
+      <BlipSuccess
+        key={`settle-${run}`}
+        settle
+        className="h-auto w-28"
+        title="Blip success, then idle"
+      />,
+    ],
+    ["Error", <BlipError key="e" className="h-auto w-28" title="Blip error" />],
+  ] as const;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-6">
+        {poses.map(([label, art]) => (
+          <figure key={label} className="flex flex-col items-center gap-2">
+            {art}
+            <figcaption className="mono-label text-muted">{label}</figcaption>
+          </figure>
+        ))}
+      </div>
+      <Button variant="secondary" className="self-start" onClick={() => setRun((n) => n + 1)}>
+        Replay Success
+      </Button>
+    </div>
   );
 }

@@ -253,6 +253,8 @@ const dialogAnimations = (page: Page) =>
     (document.querySelector("dialog[open]")?.getAnimations({ subtree: true }) ?? [])
       .filter((a) => a instanceof CSSAnimation)
       .map((a) => (a as CSSAnimation).animationName)
+      // The modal's own motion; Blip inside it (Slice 13) animates too but isn't what's checked here.
+      .filter((n) => n.startsWith("modal-"))
       .sort(),
   );
 

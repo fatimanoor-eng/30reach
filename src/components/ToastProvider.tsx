@@ -71,7 +71,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             onBlur={() => setPaused(false)}
             className="on-dark pointer-events-auto flex w-full max-w-120 items-center gap-3 rounded-card bg-ink py-3 pr-2 pl-4 text-white shadow-xl"
           >
-            {Pose && <Pose className="h-auto w-12 shrink-0" />}
+            {Pose && (
+              <Pose
+                className="h-auto w-12 shrink-0"
+                still={toast.pose === "success" && !toast.celebrate}
+              />
+            )}
             <div className="min-w-0 flex-1">
               <p className="text-body font-medium">{toast.title}</p>
               {toast.detail && (

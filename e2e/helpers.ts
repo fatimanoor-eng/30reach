@@ -13,10 +13,16 @@ export async function ready(page: Page, path: string) {
 }
 
 export async function noSidewaysScroll(page: Page) {
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow, "page scrolls sideways").toBe(0);
+  const { scroll, client } = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }));
+  expect(scroll - client, "page scrolls sideways").toBe(0);
+  // On phones an over-wide element widens the whole layout (scroll = client = 457 px on a 390 px
+  // screen), which the first check can't see: compare with the screen width too.
+  const screen = page.viewportSize()?.width;
+  if (screen)
+    expect(scroll, `page is wider than the ${screen} px screen`).toBeLessThanOrEqual(screen);
 }
 
 /** Every visible interactive element on mobile must be at least 44 × 44 px. */

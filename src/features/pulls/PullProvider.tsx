@@ -88,6 +88,7 @@ export function PullProvider({ children }: { children: ReactNode }) {
             .filter(Boolean)
             .join(" · "),
           pose: "success",
+          celebrate: true,
           action: seeWhatsNew,
         });
       } else if (r.status === "partial") {

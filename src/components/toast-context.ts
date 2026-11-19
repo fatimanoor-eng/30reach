@@ -5,6 +5,11 @@ export type ToastInput = {
   /** Mono detail line, e.g. "228 posts · 112 credits used · 476 left" */
   detail?: string;
   pose?: "success" | "error" | "idle";
+  /**
+   * The Success pose jumps (once) only for real celebrations, e.g. a pull that finished; other
+   * success toasts ("Saved", "Planned…") show it still, so the app doesn't bounce all day.
+   */
+  celebrate?: boolean;
   action?: { label: string; onClick: () => void };
   /** How long it stays (default TOAST_DURATION_MS); hovering or focusing it pauses the timer. */
   durationMs?: number;

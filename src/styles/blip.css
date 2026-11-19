@@ -1,0 +1,488 @@
+/* ───────────────────────────────────────────── Blip comes alive (Slice 13a)
+   DESIGN_SYSTEM › Blip, timed against assets/blip/*.gif. SVG + CSS keyframes only, transform and
+   opacity only. Parts are groups in BlipPoses.tsx (b-body, b-antenna, b-arm-l, b-eye, …).
+   • Loops start and end on the static pose (frame 0 = Figma), so a paused Blip never looks odd.
+   • Pivots: fill-box for parts that turn around their own middle (eyes, dots, sparkles); view-box
+     coordinates (the 260 × 280 art) for joints: antenna base 130,98 · shoulders 72,158 / 188,158 ·
+     feet 130,250.
+   • Paused off-screen ([data-offscreen]) and while the tab is hidden ([data-tab-hidden]).
+   • prefers-reduced-motion and .blip-still: the static pose. */
+
+:root {
+  --blip-idle: 4s;
+  --blip-scan: 4s;
+  --blip-think: 2.4s;
+  --blip-success: 1.8s;
+  --blip-error: 5s;
+}
+
+.blip .b-body {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.blip .b-antenna {
+  transform-box: view-box;
+  transform-origin: 130px 98px;
+}
+.blip .b-arm-l {
+  transform-box: view-box;
+  transform-origin: 72px 158px;
+}
+.blip .b-arm-r {
+  transform-box: view-box;
+  transform-origin: 188px 158px;
+}
+.blip .b-eye,
+.blip .b-dot,
+.blip .b-spark,
+.blip .b-sweat,
+.blip .b-shadow,
+.blip .b-mouth {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.blip .b-wave {
+  transform-box: view-box;
+  transform-origin: 130px 52px;
+}
+.blip .b-figure {
+  transform-box: view-box;
+  transform-origin: 130px 250px;
+}
+
+/* ───────────── Idle: breathing, antenna sway, a blink every ~4 s */
+.blip-idle .b-body {
+  animation: blip-breathe var(--blip-idle) ease-in-out infinite;
+}
+.blip-idle .b-antenna {
+  animation: blip-sway var(--blip-idle) ease-in-out infinite;
+}
+.blip-idle .b-eye {
+  animation: blip-blink var(--blip-idle) linear infinite;
+}
+@keyframes blip-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(-2px) scaleY(1.012);
+  }
+}
+@keyframes blip-sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-4deg);
+  }
+  75% {
+    transform: rotate(4deg);
+  }
+}
+@keyframes blip-blink {
+  0%,
+  46%,
+  54%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.12);
+  }
+}
+
+/* ───────────── Scanning: ~4 s, radar pulses twice, arms take turns, eyes + mouth look around */
+.blip-scanning .b-body {
+  animation: blip-breathe var(--blip-scan) ease-in-out infinite;
+}
+.blip-scanning .b-wave {
+  animation: blip-wave calc(var(--blip-scan) / 2) ease-out infinite;
+}
+.blip-scanning .b-wave-2 {
+  animation-name: blip-wave-outer;
+}
+.blip-scanning .b-arm-l {
+  animation: blip-arm-l var(--blip-scan) ease-in-out infinite;
+}
+.blip-scanning .b-arm-r {
+  animation: blip-arm-r var(--blip-scan) ease-in-out infinite;
+}
+.blip-scanning .b-look {
+  animation: blip-look var(--blip-scan) ease-in-out infinite;
+}
+@keyframes blip-wave {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  45% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+  46% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes blip-wave-outer {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  60% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+  61% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes blip-arm-l {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-9deg);
+  }
+}
+@keyframes blip-arm-r {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(9deg);
+  }
+}
+@keyframes blip-look {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  18%,
+  40% {
+    transform: translateX(-4px);
+  }
+  60%,
+  82% {
+    transform: translateX(4px);
+  }
+}
+
+/* ───────────── Thinking: hand on chin, eyes up, dots appear one by one */
+.blip-thinking .b-body {
+  animation: blip-breathe var(--blip-idle) ease-in-out infinite;
+}
+.blip-thinking .b-arm-r {
+  animation: blip-chin var(--blip-think) ease-in-out infinite;
+}
+.blip-thinking .b-eye {
+  animation: blip-blink calc(var(--blip-think) * 2) linear infinite;
+  animation-delay: 1.4s;
+}
+.blip-thinking .b-dot-1 {
+  animation: blip-dot-1 var(--blip-think) steps(1, end) infinite;
+}
+.blip-thinking .b-dot-2 {
+  animation: blip-dot-2 var(--blip-think) steps(1, end) infinite;
+}
+.blip-thinking .b-dot-3 {
+  animation: blip-dot-3 var(--blip-think) steps(1, end) infinite;
+}
+@keyframes blip-chin {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-3deg);
+  }
+}
+@keyframes blip-dot-1 {
+  0%,
+  32%,
+  100% {
+    opacity: 1;
+  }
+  12% {
+    opacity: 0;
+  }
+}
+@keyframes blip-dot-2 {
+  0%,
+  52%,
+  100% {
+    opacity: 1;
+  }
+  12% {
+    opacity: 0;
+  }
+}
+@keyframes blip-dot-3 {
+  0%,
+  72%,
+  100% {
+    opacity: 1;
+  }
+  12% {
+    opacity: 0;
+  }
+}
+
+/* ───────────── Success (once): crouch → big jump → two smaller bounces, squash & stretch, sparkles */
+.blip-success .b-figure {
+  animation: blip-success-jump var(--blip-success) cubic-bezier(0.3, 0, 0.3, 1) both;
+}
+.blip-success .b-shadow {
+  animation: blip-success-shadow var(--blip-success) cubic-bezier(0.3, 0, 0.3, 1) both;
+}
+.blip-success .b-spark {
+  animation: blip-sparkle 0.7s ease-out both;
+  animation-delay: 0.45s;
+}
+.blip-success .b-spark-2 {
+  animation-delay: 0.55s;
+}
+.blip-success .b-spark-3 {
+  animation-delay: 0.65s;
+}
+.blip-success .b-spark-4 {
+  animation-delay: 0.75s;
+}
+@keyframes blip-success-jump {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  12% {
+    transform: translateY(0) scale(1.06, 0.9);
+  }
+  30% {
+    transform: translateY(-46px) scale(0.95, 1.08);
+  }
+  44% {
+    transform: translateY(0) scale(1.08, 0.92);
+  }
+  54% {
+    transform: translateY(-18px) scale(0.98, 1.03);
+  }
+  64% {
+    transform: translateY(0) scale(1.04, 0.96);
+  }
+  72% {
+    transform: translateY(-6px) scale(1, 1);
+  }
+  80% {
+    transform: translateY(0) scale(1.01, 0.99);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+@keyframes blip-success-shadow {
+  0%,
+  12%,
+  44%,
+  64%,
+  80%,
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  30% {
+    transform: scaleX(0.6);
+    opacity: 0.5;
+  }
+  54% {
+    transform: scaleX(0.85);
+    opacity: 0.8;
+  }
+}
+@keyframes blip-sparkle {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-30deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.25) rotate(10deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* ───────────── Error: red antenna flicker, soft shiver, sweat drop; then the antenna wilts, Blip sighs */
+.blip-error .b-body {
+  animation: blip-error-body var(--blip-error) ease-in-out infinite;
+}
+.blip-error .b-antenna {
+  animation: blip-wilt var(--blip-error) ease-in-out infinite;
+}
+.blip-error .b-bulb {
+  animation: blip-flicker var(--blip-error) linear infinite;
+}
+.blip-error .b-bulb-dim {
+  animation: blip-dim var(--blip-error) ease-in-out infinite;
+}
+.blip-error .b-sparks {
+  animation: blip-sparks var(--blip-error) linear infinite;
+}
+.blip-error .b-arm-l {
+  animation: blip-droop-l var(--blip-error) ease-in-out infinite;
+}
+.blip-error .b-arm-r {
+  animation: blip-droop-r var(--blip-error) ease-in-out infinite;
+}
+.blip-error .b-sweat {
+  animation: blip-sweat calc(var(--blip-error) / 2) ease-in infinite;
+}
+@keyframes blip-error-body {
+  0%,
+  40%,
+  100% {
+    transform: translateX(0) scaleY(1);
+  }
+  4%,
+  12%,
+  20%,
+  28%,
+  36% {
+    transform: translateX(-1px) scaleY(1);
+  }
+  8%,
+  16%,
+  24%,
+  32% {
+    transform: translateX(1px) scaleY(1);
+  }
+  58%,
+  78% {
+    transform: translateX(0) scaleY(0.965);
+  }
+  88% {
+    transform: translateX(0) scaleY(1);
+  }
+}
+@keyframes blip-wilt {
+  0%,
+  42%,
+  92%,
+  100% {
+    transform: rotate(0deg);
+  }
+  56%,
+  82% {
+    transform: rotate(-38deg);
+  }
+}
+@keyframes blip-flicker {
+  0%,
+  10%,
+  22%,
+  34%,
+  100% {
+    opacity: 1;
+  }
+  5%,
+  16%,
+  28% {
+    opacity: 0.65;
+  }
+}
+@keyframes blip-dim {
+  0%,
+  44%,
+  90%,
+  100% {
+    opacity: 0;
+  }
+  56%,
+  82% {
+    opacity: 1;
+  }
+}
+@keyframes blip-sparks {
+  0%,
+  10%,
+  22%,
+  34%,
+  92%,
+  100% {
+    opacity: 1;
+  }
+  5%,
+  16%,
+  28% {
+    opacity: 0.2;
+  }
+  42%,
+  86% {
+    opacity: 0;
+  }
+}
+@keyframes blip-droop-l {
+  0%,
+  44%,
+  90%,
+  100% {
+    transform: rotate(0deg);
+  }
+  58%,
+  80% {
+    transform: rotate(-6deg);
+  }
+}
+@keyframes blip-droop-r {
+  0%,
+  44%,
+  90%,
+  100% {
+    transform: rotate(0deg);
+  }
+  58%,
+  80% {
+    transform: rotate(6deg);
+  }
+}
+@keyframes blip-sweat {
+  0%,
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  70% {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+  71% {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+/* ───────────── Pause and opt-outs */
+.blip[data-offscreen] *,
+:root[data-tab-hidden] .blip * {
+  animation-play-state: paused !important;
+}
+.blip-still * {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .blip * {
+    animation: none !important;
+  }
+}
