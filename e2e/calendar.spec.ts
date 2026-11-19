@@ -791,3 +791,93 @@ test("calendar — typing and undoing back to the saved text isn't an unsaved ch
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+// ───────────────────────────── unsaved edits: in-app navigation + local drafts
+
+test("calendar — Back with unsaved edits asks first (React Router blocker)", async ({ page }) => {
+  const { calls } = await setup(page);
+  await open(page, "/calendar?date=2026-12-04");
+  await page
+    .getByRole("button", { name: /Holiday eating, no guilt/ })
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog", { name: /Holiday eating/ });
+  await dialog.getByRole("textbox", { name: "Caption" }).fill("Not saved yet");
+
+  await page.goBack();
+  const confirm = page.getByRole("dialog", { name: "Discard changes?" });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole("button", { name: "Keep editing" }).click();
+  await expect(confirm).toBeHidden();
+  await expect(page).toHaveURL(/card=k2/); // stayed
+  await expect(dialog.getByRole("textbox", { name: "Caption" })).toHaveValue("Not saved yet");
+
+  await page.goBack();
+  await page
+    .getByRole("dialog", { name: "Discard changes?" })
+    .getByRole("button", { name: "Discard" })
+    .click();
+  await expect(page).not.toHaveURL(/card=/);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(calls.filter((c) => c.method === "PATCH")).toEqual([]);
+});
+
+test("calendar — unsaved edits come back after a reload: Restore or Discard", async ({
+  page,
+}, info) => {
+  await setup(page);
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  const caption = page.getByRole("dialog").getByRole("textbox", { name: "Caption" });
+  await caption.fill("Typed, then the tab reloaded");
+
+  // No browser warning (our own UI only): the draft is kept in this browser instead.
+  await page.reload();
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  const dialog = page.getByRole("dialog", { name: /Holiday eating/ });
+  const banner = dialog
+    .getByRole("status")
+    .filter({ hasText: "You have unsaved changes from earlier" });
+  await expect(banner).toBeVisible();
+  await expect(caption).toHaveValue(/^Three small things/); // the saved text until Restore
+  await page.waitForTimeout(300); // drawer slide-in
+  if (!isDesktop(page)) await tapTargetsOk(page);
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot(`card-draft-banner-${info.project.name}.png`);
+
+  await banner.getByRole("button", { name: "Restore" }).click();
+  await expect(banner).toBeHidden();
+  await expect(caption).toHaveValue("Typed, then the tab reloaded");
+  await expect(dialog.getByRole("button", { name: "Save (unsaved changes)" })).toBeVisible();
+
+  // Reload again, this time Discard: the saved text stays and the draft is gone for good.
+  await page.reload();
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  await banner.getByRole("button", { name: "Discard" }).click();
+  await expect(banner).toBeHidden();
+  await expect(caption).toHaveValue(/^Three small things/);
+  await page.reload();
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  await expect(page.getByRole("dialog").getByRole("textbox", { name: "Title" })).toBeVisible();
+  await expect(banner).toHaveCount(0);
+});
+
+test("calendar — Save clears the draft", async ({ page }) => {
+  await setup(page);
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  const dialog = page.getByRole("dialog", { name: /Holiday eating/ });
+  await dialog.getByRole("textbox", { name: "Visual idea" }).fill("Saved this time");
+  expect(
+    await page.evaluate(() => Object.keys(localStorage).filter((k) => k.includes("card-draft"))),
+  ).toEqual(["30reach:card-draft:k2"]);
+  await dialog.getByRole("button", { name: /^Save/ }).click();
+  await expect(dialog.getByText("No health claims found.", { exact: false })).toBeVisible();
+  expect(
+    await page.evaluate(() => Object.keys(localStorage).filter((k) => k.includes("card-draft"))),
+  ).toEqual([]);
+  await page.reload();
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  await expect(page.getByRole("dialog").getByRole("textbox", { name: "Visual idea" })).toHaveValue(
+    "Saved this time",
+  );
+  await expect(page.getByText("You have unsaved changes from earlier")).toHaveCount(0);
+});

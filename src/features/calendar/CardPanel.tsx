@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
+import { useBlocker, useNavigate } from "react-router";
 import { cardToIdea } from "../ideas/ideas-api";
 import { InspiredBy } from "../ideas/InspiredBy";
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Avatar } from "../../components/Avatar";
 import { Button } from "../../components/Button";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -22,6 +22,14 @@ import { StatusPills } from "./StatusPills";
 import { Tooltip } from "../../components/Tooltip";
 import { AiError, checkClaims, suggestCaption, suggestHooks } from "../../lib/ai/ai-api";
 import { checkKey, needsCheck, storedCheck } from "./card-check";
+import {
+  browserStore,
+  clearDraft,
+  readDraft,
+  saveDraft,
+  sweepDrafts,
+  type CardDraft,
+} from "./card-drafts";
 import { HealthCheck, type HealthCheckState } from "./HealthCheck";
 import { HookSuggestions, type HooksState } from "./HookSuggestions";
 
@@ -60,6 +68,37 @@ export function CardPanel({
   const [baseline, setBaseline] = useState(() => JSON.stringify(fieldsFrom(card, newDate)));
   const dirty = JSON.stringify(fields) !== baseline;
   const [discardOpen, setDiscardOpen] = useState(false);
+
+  // ── local draft (card-drafts.ts): unsaved edits survive a reload or a closed tab
+  const [store] = useState(browserStore);
+  const draftId = card?.id ?? null;
+  const [earlier, setEarlier] = useState<CardDraft | null>(() => {
+    const now = Date.now();
+    sweepDrafts(store, now);
+    return card ? readDraft(store, card.id, fieldsFrom(card, newDate), card.updated_at, now) : null;
+  });
+  const [savedIdForDraft, setSavedIdForDraft] = useState<string | null>(draftId);
+  useEffect(() => {
+    if (dirty && savedIdForDraft) saveDraft(store, savedIdForDraft, fields, Date.now());
+  }, [dirty, fields, savedIdForDraft, store]);
+
+  // ── leaving with unsaved edits: our confirm, also for in-app navigation (Back, links)
+  const leaving = useRef(false); // set right before the drawer closes itself (save, discard, delete…)
+  const dirtyRef = useRef(dirty);
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      !leaving.current &&
+      dirtyRef.current &&
+      (currentLocation.pathname !== nextLocation.pathname ||
+        currentLocation.search !== nextLocation.search),
+  );
+  const closeNow = () => {
+    leaving.current = true;
+    onClose();
+  };
   // After the first save of a new card, later saves update that row (not insert another).
   const [savedId, setSavedId] = useState<string | null>(card?.id ?? null);
   const [justSaved, setJustSaved] = useState<string | null>(null); // fields key at the last save
@@ -83,7 +122,7 @@ export function CardPanel({
     mutationFn: () => cardToIdea(card!.id),
     onSuccess: (ideaId) => {
       setMoveOpen(false);
-      onClose();
+      closeNow();
       void queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
       void queryClient.invalidateQueries({ queryKey: ["ideas"] });
       toast.show({
@@ -103,14 +142,17 @@ export function CardPanel({
   const set = <K extends keyof CardFields>(key: K, value: CardFields[K]) => {
     setFields((f) => ({ ...f, [key]: value }));
     setError(null);
+    setEarlier(null); // editing afresh: the earlier draft is no longer offered
   };
-  const setPlatform = (platform: CardPlatform | null) =>
+  const setPlatform = (platform: CardPlatform | null) => {
+    setEarlier(null);
     setFields((f) => ({
       ...f,
       platform,
       // keep the format only if the new platform has it
       format: formatFor(platform, f.format),
     }));
+  };
 
   const save = async () => {
     const title = fields.title.trim();
@@ -138,6 +180,8 @@ export function CardPanel({
     }
     setSavedId(id);
     setBaseline(JSON.stringify(fields));
+    clearDraft(store, id);
+    setSavedIdForDraft(id); // a new post's later edits are drafted under its new id
     await queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
     setSaving(false);
     const lastChecked =
@@ -145,7 +189,7 @@ export function CardPanel({
         ? check.key
         : null;
     if (!needsCheck(cleaned, lastChecked)) {
-      onClose();
+      closeNow();
       return;
     }
     // Saved. Now the advisory check: the drawer stays open to show it ("Done" closes).
@@ -215,7 +259,7 @@ export function CardPanel({
   const requestClose = () => {
     if (saving) return;
     if (dirty) setDiscardOpen(true);
-    else onClose();
+    else closeNow();
   };
   const shownCheck = check && check.key === checkKey(fields) ? check.value : null;
   const canSuggest = !!(fields.title.trim() || fields.caption?.trim());
@@ -236,7 +280,7 @@ export function CardPanel({
     // card as missing and that toast would replace this one).
     setDeleting(false);
     setConfirmOpen(false);
-    onClose();
+    closeNow();
     toast.show({ title: `Deleted “${card.title}”`, pose: "success" });
     void queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
   };
@@ -365,7 +409,7 @@ export function CardPanel({
         {/* Filled + a Flash dot while there are unsaved changes; quieter (outline) when there are none. */}
         <Button
           variant={dirty || done || saving ? "primary" : "secondary"}
-          onClick={() => (done ? onClose() : void save())}
+          onClick={() => (done ? closeNow() : void save())}
           disabled={saving}
           aria-label={dirty && !saving ? "Save (unsaved changes)" : undefined}
           data-dirty={dirty || undefined}
@@ -392,6 +436,42 @@ export function CardPanel({
         footer={footer}
       >
         <div className="flex flex-col gap-5">
+          {earlier && (
+            <div
+              role="status"
+              className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-control bg-bg px-3.5 py-2 text-small md:py-2.5"
+            >
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-flash" />
+                You have unsaved changes from earlier
+              </span>
+              <span className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFields(earlier.fields);
+                    setEarlier(null);
+                  }}
+                  className="min-h-11 font-medium text-blue hover:underline md:min-h-0"
+                >
+                  Restore
+                </button>
+                <span aria-hidden="true" className="text-muted">
+                  ·
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (draftId) clearDraft(store, draftId);
+                    setEarlier(null);
+                  }}
+                  className="min-h-11 font-medium text-blue hover:underline md:min-h-0"
+                >
+                  Discard
+                </button>
+              </span>
+            </div>
+          )}
           <Field
             label="Hook"
             action={
@@ -510,15 +590,21 @@ export function CardPanel({
         </div>
       </Drawer>
       <ConfirmDialog
-        open={discardOpen}
-        onClose={() => setDiscardOpen(false)}
+        open={discardOpen || blocker.state === "blocked"}
+        onClose={() => {
+          setDiscardOpen(false);
+          if (blocker.state === "blocked") blocker.reset();
+        }}
         title="Discard changes?"
         description="Your edits to this card haven’t been saved."
         confirmLabel="Discard"
         cancelLabel="Keep editing"
         onConfirm={() => {
           setDiscardOpen(false);
-          onClose();
+          if (savedIdForDraft) clearDraft(store, savedIdForDraft);
+          leaving.current = true;
+          if (blocker.state === "blocked") blocker.proceed();
+          else onClose();
         }}
       />
       {card && (
