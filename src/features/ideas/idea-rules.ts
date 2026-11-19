@@ -229,6 +229,33 @@ export function suggestedDay(snap: SourceSnapshot | null, today: string): string
   return day && /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= today ? day : null;
 }
 
+const PLATFORM_SHORT: Record<IdeaPlatform, string> = { instagram: "IG", tiktok: "TT" };
+
+/**
+ * A Plan {month} idea's suggestion line (14b tiles, 08 idea panel): "Suggested: Thu 31 Dec · TT Video",
+ * with `day` set while it can still be planned in one click ("Plan on Thu 31 Dec"); a day that has
+ * passed reads "(passed)" and has no one-click plan. Null for other ideas and planned ones.
+ */
+export function aiSuggestion(
+  idea: Pick<Idea, "kind" | "source_snapshot" | "platform" | "format" | "planned_card_id">,
+  today: string,
+): { label: string; day: string | null } | null {
+  const date = idea.source_snapshot?.suggested_date;
+  if (idea.kind !== "ai" || idea.planned_card_id || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return null;
+  const what = [idea.platform && PLATFORM_SHORT[idea.platform], formatLabel(idea.format)]
+    .filter(Boolean)
+    .join(" ");
+  const passed = date < today;
+  return {
+    label: `Suggested: ${plannedLabel(date)}${what ? ` · ${what}` : ""}${passed ? " (passed)" : ""}`,
+    day: passed ? null : date,
+  };
+}
+
+/** "Plan on Thu 31 Dec" */
+export const planOnLabel = (day: string) => `Plan on ${plannedLabel(day)}`;
+
 /** Main text on a card: the note, else the source post's caption, else nothing. */
 export function ideaText(idea: Pick<Idea, "note" | "source_snapshot">): string {
   return idea.note?.trim() || idea.source_snapshot?.caption?.trim() || "";

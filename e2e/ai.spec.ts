@@ -125,9 +125,12 @@ const PLAN = {
 
 type Fn = (route: Route, body: Record<string, unknown>) => Promise<void> | void;
 
+type AiFn = "ask-blip" | "plan-month" | "check-claims" | "suggest-hooks" | "suggest-caption";
+
 async function setup(
   page: Page,
-  fns: Partial<Record<"ask-blip" | "plan-month" | "check-claims" | "suggest-hooks", Fn>> = {},
+  fns: Partial<Record<AiFn, Fn>> = {},
+  opts: { ideas?: Record<string, unknown>[] } = {},
 ) {
   await page.clock.setFixedTime(NOW); // 17 Nov 2026
   await stubSupabase(page);
@@ -153,7 +156,16 @@ async function setup(
       added.push(...(Array.isArray(body) ? body : [body]));
       return r.fulfill({ status: 201, body: "" });
     }
-    return r.fulfill(json([]));
+    return r.fulfill(json(opts.ideas ?? []));
+  });
+  // plan_idea: the card on the chosen day (status Idea; origin 'ai' for AI ideas, in SQL).
+  const planCalls: Record<string, string>[] = [];
+  await page.route("**/rest/v1/rpc/plan_idea", (r) => {
+    const body = r.request().postDataJSON() as Record<string, string>;
+    planCalls.push(body);
+    return r.fulfill(
+      json({ id: `card-${planCalls.length}`, date: body.p_date, title: body.p_title }),
+    );
   });
 
   // Calendar: one card (Figma 09) + holidays.
@@ -225,7 +237,13 @@ async function setup(
 
   // The AI functions (each test passes what it needs).
   const sent: Record<string, Record<string, unknown>[]> = {};
-  for (const name of ["ask-blip", "plan-month", "check-claims", "suggest-hooks"] as const) {
+  for (const name of [
+    "ask-blip",
+    "plan-month",
+    "check-claims",
+    "suggest-hooks",
+    "suggest-caption",
+  ] as const) {
     await page.route(`**/functions/v1/${name}**`, async (r) => {
       const body = r.request().postDataJSON() as Record<string, unknown>;
       (sent[name] ??= []).push(body);
@@ -234,7 +252,7 @@ async function setup(
       return r.fulfill(json({ error: "ai_unavailable" }, 502));
     });
   }
-  return { added, sent, cardWrites };
+  return { added, sent, cardWrites, planCalls };
 }
 
 async function open(page: Page, path: string) {
@@ -402,6 +420,7 @@ const LONG = {
 test("Ask Blip — typing dots, then a word-by-word reveal; Stop, a key or a tap finishes it", async ({
   page,
 }) => {
+  test.slow(); // two ~5 s reveals of the long answer; under a full parallel run 30 s is tight
   let release!: () => void;
   const held = new Promise<void>((resolve) => (release = resolve));
   await setup(page, {
@@ -423,18 +442,17 @@ test("Ask Blip — typing dots, then a word-by-word reveal; Stop, a key or a tap
   await expect(dialog.getByTestId("blip-typing")).toHaveCount(0);
   const hey = "Hey Fatima! 👋 Ready when you are. Want to see what changed since the last pull?";
   await expect(live).toHaveText(hey); // announced once, in full, while the words appear
-  // Stop finishes the reveal at once and turns back into Send.
-  const stop = dialog.getByRole("button", { name: "Stop" });
-  if (await stop.isVisible()) await stop.click();
-  await expect(said(dialog, hey)).toBeVisible();
+  await expect(said(dialog, hey)).toBeVisible(); // a short line: no need to stop it
   await idle(dialog);
 
   // Insight: dots until the answer arrives; sources and actions only after the reveal.
+  // Each long answer takes ~5 s to reveal, so Stop / a key / a tap always lands mid-reveal.
+  const stop = dialog.getByRole("button", { name: "Stop" });
   await box.fill("Why is Hims doing better on TikTok?");
   await page.keyboard.press("Enter");
   await expect(dialog.getByTestId("blip-typing")).toBeVisible();
   release();
-  await expect(stop).toBeVisible(); // ~4 s of words at 40 words/s
+  await expect(stop).toBeVisible();
   await expect(dialog.getByText("Based on 2 posts")).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: "Add idea to board" })).toHaveCount(0);
   await expect(live).toContainText(LONG.points[7]);
@@ -444,12 +462,18 @@ test("Ask Blip — typing dots, then a word-by-word reveal; Stop, a key or a tap
   await expect(dialog.getByRole("button", { name: "Add idea to board" })).toBeVisible();
   await idle(dialog);
 
-  // A tap on the message finishes it too.
+  // Stop finishes it at once and turns back into Send.
   await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
+  await stop.click();
+  await idle(dialog);
+  await expect(said(dialog, LONG.points[7])).toHaveCount(2);
+
+  // A tap on the message finishes it too.
+  await dialog.getByRole("button", { name: "Give me 3 post ideas for OBU" }).click();
   await expect(stop).toBeVisible();
   await dialog.getByTestId("blip-thread").locator("p").filter({ hasText: /^Hims/ }).last().click();
   await idle(dialog);
-  await expect(said(dialog, LONG.points[7])).toHaveCount(2);
+  await expect(said(dialog, LONG.points[7])).toHaveCount(3);
 });
 
 test("Ask Blip — follows the reveal, but not after scrolling up", async ({ page }) => {
@@ -564,7 +588,7 @@ test("Ask Blip — “Ask Blip what changed” (05e) opens it with that question
 
 // ───────────────────────────── Plan {month} (10)
 
-test("Plan January — suggestions go to the idea board, never the calendar (10)", async ({
+test("Plan January — suggestions go to the idea board; nothing reaches the calendar by itself (10)", async ({
   page,
 }, info) => {
   const { added, sent, cardWrites } = await setup(page, {
@@ -605,6 +629,101 @@ test("Plan January — suggestions go to the idea board, never the calendar (10)
     source_snapshot: { saved_from: "plan", suggested_date: "2027-01-05" },
   });
   expect(cardWrites).toEqual([]); // nothing went onto the calendar
+});
+
+test("Plan January — Blip/Scanning with rotating lines while it plans", async ({ page }, info) => {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await setup(page, {
+    "plan-month": async (r) => {
+      await held;
+      await r.fulfill(json(PLAN));
+    },
+  });
+  await open(page, "/calendar?date=2026-12-24");
+  await page.getByRole("button", { name: "Plan January" }).click();
+  const dialog = page.getByRole("dialog", { name: "Plan January" });
+  const line = dialog.getByTestId("plan-loading-line");
+  await expect(line).toHaveText("Scanning January’s events…");
+  if (isPhone(page)) await tapTargetsOk(page);
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot(`plan-month-loading-${info.project.name}.png`);
+  await expect(line).toHaveText("Checking what’s working for competitors…", { timeout: 4000 });
+  await expect(line).toHaveText("Writing ideas…", { timeout: 4000 });
+  release();
+  await expect(dialog.getByRole("heading", { name: "6 ideas for January 2027" })).toBeVisible();
+  await expect(line).toHaveCount(0);
+});
+
+test("Plan January — “Add to calendar as Ideas” plans the ticked ones on Blip’s days", async ({
+  page,
+}) => {
+  const { added, planCalls, cardWrites } = await setup(page, {
+    "plan-month": (r) => r.fulfill(json(PLAN)),
+  });
+  await open(page, "/calendar?date=2026-12-24");
+  await page.getByRole("button", { name: "Plan January" }).click();
+  const dialog = page.getByRole("dialog", { name: "Plan January" });
+  await expect(dialog.getByRole("heading", { name: "6 ideas for January 2027" })).toBeVisible();
+  await dialog.getByText("Small steps, big changes").click(); // untick one → 5
+  await dialog.getByRole("button", { name: "Add to calendar as Ideas" }).click();
+  await expect(page.getByText("Planned 5 ideas as Idea cards")).toBeVisible();
+
+  // Each one: saved as an AI idea first, then plan_idea on its suggested day (person pressed it).
+  expect(added).toHaveLength(5);
+  expect(added.every((a) => a.kind === "ai" && a.created_by === null)).toBe(true);
+  expect(planCalls).toHaveLength(5);
+  const planned = PLAN.ideas.filter((i) => i.title !== "Small steps, big changes");
+  expect(planCalls.map((c) => c.p_date)).toEqual(planned.map((i) => i.date));
+  expect(planCalls[1]).toMatchObject({
+    p_date: "2027-01-05",
+    p_platform: "tiktok",
+    p_format: "video",
+    p_title: "Clinician answers: is Dry January worth it?",
+  });
+  expect(planCalls.map((c) => c.p_idea_id)).toEqual(added.map((a) => a.id));
+  expect(cardWrites).toEqual([]); // cards come only from plan_idea
+});
+
+const PLAN_IDEA = {
+  id: "idea-plan",
+  kind: "ai",
+  note: "Clinician answers: is Dry January worth it?\nWhy: Q&A videos are Hims’ best TikTok format.",
+  image_path: null,
+  image_width: null,
+  image_height: null,
+  link_url: null,
+  source_snapshot: { saved_from: "plan", suggested_date: "2026-12-31", reason: "Q&A videos" },
+  platform: "tiktok",
+  format: "video",
+  tags: [],
+  planned_card_id: null,
+  created_at: "2026-11-16T10:00:00Z",
+  created_by: null,
+  creator: null,
+  planned: null,
+};
+
+test("calendar idea panel — suggested day and one-click “Plan on {date}”", async ({
+  page,
+}, info) => {
+  test.skip(isPhone(page), "The idea panel isn't on phones (M07); phones plan from the board.");
+  const { planCalls } = await setup(page, {}, { ideas: [PLAN_IDEA] });
+  await open(page, "/calendar?date=2026-12-24");
+  const panel = page.getByRole("complementary", { name: "Idea board" });
+  await expect(panel.getByText("Suggested: Thu 31 Dec · TT Video")).toBeVisible();
+  await expect(panel).toHaveScreenshot(`idea-panel-suggested-${info.project.name}.png`);
+  await panel.getByRole("button", { name: "Plan on Thu 31 Dec" }).click();
+  await expect(page.getByText("Planned for Thu 31 Dec")).toBeVisible();
+  expect(planCalls).toEqual([
+    {
+      p_idea_id: "idea-plan",
+      p_date: "2026-12-31",
+      p_platform: "tiktok",
+      p_format: "video",
+      p_title: "Clinician answers: is Dry January worth it?",
+    },
+  ]);
 });
 
 test("Plan {month} — only up to 3 months ahead", async ({ page }) => {
@@ -720,4 +839,47 @@ test("card — Suggest hooks puts the picked hook in the field", async ({ page }
     "One meal doesn’t undo your progress.",
   );
   await expect(dialog.getByText("Pick a hook")).toBeHidden();
+});
+
+test("card — Suggest caption: 2 platform-style options, the picked one fills Caption", async ({
+  page,
+}, info) => {
+  const CAPTIONS = [
+    "Holiday plates, your way.\nSmall swaps, no guilt.\n\n#holidays #wellness",
+    "Party season without the stress 🎉\n\n#telehealth #holidays #wellness",
+  ];
+  const { sent } = await setup(page, {
+    "suggest-caption": (r) => r.fulfill(json({ captions: CAPTIONS })),
+  });
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  const dialog = page.getByRole("dialog", { name: /Holiday eating/ });
+  await dialog.getByRole("button", { name: "Suggest caption" }).click();
+  await expect(dialog.getByText("Pick a caption")).toBeVisible();
+  expect(sent["suggest-caption"][0]).toMatchObject({
+    clientId: "client-1",
+    title: "Holiday eating, no guilt",
+    hook: "“You don’t have to skip the party to stay on track.”",
+    platform: "tiktok",
+    format: "video",
+  });
+  const options = dialog.getByRole("button", { name: /Holiday plates|Party season/ });
+  await expect(options).toHaveCount(2);
+  if (isPhone(page)) await tapTargetsOk(page);
+  await dialog.getByText("Pick a caption").scrollIntoViewIfNeeded();
+  await expect(dialog).toHaveScreenshot(`suggest-caption-${info.project.name}.png`);
+  await options.first().click();
+  await expect(dialog.getByRole("textbox", { name: "Caption" })).toHaveValue(CAPTIONS[0]);
+  await expect(dialog.getByText("Pick a caption")).toHaveCount(0);
+});
+
+test("card — Suggest caption needs a title or hook first", async ({ page }) => {
+  await setup(page);
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  const dialog = page.getByRole("dialog", { name: /Holiday eating/ });
+  await dialog.getByRole("textbox", { name: "Title" }).fill("");
+  await dialog.getByRole("textbox", { name: "Hook" }).fill("");
+  await expect(dialog.getByRole("button", { name: "Suggest caption" })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
 });

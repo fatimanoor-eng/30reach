@@ -1091,3 +1091,52 @@ test("Plan it — already planned elsewhere: says so", async ({ page }) => {
   await plan.getByRole("button", { name: "Create calendar card" }).click();
   await expect(page.getByText("This idea is already on the calendar.")).toBeVisible();
 });
+
+// ───────────────────────────── AI ideas from Plan {month}: suggested day + one-click plan
+
+test("AI idea from Plan {month} — 'Suggested: Thu 31 Dec · TT Video' and 'Plan on Thu 31 Dec'", async ({
+  page,
+}, info) => {
+  const planned = idea("i-plan", "ai", {
+    note: "Clinician answers: is Dry January worth it?\nWhy: Q&A videos are Hims’ best TikTok format.",
+    platform: "tiktok",
+    format: "video",
+    source_snapshot: { saved_from: "plan", suggested_date: "2026-12-31", reason: "Q&A videos" },
+    created_by: null,
+    creator: null,
+    created_at: daysAgo(0),
+  });
+  const passed = idea("i-passed", "ai", {
+    note: "Thanksgiving gratitude carousel",
+    platform: "instagram",
+    format: "carousel",
+    source_snapshot: { saved_from: "plan", suggested_date: "2026-11-10" },
+    created_by: null,
+    creator: null,
+    created_at: daysAgo(1),
+  });
+  const { calls } = await setup(page, { seed: [planned, passed] });
+  await open(page, "/ideas?tab=ai");
+  const tile = page.locator("article", { hasText: "Clinician answers" });
+  await expect(tile.getByText("Suggested: Thu 31 Dec · TT Video")).toBeVisible();
+  // A passed day says so, with no one-click plan.
+  const old = page.locator("article", { hasText: "Thanksgiving gratitude" });
+  await expect(old.getByText("Suggested: Tue 10 Nov · IG Carousel (passed)")).toBeVisible();
+  await expect(old.getByRole("button", { name: /^Plan on/ })).toHaveCount(0);
+
+  if (!isDesktop(page)) await tapTargetsOk(page);
+  await noSidewaysScroll(page);
+  await expect(tile).toHaveScreenshot(`idea-ai-suggested-${info.project.name}.png`);
+
+  await tile.getByRole("button", { name: "Plan on Thu 31 Dec" }).click();
+  await expect(page.getByText("Planned for Thu 31 Dec")).toBeVisible();
+  expect(calls.find((c) => c.method === "RPC plan_idea")?.body).toEqual({
+    p_idea_id: "i-plan",
+    p_date: "2026-12-31",
+    p_platform: "tiktok",
+    p_format: "video",
+    p_title: "Clinician answers: is Dry January worth it?",
+  });
+  // Planned now: the tile shows the badge instead of the suggestion.
+  await expect(tile.getByText("Suggested: Thu 31 Dec · TT Video")).toHaveCount(0);
+});

@@ -20,7 +20,7 @@ import { formatFor, formatOptions as optionsFor, PLATFORM_OPTIONS } from "./plat
 import { DateChip, SelectChip } from "./SelectChip";
 import { StatusPills } from "./StatusPills";
 import { Tooltip } from "../../components/Tooltip";
-import { AiError, checkClaims, suggestHooks } from "../../lib/ai/ai-api";
+import { AiError, checkClaims, suggestCaption, suggestHooks } from "../../lib/ai/ai-api";
 import { checkKey, needsCheck, storedCheck } from "./card-check";
 import { HealthCheck, type HealthCheckState } from "./HealthCheck";
 import { HookSuggestions, type HooksState } from "./HookSuggestions";
@@ -73,6 +73,8 @@ export function CardPanel({
     return stored && card ? { key: checkKey(card), value: stored } : null;
   });
   const [hooks, setHooks] = useState<HooksState>({ state: "idle" });
+  // Same states as hooks; `hooks` holds the 2 captions when ready.
+  const [captions, setCaptions] = useState<HooksState>({ state: "idle" });
   const [titleError, setTitleError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -193,9 +195,28 @@ export function CardPanel({
     }
   }
 
+  async function loadCaptions() {
+    setCaptions({ state: "loading" });
+    try {
+      const r = await suggestCaption(clientId, {
+        title: fields.title.trim(),
+        hook: fields.hook?.trim() || null,
+        platform: fields.platform,
+        format: fields.format,
+      });
+      setCaptions({ state: "ready", hooks: r.captions });
+    } catch (err) {
+      setCaptions({
+        state: "failed",
+        rateLimited: err instanceof AiError && err.kind === "rate_limited",
+      });
+    }
+  }
+
   const done = justSaved !== null && justSaved === JSON.stringify(fields);
   const shownCheck = check && check.key === checkKey(fields) ? check.value : null;
   const canSuggest = !!(fields.title.trim() || fields.caption?.trim());
+  const canSuggestCaption = !!(fields.title.trim() || fields.hook?.trim());
 
   const confirmDelete = async () => {
     if (!card) return;
@@ -398,14 +419,51 @@ export function CardPanel({
               </>
             )}
           </Field>
-          <Field label="Caption">
+          <Field
+            label="Caption"
+            action={
+              <Tooltip content="Add a title or hook first" enabled={!canSuggestCaption}>
+                {(tip) => (
+                  <button
+                    type="button"
+                    aria-disabled={!canSuggestCaption || captions.state === "loading" || undefined}
+                    aria-describedby={canSuggestCaption ? undefined : tip["aria-describedby"]}
+                    onClick={(e) =>
+                      !canSuggestCaption
+                        ? tip.onToggle(e)
+                        : captions.state !== "loading" && void loadCaptions()
+                    }
+                    className={`-my-3 min-h-11 text-small font-medium md:my-0 md:min-h-0 ${
+                      canSuggestCaption
+                        ? "text-blue hover:underline"
+                        : "cursor-not-allowed text-muted"
+                    }`}
+                  >
+                    Suggest caption
+                  </button>
+                )}
+              </Tooltip>
+            }
+          >
             {(id) => (
-              <TextArea
-                id={id}
-                value={fields.caption}
-                onChange={(v) => set("caption", v)}
-                minRows
-              />
+              <>
+                <TextArea
+                  id={id}
+                  value={fields.caption}
+                  onChange={(v) => set("caption", v)}
+                  minRows
+                />
+                <HookSuggestions
+                  noun="caption"
+                  value={captions}
+                  onPick={(c) => {
+                    set("caption", c);
+                    setCaptions({ state: "idle" });
+                  }}
+                  onRetry={() => void loadCaptions()}
+                  onHide={() => setCaptions({ state: "idle" })}
+                />
+              </>
             )}
           </Field>
           <Field label="Visual idea">

@@ -136,3 +136,15 @@ export const suggestHooks = (
     format: string | null;
   },
 ) => call<{ hooks: string[] }>("suggest-hooks", { clientId, ...draft });
+
+// ───────────────────────────── suggest-caption
+/** Two caption options in the platform's style (Instagram: lines + CTA + 3–5 hashtags; TikTok: short). */
+export const suggestCaption = (
+  clientId: string,
+  draft: {
+    title: string;
+    hook: string | null;
+    platform: Platform | null;
+    format: string | null;
+  },
+) => call<{ captions: string[] }>("suggest-caption", { clientId, ...draft });

@@ -1,12 +1,15 @@
-import { CalendarDays, ImageIcon, Link2, StickyNote } from "lucide-react";
+import { CalendarCheck, CalendarDays, ImageIcon, Link2, StickyNote } from "lucide-react";
 import { Link } from "react-router";
 import { Chip } from "../../components/Chip";
 import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { formatCompact, formatShortDate } from "../../lib/format";
 import { AiTag } from "../calendar/CardTile";
+import { todayIso } from "../calendar/events/dates";
 import {
   formatLabel,
   aiSourceLabel,
+  aiSuggestion,
+  planOnLabel,
   hasPicture,
   ideaAge,
   ideaAuthor,
@@ -16,6 +19,7 @@ import {
   type Idea,
   type IdeaPlatform,
 } from "./idea-rules";
+import { usePlanOnDay } from "./usePlanOnDay";
 
 function PlatformIcon({ platform }: { platform: IdeaPlatform | null }) {
   if (platform === "instagram")
@@ -143,6 +147,8 @@ export function IdeaCard({
       : `${ideaAuthor(idea)} · ${ideaAge(idea.created_at, now, true)}`;
   const label = text ? text.replace(/\s+/g, " ").slice(0, 80) : (formatLabel(idea.kind) ?? "idea");
   const hasMeta = !!idea.platform || idea.tags.length > 0 || (idea.kind === "post" && !!format);
+  const suggestion = aiSuggestion(idea, todayIso(new Date(now)));
+  const planOn = usePlanOnDay();
 
   return (
     <article
@@ -216,6 +222,23 @@ export function IdeaCard({
           {idea.tags.map((t) => (
             <Chip key={t}>{t}</Chip>
           ))}
+        </div>
+      )}
+
+      {suggestion && (
+        <div className="flex flex-col items-start gap-0.5">
+          <p className="mono-label text-muted">{suggestion.label}</p>
+          {suggestion.day && (
+            <button
+              type="button"
+              disabled={planOn.isPending}
+              onClick={() => planOn.mutate({ idea, day: suggestion.day! })}
+              className="relative z-10 -my-2.5 inline-flex min-h-11 items-center gap-1 text-small font-medium text-blue hover:underline disabled:opacity-60 md:my-0 md:min-h-0"
+            >
+              <CalendarCheck size={12} aria-hidden="true" />
+              {planOn.isPending ? "Planning…" : planOnLabel(suggestion.day)}
+            </button>
+          )}
         </div>
       )}
 

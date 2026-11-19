@@ -8,15 +8,18 @@ export type HooksState =
   | { state: "failed"; rateLimited: boolean };
 
 /**
- * "Suggest hooks" results under the Hook field (09 / M08). No Figma frame yet (Fatima adds one later):
- * three tappable rows; picking one puts it in the Hook field. Nothing is saved until Save.
+ * "Suggest hooks" / "Suggest caption" results under their field (09 / M08). No Figma frame yet
+ * (Fatima adds one later): tappable rows (3 hooks, or 2 captions with their line breaks); picking
+ * one puts it in the field. Nothing is saved until Save.
  */
 export function HookSuggestions({
   value,
   onPick,
   onRetry,
   onHide,
+  noun = "hook",
 }: {
+  noun?: "hook" | "caption";
   value: HooksState;
   onPick: (hook: string) => void;
   onRetry: () => void;
@@ -27,7 +30,7 @@ export function HookSuggestions({
     return (
       <p role="status" className="mt-2 flex items-center gap-2 text-small text-muted">
         <BlipThinking className="h-7 w-auto shrink-0" />
-        Blip is writing hooks…
+        Blip is writing {noun}s…
       </p>
     );
   if (value.state === "failed")
@@ -49,7 +52,7 @@ export function HookSuggestions({
   return (
     <div className="mt-2 flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
-        <p className="mono-label text-muted">Pick a hook</p>
+        <p className="mono-label text-muted">Pick a {noun}</p>
         <button
           type="button"
           onClick={onHide}
@@ -64,7 +67,7 @@ export function HookSuggestions({
             <button
               type="button"
               onClick={() => onPick(h)}
-              className="min-h-11 w-full rounded-control border border-line px-3.5 py-2.5 text-left text-body-sm hover:border-ink hover:bg-bg"
+              className="min-h-11 w-full rounded-control border border-line px-3.5 py-2.5 text-left text-body-sm whitespace-pre-line hover:border-ink hover:bg-bg"
             >
               {h}
             </button>

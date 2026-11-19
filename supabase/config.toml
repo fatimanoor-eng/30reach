@@ -477,3 +477,8 @@ entrypoint = "./functions/check-claims/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/suggest-hooks/index.ts"
+
+[functions.suggest-caption]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/suggest-caption/index.ts"

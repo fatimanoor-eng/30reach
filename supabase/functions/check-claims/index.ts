@@ -13,7 +13,13 @@
 // Who can call it: team only (verify_jwt → withSupabase → is_team()). Writes go through the
 // caller's RLS (calendar_cards is team-editable).
 
-import { CLAIMS_SCHEMA, parseClaimsInput, textHash, validateClaims } from "../_shared/ai-logic.ts";
+import {
+  CLAIMS_SCHEMA,
+  parseClaimsInput,
+  textHash,
+  todayContext,
+  validateClaims,
+} from "../_shared/ai-logic.ts";
 import { claimsSystem, claimsUser } from "../_shared/ai-prompts.ts";
 import { aiFailure, groqJson } from "../_shared/ai-server.ts";
 import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
@@ -37,7 +43,7 @@ export default {
     const result = await groqJson({
       admin: ctx.supabaseAdmin,
       fn: "check-claims",
-      system: claimsSystem(),
+      system: claimsSystem(todayContext().label),
       user: claimsUser(input.draft),
       schema: CLAIMS_SCHEMA,
       maxTokens: 1200,

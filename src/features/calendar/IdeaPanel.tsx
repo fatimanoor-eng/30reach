@@ -1,10 +1,12 @@
 import { useDraggable } from "@dnd-kit/core";
-import { Plus } from "lucide-react";
+import { CalendarCheck, Plus } from "lucide-react";
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { Link, useNavigate } from "react-router";
 import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { formatShortDate } from "../../lib/format";
-import { ideaAuthor, ideaText, type Idea } from "../ideas/idea-rules";
+import { aiSuggestion, ideaAuthor, ideaText, planOnLabel, type Idea } from "../ideas/idea-rules";
+import { usePlanOnDay } from "../ideas/usePlanOnDay";
+import { todayIso } from "./events/dates";
 
 /** "FROM HERS · 12 NOV", "BLIP" (AI ideas) or the author's first name (08 idea panel). */
 function source(idea: Idea): string {
@@ -22,6 +24,7 @@ export const IdeaPanelItem = forwardRef<
   const Icon =
     idea.platform === "instagram" ? InstagramIcon : idea.platform === "tiktok" ? TikTokIcon : null;
   const text = ideaText(idea) || idea.link_url || "Idea";
+  const suggestion = aiSuggestion(idea, todayIso());
   return (
     <button
       ref={ref}
@@ -36,6 +39,7 @@ export const IdeaPanelItem = forwardRef<
         {Icon && <Icon size={14} aria-hidden="true" className="shrink-0" />}
       </span>
       <span className="line-clamp-3 text-small font-medium">{text}</span>
+      {suggestion && <span className="mono-label text-muted">{suggestion.label}</span>}
     </button>
   );
 });
@@ -43,8 +47,10 @@ export const IdeaPanelItem = forwardRef<
 function DraggableIdea({ idea }: { idea: Idea }) {
   const navigate = useNavigate();
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: `idea:${idea.id}` });
+  const day = aiSuggestion(idea, todayIso())?.day ?? null;
+  const planOn = usePlanOnDay();
   return (
-    <li>
+    <li className="flex flex-col gap-1">
       <IdeaPanelItem
         ref={setNodeRef}
         idea={idea}
@@ -56,6 +62,18 @@ function DraggableIdea({ idea }: { idea: Idea }) {
         aria-label={`${ideaText(idea).slice(0, 80) || "Idea"}. Drag onto a day, or open to plan it.`}
         className={isDragging ? "opacity-40" : ""}
       />
+      {/* Beside the draggable card, not inside it (a button can't hold a button). */}
+      {day && (
+        <button
+          type="button"
+          disabled={planOn.isPending}
+          onClick={() => planOn.mutate({ idea, day })}
+          className="inline-flex min-h-11 items-center gap-1 self-start px-1 text-small font-medium text-blue hover:underline disabled:opacity-60 md:min-h-6"
+        >
+          <CalendarCheck size={12} aria-hidden="true" />
+          {planOn.isPending ? "Planning…" : planOnLabel(day)}
+        </button>
+      )}
     </li>
   );
 }

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { PlanSuggestion } from "../../lib/ai/ai-api";
-import { factChips, ideaFromSuggestion, planEvents, planTarget } from "./plan-month";
+import {
+  factChips,
+  ideaFromSuggestion,
+  PLAN_LINE_MS,
+  planEvents,
+  planLoadingLines,
+  planTarget,
+} from "./plan-month";
 
 describe("planTarget: the month after the one in focus", () => {
   it("plans next month from today's month", () => {
@@ -114,5 +121,16 @@ describe("ideaFromSuggestion: idea board, never the calendar", () => {
       source_post_id: "post-1",
       source_snapshot: { saved_from: "plan", suggested_date: "2027-01-05", brand: "Hims" },
     });
+  });
+});
+
+describe("planLoadingLines: what Blip/Scanning says while planning", () => {
+  it("events, competitors, then writing, in turn", () => {
+    expect(planLoadingLines("December")).toEqual([
+      "Scanning December’s events…",
+      "Checking what’s working for competitors…",
+      "Writing ideas…",
+    ]);
+    expect(PLAN_LINE_MS).toBeGreaterThanOrEqual(1500);
   });
 });

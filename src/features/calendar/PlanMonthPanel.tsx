@@ -1,22 +1,32 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { BlipError, BlipIdle, BlipThinking } from "../../components/blip/BlipPoses";
+import { BlipError, BlipIdle, BlipScanning } from "../../components/blip/BlipPoses";
 import { Button } from "../../components/Button";
 import { Drawer } from "../../components/Drawer";
 import { useToast } from "../../components/toast-context";
 import { AI_COPY, AiError, planMonth, type PlanSuggestion } from "../../lib/ai/ai-api";
-import { createIdea } from "../ideas/ideas-api";
+import { createIdea, planIdea } from "../ideas/ideas-api";
+import { plannedLabel } from "../ideas/idea-rules";
 import { FORMAT_NAME, PLATFORM_BAR, PLATFORM_SHORT } from "./calendar-ui";
 import { shortDay } from "./format";
-import { factChips, ideaFromSuggestion, planEvents } from "./plan-month";
+import {
+  factChips,
+  ideaFromSuggestion,
+  PLAN_LINE_MS,
+  planEvents,
+  planLoadingLines,
+} from "./plan-month";
 import { useHolidays } from "./useHolidays";
 
 /**
- * 10 Plan {month}: Blip suggests ~6 dated post ideas with reasons; the ones the team ticks go to the
- * IDEA BOARD (kind 'ai'), never onto the calendar (CLAUDE.md rule 6). Drawer from 768 px (600 px wide),
- * full screen on phones. One Groq request per open (kept for the session); "Regenerate" asks again.
+ * 10 Plan {month}: Blip suggests ~6 dated post ideas with reasons. The team ticks some and either
+ * adds them to the IDEA BOARD (kind 'ai'), or, by pressing "Add to calendar as Ideas", plans them on
+ * Blip's suggested days as Idea cards (origin 'ai', via the board + plan_idea, so each keeps its idea).
+ * AI ideas only reach the calendar by a person's explicit action (CLAUDE.md rule 6).
+ * Drawer from 768 px (600 px wide), full screen on phones. One Groq request per open (kept for the
+ * session); "Regenerate" asks again. Loading: Blip/Scanning with rotating lines.
  */
 export function PlanMonthPanel({
   open,
@@ -66,12 +76,12 @@ export function PlanMonthPanel({
   const queryClient = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(false);
+  const [saving, setSaving] = useState<"board" | "calendar" | null>(null);
+  const [saveError, setSaveError] = useState<"board" | "calendar" | null>(null);
 
   async function save() {
-    setSaving(true);
-    setSaveError(false);
+    setSaving("board");
+    setSaveError(null);
     let added = 0;
     try {
       for (const s of picked) {
@@ -79,9 +89,9 @@ export function PlanMonthPanel({
         added++;
       }
     } catch {
-      setSaveError(true);
+      setSaveError("board");
     }
-    setSaving(false);
+    setSaving(null);
     if (added) void queryClient.invalidateQueries({ queryKey: ["ideas"] });
     if (added < picked.length) return; // stay open: the error says what happened
     onClose();
@@ -93,8 +103,47 @@ export function PlanMonthPanel({
     });
   }
 
+  /** Each ticked idea → the board, then plan_idea on its suggested day (an Idea card, origin 'ai'). */
+  async function planAll() {
+    setSaving("calendar");
+    setSaveError(null);
+    const planned: { id: string; date: string }[] = [];
+    let touched = false;
+    try {
+      for (const s of picked) {
+        const idea = await createIdea(clientId, ideaFromSuggestion(s));
+        touched = true;
+        planned.push(
+          await planIdea({
+            ideaId: idea.id,
+            date: s.date,
+            platform: s.platform,
+            format: s.format,
+            title: s.title,
+          }),
+        );
+      }
+    } catch {
+      setSaveError("calendar");
+    }
+    setSaving(null);
+    if (touched) {
+      void queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      void queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
+    }
+    if (planned.length < picked.length) return; // stay open: the error says what happened
+    onClose();
+    const first = [...planned].sort((a, b) => a.date.localeCompare(b.date))[0];
+    toast.show({
+      title: `Planned ${planned.length} ${planned.length === 1 ? "idea" : "ideas"} as Idea cards`,
+      detail: `On Blip’s suggested days, from ${plannedLabel(first.date)}. Move or edit them any time.`,
+      pose: "success",
+      action: { label: "Open", onClick: () => navigate(`/calendar?date=${first.date}`) },
+    });
+  }
+
   const regenerate = () => {
-    setSaveError(false);
+    setSaveError(null);
     setRound((r) => r + 1);
   };
   const loading = !plan.data && !plan.isError;
@@ -112,30 +161,41 @@ export function PlanMonthPanel({
     </div>
   );
 
+  const busy = saving !== null;
   const footer = (
-    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <p className="text-small text-muted md:max-w-62.5">
-        Ideas go to the idea board first. Nothing is scheduled until you drag it.
+    <div className="flex flex-col gap-3">
+      <p className="text-small text-muted">
+        Add them to the idea board, or put them on the calendar as Idea cards on Blip’s days.
+        Nothing is posted.
       </p>
-      <div className="flex gap-2.5">
-        <Button
-          variant="secondary"
-          onClick={regenerate}
-          disabled={loading || saving}
-          className="flex-1 md:flex-none"
-        >
-          Regenerate
-        </Button>
+      {/* Phones: the main action first, full width; then the two secondary ones side by side. */}
+      <div className="grid grid-cols-2 gap-2.5 md:flex md:justify-end">
         <Button
           onClick={() => void save()}
-          disabled={!plan.data || picked.length === 0 || saving}
-          className="flex-1 md:flex-none"
+          disabled={!plan.data || picked.length === 0 || busy}
+          className="col-span-2 md:order-3"
         >
-          {saving
+          {saving === "board"
             ? "Adding…"
             : picked.length === 0
               ? "Add to idea board"
               : `Add ${picked.length} to idea board`}
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={regenerate}
+          disabled={loading || busy}
+          className="md:order-1"
+        >
+          Regenerate
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => void planAll()}
+          disabled={!plan.data || picked.length === 0 || busy}
+          className="md:order-2"
+        >
+          {saving === "calendar" ? "Planning…" : "Add to calendar as Ideas"}
         </Button>
       </div>
     </div>
@@ -165,14 +225,7 @@ export function PlanMonthPanel({
           </div>
         )}
 
-        {loading && (
-          <div className="flex items-center gap-3 py-2">
-            <BlipThinking className="h-14 w-auto shrink-0" />
-            <p className="text-body-sm text-muted">
-              Blip is planning {monthName}: events, what works for competitors and your board…
-            </p>
-          </div>
-        )}
+        {loading && <PlanLoading monthName={monthName} />}
 
         {error && (
           <div role="alert" className="flex items-start gap-3 py-2">
@@ -215,14 +268,38 @@ export function PlanMonthPanel({
           </ul>
         )}
 
-        {saveError && (
+        {saveError === "board" && (
           <p role="alert" className="text-small text-spark">
             Couldn’t add all of them. The ones that were added are on the idea board; try again for
             the rest.
           </p>
         )}
+        {saveError === "calendar" && (
+          <p role="alert" className="text-small text-spark">
+            Couldn’t plan all of them. Planned ones are on the calendar; any others are on the idea
+            board, ready to plan.
+          </p>
+        )}
       </div>
     </Drawer>
+  );
+}
+
+/** Blip/Scanning (static for now, animated in Slice 13) with lines that take turns. */
+function PlanLoading({ monthName }: { monthName: string }) {
+  const lines = planLoadingLines(monthName);
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => setI((n) => (n + 1) % lines.length), PLAN_LINE_MS);
+    return () => window.clearInterval(t);
+  }, [lines.length]);
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <BlipScanning className="h-14 w-auto shrink-0" />
+      <p className="text-body-sm text-muted" data-testid="plan-loading-line">
+        {lines[i]}
+      </p>
+    </div>
   );
 }
 

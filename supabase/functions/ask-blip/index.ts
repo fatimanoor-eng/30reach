@@ -25,6 +25,7 @@ import {
   firstName,
   ideaFromAnswer,
   parseAskInput,
+  todayContext,
   validateAskAnswer,
   validateLightAnswer,
 } from "../_shared/ai-logic.ts";
@@ -41,6 +42,7 @@ export default {
     const input = parseAskInput(await readJson(req));
     if ("error" in input) return json(input, 400);
 
+    const today = todayContext().label;
     const userId = ctx.userClaims?.sub;
     const profileQuery = userId
       ? ctx.supabase.from("profiles").select("full_name, email").eq("id", userId).maybeSingle()
@@ -60,6 +62,7 @@ export default {
         system: askLightSystem({
           client: (clientRow.data as { name: string }).name,
           firstName: firstName(who?.full_name, who?.email),
+          today,
         }),
         user: askLightUser({ history: input.history, question: input.question }),
         schema: ASK_LIGHT_SCHEMA,
@@ -76,7 +79,7 @@ export default {
     ]);
     if (!loaded.ok) return loadFailure(loaded.error);
 
-    const { refs, json: summaryJson } = buildSummary(loaded.data);
+    const { refs, labels, json: summaryJson } = buildSummary(loaded.data);
     const who = profile.data as { full_name: string | null; email: string } | null;
     const client = loaded.data.clientName;
 
@@ -84,13 +87,14 @@ export default {
       admin: ctx.supabaseAdmin,
       fn: "ask-blip",
       label: "ask-blip full",
-      system: askSystem({ client, firstName: firstName(who?.full_name, who?.email) }),
+      system: askSystem({ client, firstName: firstName(who?.full_name, who?.email), today }),
       user: askUser({ summaryJson, history: input.history, question: input.question }),
       schema: ASK_SCHEMA,
       // Reasoning over the ~2.5K-token summary counts here too; 1,500 could run out before the JSON
       // was finished (Groq 400). ~3K in + 3K max stays under the 8K tokens/minute.
       maxTokens: 3000,
-      validate: (raw) => validateAskAnswer(raw, refs),
+      // Refs become "Ro’s reel from 9 Nov" (or go) in every text field.
+      validate: (raw) => validateAskAnswer(raw, refs, labels),
     });
     if (!result.ok) return aiFailure(result);
 

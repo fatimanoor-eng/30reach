@@ -12,7 +12,13 @@
 // the browser puts the chosen hook into the Hook field and the team saves the card as usual.
 // Who can call it: team only (verify_jwt → withSupabase → is_team()).
 
-import { HOOKS_SCHEMA, hookContext, parseHooksInput, validateHooks } from "../_shared/ai-logic.ts";
+import {
+  HOOKS_SCHEMA,
+  hookContext,
+  parseHooksInput,
+  todayContext,
+  validateHooks,
+} from "../_shared/ai-logic.ts";
 import { hooksSystem, hooksUser } from "../_shared/ai-prompts.ts";
 import { aiFailure, groqJson, loadPull } from "../_shared/ai-server.ts";
 import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
@@ -43,6 +49,7 @@ export default {
       system: hooksSystem({
         client: (client as { name: string } | null)?.name ?? "the client",
         platform: input.platform,
+        today: todayContext().label,
       }),
       user: hooksUser({ title: input.title, caption: input.caption, format: input.format, works }),
       schema: HOOKS_SCHEMA,

@@ -112,6 +112,23 @@ const DAY_MONTH_YEAR = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   year: "numeric",
 });
+const LONG_DATE = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "America/New_York",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+const ISO_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" });
+/**
+ * Today for the prompts (US Eastern, the team's time): "Thursday 19 November 2026", so the model
+ * never guesses the year (a hook once said "your 2023 journey").
+ */
+export function todayContext(now: Date = new Date()): { iso: string; label: string; year: number } {
+  const iso = ISO_DAY.format(now);
+  return { iso, label: LONG_DATE.format(now).replace(",", ""), year: Number(iso.slice(0, 4)) };
+}
+
 /** "9 Nov" (US Eastern). */
 export const dayMonth = (iso: string) => DAY_MONTH.format(new Date(iso));
 /** "17 Nov 2026" (US Eastern). */
@@ -283,7 +300,7 @@ export function pickTopPosts(posts: SummaryPost[], max: number = LIMITS.topPosts
 export function buildSummary(
   data: PullData,
   opts: { topPosts?: number; captionChars?: number } = {},
-): { summary: Summary; refs: string[]; json: string } {
+): { summary: Summary; refs: string[]; labels: string[]; json: string } {
   const name = new Map(data.brands.map((b) => [b.id, b.name]));
   const brandName = (id: string) => name.get(id) ?? "Unknown";
   const prevIds = data.previous ? new Set(data.previous.posts.map((p) => p.external_id)) : null;
@@ -384,7 +401,12 @@ export function buildSummary(
     if (maxTop > 10) return buildSummary(data, { topPosts: maxTop - 5, captionChars });
     if (captionChars > 60) return buildSummary(data, { topPosts: maxTop, captionChars: 60 });
   }
-  return { summary, refs: top.map((p) => p.id), json };
+  return {
+    summary,
+    refs: top.map((p) => p.id),
+    labels: top.map((p) => refLabel(brandName(p.competitor_id), p.format, p.posted_at)),
+    json,
+  };
 }
 
 /** "p3" / "post:p3" / "[post:p3]" → the real post id, or null. */
@@ -394,12 +416,35 @@ export function refToId(ref: string, refs: string[]): string | null {
   return refs[Number(m[1]) - 1] ?? null;
 }
 
-/** Inline citations the model may still write ("[post:p3]", "[p3]") — removed from shown text. */
-const INLINE_REF = /\s*\[(?:post:)?p\d{1,3}(?:\s*,\s*(?:post:)?p\d{1,3})*\]/gi;
-const inlineRefs = (s: string) =>
-  [...s.matchAll(/\[((?:post:)?p\d{1,3}(?:\s*,\s*(?:post:)?p\d{1,3})*)\]/gi)].flatMap((m) =>
-    [...m[1].matchAll(/p(\d{1,3})/gi)].map((x) => `p${x[1]}`),
-  );
+// ───────────────────────────────────────────── post refs (p1…pN) never reach the screen
+
+/** "Ro’s reel from 9 Nov", "Hims’ video from 2 Nov", "Found’s post" (what a ref means to a person). */
+export function refLabel(brand: string, format: string | null, postedAt: string | null): string {
+  const owner = /s$/i.test(brand) ? `${brand}’` : `${brand}’s`;
+  return `${owner} ${format ?? "post"}${postedAt ? ` from ${dayMonth(postedAt)}` : ""}`;
+}
+
+/** A citation group: "[p3]", "[post:p3, p5]", "(p2)", "(p1 and p4)". Removed: the sources list shows them. */
+const CITE_GROUP =
+  /\s*[[(]\s*(?:post:?\s*)?p\d{1,3}(?:\s*(?:,|and|&)\s*(?:post:?\s*)?p\d{1,3})*\s*[\])]/gi;
+/** A ref inside a sentence: "p3", "post p3", "post:p3". */
+const BARE_REF = /\b(?:post:?\s*)?p(\d{1,3})\b/gi;
+
+/** Every ref a text mentions, bracketed or not ("p3"), for citations. */
+const refsIn = (s: string) => [...s.matchAll(/\bp(\d{1,3})\b/gi)].map((m) => `p${m[1]}`);
+
+/**
+ * Text with no internal refs: citation groups go, refs inside a sentence become what they are
+ * ("p3 got 9.8K likes" → "Ro’s reel from 9 Nov got 9.8K likes"; unknown → "a top post").
+ */
+export function humanizeRefs(text: string, labels: string[]): string {
+  return text
+    .replace(CITE_GROUP, "")
+    .replace(BARE_REF, (_m, n: string) => labels[Number(n) - 1] ?? "a top post")
+    .replace(/[ \t]+([.,;:!?])/g, "$1")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
 
 /** Engagement-ranked: the "30reach looked at" chips on 10 come from code, never the model. */
 export function planFacts(posts: SummaryPost[], eventCount: number, boardIdeas: number) {
@@ -680,6 +725,11 @@ export const HOOKS_SCHEMA = {
   schema: strictObject({ hooks: strArray }),
 };
 
+export const CAPTIONS_SCHEMA = {
+  name: "captions",
+  schema: strictObject({ captions: strArray }),
+};
+
 // ───────────────────────────────────────────── inputs (from the browser)
 export type InputError = { error: string };
 const bad = (error: string): InputError => ({ error });
@@ -790,11 +840,13 @@ export type AskInsight = {
 export type AskChat = { type: "chat"; message: string };
 export type AskAnswer = AskInsight | AskChat;
 
-const cleanChat = (s: string, max: number) => clip(s.replace(INLINE_REF, ""), max);
+const cleanChat = (s: string, max: number, labels: string[] = []) =>
+  clip(humanizeRefs(s, labels), max);
 
 const EMOJI =
   /\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|\u{FE0F}|\u{200D}\p{Extended_Pictographic})*|\p{Regional_Indicator}{1,2}/gu;
 /** Keeps the first `max` emoji (a ZWJ sequence or flag counts as one) and drops the rest. */
+const EMOJI_SEQ = EMOJI;
 export function capEmoji(s: string, max: number): string {
   let n = 0;
   return squish(s.replace(EMOJI, (m) => (++n <= max ? m : "")));
@@ -813,7 +865,11 @@ export const CHAT_EMOJI = 2;
  * A missing / unknown type is worked out from the content (lead → insight, message → chat).
  * Citations are mapped back to real post ids; unknown refs are dropped.
  */
-export function validateAskAnswer(raw: unknown, refs: string[]): AskAnswer | null {
+export function validateAskAnswer(
+  raw: unknown,
+  refs: string[],
+  labels: string[] = [],
+): AskAnswer | null {
   if (!isObj(raw)) return null;
   const hasLead = isStr(raw.lead) && !!cleanChat(raw.lead, 300);
   const hasMessage = isStr(raw.message) && !!raw.message.trim();
@@ -825,20 +881,17 @@ export function validateAskAnswer(raw: unknown, refs: string[]): AskAnswer | nul
         : hasMessage
           ? "chat"
           : null;
-  if (type === "chat") return validateLightAnswer(raw);
+  if (type === "chat") return validateLightAnswer(raw, labels);
   if (type !== "insight" || !hasLead || !Array.isArray(raw.points)) return null;
-  const lead = cleanChat(raw.lead as string, 300);
+  const lead = cleanChat(raw.lead as string, 300, labels);
   const pointTexts = raw.points.filter(isStr);
   const points = pointTexts
-    .map((p) => cleanChat(p, 400))
+    .map((p) => cleanChat(p, 400, labels))
     .filter(Boolean)
     .slice(0, 5);
   const forClient = isStr(raw.for_client) ? raw.for_client : "";
   const postRefs = Array.isArray(raw.post_refs) ? raw.post_refs.filter(isStr) : [];
-  const cited = [
-    ...postRefs,
-    ...[raw.lead as string, ...pointTexts, forClient].flatMap(inlineRefs),
-  ];
+  const cited = [...postRefs, ...[raw.lead as string, ...pointTexts, forClient].flatMap(refsIn)];
   const postIds = [
     ...new Set(cited.map((r) => refToId(r, refs)).filter((id): id is string => !!id)),
   ];
@@ -846,16 +899,16 @@ export function validateAskAnswer(raw: unknown, refs: string[]): AskAnswer | nul
     type: "insight",
     lead,
     points,
-    forClient: cleanChat(forClient, 300),
+    forClient: cleanChat(forClient, 300, labels),
     postIds: postIds.slice(0, 8),
     inData: typeof raw.in_data === "boolean" ? raw.in_data : points.length > 0,
   };
 }
 
 /** A chat reply (light mode, or type "chat"): clipped, ≤ 2 emoji, no p-refs. Empty → null (retry). */
-export function validateLightAnswer(raw: unknown): AskChat | null {
+export function validateLightAnswer(raw: unknown, labels: string[] = []): AskChat | null {
   if (!isObj(raw) || !isStr(raw.message)) return null;
-  const message = capEmoji(cleanChat(raw.message, CHAT_CHARS), CHAT_EMOJI);
+  const message = capEmoji(cleanChat(raw.message, CHAT_CHARS, labels), CHAT_EMOJI);
   return message ? { type: "chat", message } : null;
 }
 
@@ -892,7 +945,7 @@ const daysInMonth = (month: string) => {
  */
 export function validatePlan(
   raw: unknown,
-  ctx: { month: string; today: string; refs: string[]; min?: number },
+  ctx: { month: string; today: string; refs: string[]; labels?: string[]; min?: number },
 ): PlanIdea[] | null {
   if (!isObj(raw) || !Array.isArray(raw.ideas)) return null;
   const last = `${ctx.month}-${String(daysInMonth(ctx.month)).padStart(2, "0")}`;
@@ -904,16 +957,22 @@ export function validatePlan(
     const platform = i.platform as Platform;
     if (!PLATFORMS.includes(platform)) continue;
     if (!FORMATS_BY_PLATFORM[platform].includes(i.format as Format)) continue;
-    const title = isStr(i.title) ? clip(stripEmoji(i.title), LIMITS.titleChars) : "";
+    const labels = ctx.labels ?? [];
+    const title = isStr(i.title)
+      ? clip(stripEmoji(humanizeRefs(i.title, labels)), LIMITS.titleChars)
+      : "";
     const reason = isStr(i.reason)
-      ? clip(stripEmoji(i.reason.replace(INLINE_REF, "")), LIMITS.reasonChars)
+      ? clip(stripEmoji(humanizeRefs(i.reason, labels)), LIMITS.reasonChars)
       : "";
     if (!title || !reason) continue;
     if (healthRedFlags(`${title} ${reason}`).length) continue;
     const key = title.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    const refs = Array.isArray(i.source_refs) ? i.source_refs.filter(isStr) : [];
+    const refs = [
+      ...(Array.isArray(i.source_refs) ? i.source_refs.filter(isStr) : []),
+      ...(isStr(i.reason) ? refsIn(i.reason) : []),
+    ];
     ideas.push({
       date: i.date,
       platform,
@@ -1001,6 +1060,101 @@ export function hookContext(data: Pick<PullData, "brands" | "posts">, platform: 
         views: p.views,
       }))
       .filter((p) => p.first_line),
+  };
+}
+
+// ───────────────────────────────────────────── Suggest caption
+
+export type CaptionInput = {
+  clientId: string;
+  title: string;
+  hook: string;
+  platform: Platform | null;
+  format: Format | null;
+};
+/** Title and/or hook (one is needed), platform and format. */
+export function parseCaptionInput(body: Record<string, unknown>): CaptionInput | InputError {
+  if (!isUuid(body.clientId)) return bad("bad_client");
+  const title = optText(body.title, 200);
+  const hook = optText(body.hook, LIMITS.fieldChars);
+  if (!title && !hook) return bad("nothing_to_use");
+  const platform = PLATFORMS.includes(body.platform as Platform)
+    ? (body.platform as Platform)
+    : null;
+  const format =
+    platform && FORMATS_BY_PLATFORM[platform].includes(body.format as Format)
+      ? (body.format as Format)
+      : null;
+  return { clientId: body.clientId, title, hook, platform, format };
+}
+
+/** Platform style. No platform yet: something in between. */
+export const CAPTION_STYLE: Record<
+  Platform | "any",
+  { lines: [number, number]; tags: [number, number]; chars: number }
+> = {
+  instagram: { lines: [3, 6], tags: [3, 5], chars: 900 },
+  tiktok: { lines: [1, 2], tags: [2, 4], chars: 300 },
+  any: { lines: [2, 4], tags: [3, 5], chars: 600 },
+};
+export const CAPTION_EMOJI = 2;
+const HASHTAG = /#[\p{L}\p{N}_]+/gu;
+
+/**
+ * Captions: wrapping quotes removed, ≤ 2 emoji, hashtags moved to one line at the end (at most the
+ * platform's maximum, no repeats), no more body lines than the platform allows, within its length,
+ * no code red flags, no repeats. The first try needs 2 options; the retry accepts 1.
+ */
+export function validateCaptions(
+  raw: unknown,
+  platform: Platform | null,
+  min = 2,
+): string[] | null {
+  if (!isObj(raw) || !Array.isArray(raw.captions)) return null;
+  const style = CAPTION_STYLE[platform ?? "any"];
+  const out: string[] = [];
+  for (const c of raw.captions) {
+    if (!isStr(c)) continue;
+    let emoji = 0;
+    const text = c
+      .trim()
+      .replace(/^["'“”‘’]+|["'“”‘’]+$/g, "")
+      .replace(EMOJI_SEQ, (m) => (++emoji <= CAPTION_EMOJI ? m : ""));
+    const tags = [...new Set((text.match(HASHTAG) ?? []).map((t) => t.toLowerCase()))].slice(
+      0,
+      style.tags[1],
+    );
+    const lines = text
+      .replace(HASHTAG, "")
+      .split("\n")
+      .map((l) => l.replace(/[ \t]+/g, " ").trim())
+      .filter((l) => l && !/^[.,·•|-]+$/.test(l));
+    if (!lines.length || lines.length > style.lines[1]) continue;
+    const body = lines.join("\n");
+    if (healthRedFlags(body).length) continue;
+    const caption = tags.length ? `${body}\n\n${tags.join(" ")}` : body;
+    if (caption.length > style.chars) continue;
+    if (out.some((o) => o.toLowerCase() === caption.toLowerCase())) continue;
+    out.push(caption);
+  }
+  return out.length >= min ? out.slice(0, 2) : null;
+}
+
+/** What works on that platform for the caption prompt: the hooks context + its top hashtags. */
+export function captionContext(
+  data: Pick<PullData, "brands" | "posts">,
+  platform: Platform | null,
+) {
+  const posts = platform ? data.posts.filter((p) => p.platform === platform) : data.posts;
+  const count = new Map<string, number>();
+  for (const p of posts)
+    for (const t of new Set(p.hashtags ?? [])) count.set(t, (count.get(t) ?? 0) + 1);
+  return {
+    ...hookContext(data, platform),
+    top_hashtags: [...count]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 8)
+      .map(([tag]) => tag),
   };
 }
 

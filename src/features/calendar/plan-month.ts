@@ -1,6 +1,7 @@
 // Plan {month} (10) rules. Pure functions, tested in plan-month.test.ts.
-// The AI only SUGGESTS. Events come from code rules + Nager (never AI), and picked ideas are saved to
-// the idea board (kind 'ai'), never straight onto the calendar (CLAUDE.md rules 5 and 6).
+// The AI only SUGGESTS. Events come from code rules + Nager (never AI). Picked ideas are saved to the
+// idea board (kind 'ai'); they reach the calendar only when a person plans them ("Add to calendar as
+// Ideas", "Plan on {date}", Plan it or drag), CLAUDE.md rules 5 and 6.
 
 import type { PlanEvent, PlanFacts, PlanSuggestion } from "../../lib/ai/ai-api";
 import type { NewIdea } from "../ideas/ideas-api";
@@ -85,3 +86,11 @@ export function ideaFromSuggestion(s: PlanSuggestion): NewIdea {
     },
   };
 }
+
+/** While Blip plans: Blip/Scanning with these lines, one after another (they loop). */
+export const planLoadingLines = (monthName: string) => [
+  `Scanning ${monthName}’s events…`,
+  "Checking what’s working for competitors…",
+  "Writing ideas…",
+];
+export const PLAN_LINE_MS = 2200;

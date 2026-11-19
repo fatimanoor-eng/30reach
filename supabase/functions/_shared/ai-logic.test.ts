@@ -3,6 +3,14 @@ import {
   ASK_LIGHT_SCHEMA,
   ASK_SCHEMA,
   bestFormat,
+  CAPTION_STYLE,
+  CAPTIONS_SCHEMA,
+  captionContext,
+  humanizeRefs,
+  parseCaptionInput,
+  refLabel,
+  todayContext,
+  validateCaptions,
   capEmoji,
   CHAT_CHARS,
   bestSlot,
@@ -48,6 +56,10 @@ import {
   askLightUser,
   askSystem,
   askUser,
+  captionsSystem,
+  captionsUser,
+  NO_YEARS,
+  todayLine,
   BLIP_VOICE_CHAT,
   BLIP_VOICE_JSON,
   claimsSystem,
@@ -287,9 +299,14 @@ describe("Groq responses", () => {
       }
       if (s.type === "array") check(s.items as Record<string, unknown>);
     };
-    [ASK_SCHEMA, ASK_LIGHT_SCHEMA, PLAN_SCHEMA, CLAIMS_SCHEMA, HOOKS_SCHEMA].forEach((s) =>
-      check(s.schema),
-    );
+    [
+      ASK_SCHEMA,
+      ASK_LIGHT_SCHEMA,
+      PLAN_SCHEMA,
+      CLAIMS_SCHEMA,
+      HOOKS_SCHEMA,
+      CAPTIONS_SCHEMA,
+    ].forEach((s) => check(s.schema));
   });
 
   it("schemas use only keywords Groq's strict mode documents (no minItems, maxLength, format…)", () => {
@@ -315,7 +332,14 @@ describe("Groq responses", () => {
           walk(v, `${path}.${k}`);
       if (s.type === "array") walk(s.items as Record<string, unknown>, `${path}[]`);
     };
-    for (const s of [ASK_SCHEMA, ASK_LIGHT_SCHEMA, PLAN_SCHEMA, CLAIMS_SCHEMA, HOOKS_SCHEMA]) {
+    for (const s of [
+      ASK_SCHEMA,
+      ASK_LIGHT_SCHEMA,
+      PLAN_SCHEMA,
+      CLAIMS_SCHEMA,
+      HOOKS_SCHEMA,
+      CAPTIONS_SCHEMA,
+    ]) {
       expect(s.name).toMatch(/^[a-z_]{1,64}$/);
       walk(s.schema, s.name);
     }
@@ -416,6 +440,8 @@ const without = (o: Record<string, unknown>, k: string) => {
   delete copy[k];
   return copy;
 };
+
+const TODAY = "Thursday 19 November 2026";
 
 describe("validateAskAnswer", () => {
   const refs = ["id-1", "id-2", "id-3"];
@@ -931,7 +957,7 @@ describe("prompts", () => {
     Object.keys(schema.properties).sort();
 
   it("ask prompt: a complete insight and chat example, every key, plus 'always include every key'", () => {
-    const p = askSystem({ client: "OBU Health", firstName: "Fatima" });
+    const p = askSystem({ client: "OBU Health", firstName: "Fatima", today: TODAY });
     expect(p).toContain(ALL_KEYS);
     expect(ALL_KEYS).toMatch(/Always include every key; use "" or \[\] when not used/);
     expect(p).toContain(ASK_INSIGHT_EXAMPLE("OBU Health"));
@@ -954,7 +980,12 @@ describe("prompts", () => {
   });
 
   it("plan and claims prompts show complete examples too (for the json_object fallback)", () => {
-    const plan = planSystem({ client: "OBU Health", monthName: "January", year: 2027 });
+    const plan = planSystem({
+      client: "OBU Health",
+      monthName: "January",
+      year: 2027,
+      today: TODAY,
+    });
     expect(plan).toContain(ALL_KEYS);
     const [p] = examples(plan);
     const item = (PLAN_SCHEMA.schema.properties.ideas as { items: { properties: object } }).items;
@@ -962,7 +993,7 @@ describe("prompts", () => {
       Object.keys(item.properties).sort(),
     );
 
-    const claims = claimsSystem();
+    const claims = claimsSystem(TODAY);
     expect(claims).toContain(ALL_KEYS);
     const [clear, flagged] = examples(claims);
     expect(clear).toEqual({ status: "clear", issues: [] });
@@ -972,17 +1003,17 @@ describe("prompts", () => {
 
   it("every system prompt says JSON (json_object mode needs the word)", () => {
     for (const p of [
-      askSystem({ client: "OBU Health", firstName: null }),
-      askLightSystem({ client: "OBU Health", firstName: null }),
-      planSystem({ client: "OBU Health", monthName: "January", year: 2027 }),
-      claimsSystem(),
-      hooksSystem({ client: "OBU Health", platform: null }),
+      askSystem({ client: "OBU Health", firstName: null, today: TODAY }),
+      askLightSystem({ client: "OBU Health", firstName: null, today: TODAY }),
+      planSystem({ client: "OBU Health", monthName: "January", year: 2027, today: TODAY }),
+      claimsSystem(TODAY),
+      hooksSystem({ client: "OBU Health", platform: null, today: TODAY }),
     ])
       expect(p).toMatch(/JSON/);
   });
 
   it("light prompt: persona + chat rules + health rules, no data, never invents, stays ~400 tokens", () => {
-    const p = askLightSystem({ client: "OBU Health", firstName: "Fatima" });
+    const p = askLightSystem({ client: "OBU Health", firstName: "Fatima", today: TODAY });
     expect(p).toContain(ASK_CHAT_RULES);
     expect(p).toMatch(/Health and brand rules/);
     expect(p).toMatch(/can't see the pull data/);
@@ -1009,15 +1040,19 @@ describe("prompts", () => {
   });
 
   it("every prompt carries Blip's voice; JSON prompts forbid emojis", () => {
-    expect(askSystem({ client: "OBU Health", firstName: "Fatima" })).toContain(BLIP_VOICE_CHAT);
-    expect(askSystem({ client: "OBU Health", firstName: "Fatima" })).toContain(
+    expect(askSystem({ client: "OBU Health", firstName: "Fatima", today: TODAY })).toContain(
+      BLIP_VOICE_CHAT,
+    );
+    expect(askSystem({ client: "OBU Health", firstName: "Fatima", today: TODAY })).toContain(
       "first name is Fatima",
     );
-    expect(askSystem({ client: "OBU Health", firstName: null })).not.toContain("first name is");
+    expect(askSystem({ client: "OBU Health", firstName: null, today: TODAY })).not.toContain(
+      "first name is",
+    );
     for (const p of [
-      planSystem({ client: "OBU Health", monthName: "January", year: 2027 }),
-      claimsSystem(),
-      hooksSystem({ client: "OBU Health", platform: "tiktok" }),
+      planSystem({ client: "OBU Health", monthName: "January", year: 2027, today: TODAY }),
+      claimsSystem(TODAY),
+      hooksSystem({ client: "OBU Health", platform: "tiktok", today: TODAY }),
     ]) {
       expect(p).toContain(BLIP_VOICE_JSON);
       expect(p).toMatch(/no emojis/i);
@@ -1025,7 +1060,7 @@ describe("prompts", () => {
   });
 
   it("ask prompt has chat mode: when, tone, honesty, stressed, unsafe, and empty insight fields", () => {
-    const p = askSystem({ client: "OBU Health", firstName: "Fatima" });
+    const p = askSystem({ client: "OBU Health", firstName: "Fatima", today: TODAY });
     expect(p).toContain(ASK_CHAT_RULES);
     expect(p).toMatch(/type "chat"/);
     expect(p).toMatch(/type "insight"/);
@@ -1040,20 +1075,196 @@ describe("prompts", () => {
   });
 
   it("plan prompt says there's no data from last year", () => {
-    expect(planSystem({ client: "OBU Health", monthName: "January", year: 2027 })).toMatch(
-      /no data from last year/,
-    );
+    expect(
+      planSystem({ client: "OBU Health", monthName: "January", year: 2027, today: TODAY }),
+    ).toMatch(/no data from last year/);
   });
 
   it("system prompts stay small (tokens)", () => {
     const sizes = [
-      askSystem({ client: "OBU Health", firstName: "Fatima" }),
-      planSystem({ client: "OBU Health", monthName: "January", year: 2027 }),
-      claimsSystem(),
-      hooksSystem({ client: "OBU Health", platform: null }),
+      askSystem({ client: "OBU Health", firstName: "Fatima", today: TODAY }),
+      planSystem({ client: "OBU Health", monthName: "January", year: 2027, today: TODAY }),
+      claimsSystem(TODAY),
+      hooksSystem({ client: "OBU Health", platform: null, today: TODAY }),
     ].map((s) => s.length);
     // ≈ 750 tokens. Ask Blip is the biggest (voice + chat rules); its ~2.5K-token data summary is
     // the real cost, which light mode skips for small talk.
     expect(Math.max(...sizes)).toBeLessThan(3000);
+  });
+});
+
+describe("today in every prompt", () => {
+  it("today = US Eastern, as a full date with the year", () => {
+    // 03:00 UTC on 20 Nov is still 19 Nov in New York.
+    expect(todayContext(new Date("2026-11-20T03:00:00Z"))).toEqual({
+      iso: "2026-11-19",
+      label: "Thursday 19 November 2026",
+      year: 2026,
+    });
+  });
+
+  it("every system prompt starts with today's date; hooks and captions never guess a year", () => {
+    const prompts = [
+      askSystem({ client: "OBU Health", firstName: null, today: TODAY }),
+      askLightSystem({ client: "OBU Health", firstName: null, today: TODAY }),
+      planSystem({ client: "OBU Health", monthName: "January", year: 2027, today: TODAY }),
+      claimsSystem(TODAY),
+      hooksSystem({ client: "OBU Health", platform: "tiktok", today: TODAY }),
+      captionsSystem({ client: "OBU Health", platform: "instagram", today: TODAY }),
+    ];
+    for (const p of prompts) expect(p.startsWith(todayLine(TODAY))).toBe(true);
+    expect(todayLine(TODAY)).toBe("Today is Thursday 19 November 2026.");
+    expect(prompts[4]).toContain(NO_YEARS);
+    expect(prompts[5]).toContain(NO_YEARS);
+  });
+});
+
+describe("post refs never reach the screen", () => {
+  const labels = ["Ro’s reel from 9 Nov", "Hims’ video from 2 Nov"];
+
+  it("labels a ref the way a person would say it", () => {
+    expect(refLabel("Ro", "reel", "2026-11-09T15:00:00Z")).toBe("Ro’s reel from 9 Nov");
+    expect(refLabel("Hims", "video", "2026-11-02T15:00:00Z")).toBe("Hims’ video from 2 Nov");
+    expect(refLabel("Found", null, null)).toBe("Found’s post");
+  });
+
+  it.each([
+    ["citation brackets go", "Carousels win [p1].", "Carousels win."],
+    ["several in one", "Q&A works [post:p1, p2] for Hims", "Q&A works for Hims"],
+    ["parentheses", "Q&A works (p2) every week", "Q&A works every week"],
+    ["and-lists", "Both did well (p1 and p2).", "Both did well."],
+    ["in a sentence → label", "p1 got 9.8K likes", "Ro’s reel from 9 Nov got 9.8K likes"],
+    ["'post p2'", "Like post p2, keep it short", "Like Hims’ video from 2 Nov, keep it short"],
+    ["unknown ref", "p9 did best", "a top post did best"],
+    ["not a ref", "Use mp3 audio and P2P tips", "Use mp3 audio and P2P tips"],
+  ])("%s", (_why, text, out) => {
+    expect(humanizeRefs(text, labels)).toBe(out);
+  });
+
+  it("ask answers: lead, points and for_client have no refs; citations still count", () => {
+    const a = validateAskAnswer(
+      {
+        type: "insight",
+        message: "",
+        lead: "p1 is the one to beat",
+        points: ["Short Q&A wins (p2)", "Carousels next [p1]"],
+        for_client: "For OBU Health: try what p2 did",
+        post_refs: [],
+        in_data: true,
+      },
+      ["id-1", "id-2"],
+      labels,
+    );
+    expect(a).toMatchObject({
+      lead: "Ro’s reel from 9 Nov is the one to beat",
+      points: ["Short Q&A wins", "Carousels next"],
+      forClient: "For OBU Health: try what Hims’ video from 2 Nov did",
+      postIds: ["id-1", "id-2"],
+    });
+  });
+
+  it("plan reasons and titles have no refs; refs in the reason count as sources", () => {
+    const out = validatePlan(
+      {
+        ideas: [
+          {
+            date: "2027-01-05",
+            platform: "tiktok",
+            format: "video",
+            title: "Clinician answers like p2",
+            reason: "Based on p1, short Q&A wins [p2]",
+            source_refs: [],
+          },
+        ],
+      },
+      { month: "2027-01", today: "2026-11-18", refs: ["id-1", "id-2"], labels, min: 1 },
+    )!;
+    expect(out[0].title).toBe("Clinician answers like Hims’ video from 2 Nov");
+    expect(out[0].reason).toBe("Based on Ro’s reel from 9 Nov, short Q&A wins");
+    expect(out[0].sourcePostIds).toEqual(["id-1", "id-2"]);
+  });
+
+  it("buildSummary gives a label per ref", () => {
+    const { refs, labels: l } = buildSummary(
+      pullData([post({ competitor_id: RO, format: "reel", posted_at: "2026-11-09T15:00:00Z" })]),
+    );
+    expect(refs).toHaveLength(1);
+    expect(l).toEqual(["Ro’s reel from 9 Nov"]);
+  });
+});
+
+describe("Suggest caption", () => {
+  it("needs a client and a title or hook; keeps a valid platform / format pair", () => {
+    expect(parseCaptionInput({ clientId: "x", title: "t" })).toEqual({ error: "bad_client" });
+    expect(parseCaptionInput({ clientId: CLIENT, title: " ", hook: "" })).toEqual({
+      error: "nothing_to_use",
+    });
+    expect(
+      parseCaptionInput({ clientId: CLIENT, hook: "h", platform: "tiktok", format: "reel" }),
+    ).toEqual({ clientId: CLIENT, title: "", hook: "h", platform: "tiktok", format: null });
+  });
+
+  it("Instagram: hashtags moved to the end (max 5), ≤ 2 emoji, line breaks kept", () => {
+    const out = validateCaptions(
+      {
+        captions: [
+          "“Party season, your way. ✨🎉🥂🍾\nSmall swaps, no guilt. #holidays\nA plate that feels good.\nSave this for Friday. #wellness #obu #food #tips #fun #extra”",
+          "Real talk from our clinicians.\nNo rules, just options.\nWhich one are you trying?\n\n#telehealth #wellness #holidays",
+        ],
+      },
+      "instagram",
+    )!;
+    expect(out).toHaveLength(2);
+    expect(out[0]).toBe(
+      "Party season, your way. ✨🎉\nSmall swaps, no guilt.\nA plate that feels good.\nSave this for Friday.\n\n#holidays #wellness #obu #food #tips",
+    );
+    expect(out[1].split("\n\n")[1]).toBe("#telehealth #wellness #holidays");
+  });
+
+  it("TikTok: too many lines or too long is dropped; red flags are dropped", () => {
+    const ok = "Doctor-approved swaps for party season. #holidays #health";
+    const shown = "Doctor-approved swaps for party season.\n\n#holidays #health"; // tags on their own line
+    expect(validateCaptions({ captions: [ok, "a\nb\nc #x"] }, "tiktok", 1)).toEqual([shown]);
+    expect(validateCaptions({ captions: ["x".repeat(400)] }, "tiktok", 1)).toBeNull();
+    expect(
+      validateCaptions({ captions: ["Lose 10 lbs before New Year #fast", ok] }, "tiktok", 1),
+    ).toEqual([shown]);
+    expect(CAPTION_STYLE.tiktok).toEqual({ lines: [1, 2], tags: [2, 4], chars: 300 });
+  });
+
+  it("needs 2 on the first try (1 on the retry); repeats don't count; wrong shape → null", () => {
+    const one = { captions: ["Small swaps, big comfort.\n#holidays #wellness"] };
+    expect(validateCaptions(one, "tiktok")).toBeNull();
+    expect(validateCaptions(one, "tiktok", 1)).toHaveLength(1);
+    expect(validateCaptions({ captions: [one.captions[0], one.captions[0]] }, "tiktok")).toBeNull();
+    expect(validateCaptions({ hooks: [] }, "tiktok")).toBeNull();
+  });
+
+  it("context: the hooks context + that platform's top hashtags", () => {
+    const data = pullData([
+      post({ platform: "tiktok", hashtags: ["glp1", "health"] }),
+      post({ platform: "tiktok", hashtags: ["glp1"] }),
+      post({ platform: "instagram", format: "reel", hashtags: ["insta"] }),
+    ]);
+    const c = captionContext(data, "tiktok");
+    expect(c.top_hashtags).toEqual(["glp1", "health"]);
+    expect(c.platform).toBe("TikTok");
+  });
+
+  it("prompt: platform style, 0-2 emoji, health rules, 2 options, complete example", () => {
+    const ig = captionsSystem({ client: "OBU Health", platform: "instagram", today: TODAY });
+    expect(ig).toMatch(/3-6 short lines/);
+    expect(ig).toMatch(/3-5 relevant hashtags/);
+    expect(ig).toMatch(/call to action/);
+    expect(ig).toMatch(/Emojis: 0-2 per caption/);
+    expect(ig).toMatch(/Health and brand rules/);
+    expect(ig).not.toMatch(/No emojis anywhere/);
+    expect(ig).toContain('{"captions":["<caption 1>","<caption 2>"]}');
+    const tt = captionsSystem({ client: "OBU Health", platform: "tiktok", today: TODAY });
+    expect(tt).toMatch(/1-2 short, punchy lines/);
+    expect(tt).toMatch(/2-4 relevant hashtags/);
+    expect(
+      captionsUser({ title: "T", hook: "H", platform: "tiktok", format: "video", works: {} }),
+    ).toContain("Hook: H");
   });
 });

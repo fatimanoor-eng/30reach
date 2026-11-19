@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Slice 11 check: ask-blip, plan-month, check-claims and suggest-hooks must refuse callers who
+ * Slice 11 check: ask-blip, plan-month, check-claims, suggest-hooks and suggest-caption must refuse callers who
  * aren't signed in.
  *
  *   node --env-file=.env.local scripts/check-ai-fns.mjs
@@ -16,7 +16,7 @@ if (!URL_ || !KEY) {
   process.exit(1);
 }
 
-const FUNCTIONS = ["ask-blip", "plan-month", "check-claims", "suggest-hooks"];
+const FUNCTIONS = ["ask-blip", "plan-month", "check-claims", "suggest-hooks", "suggest-caption"];
 const cases = [
   ["no token (publishable key only)", { apikey: KEY }],
   ["garbage bearer token", { apikey: KEY, Authorization: "Bearer not-a-real-jwt" }],

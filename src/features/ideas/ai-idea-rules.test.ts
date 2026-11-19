@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aiSourceLabel, suggestedDay } from "./idea-rules";
+import { aiSourceLabel, aiSuggestion, planOnLabel, suggestedDay } from "./idea-rules";
 
 describe("AI ideas (Slice 11)", () => {
   it("says where an AI idea came from", () => {
@@ -16,5 +16,52 @@ describe("AI ideas (Slice 11)", () => {
     expect(suggestedDay({ suggested_date: "2026-11-01" }, "2026-11-18")).toBeNull();
     expect(suggestedDay({ suggested_date: "soon" }, "2026-11-18")).toBeNull();
     expect(suggestedDay(null, "2026-11-18")).toBeNull();
+  });
+});
+
+describe("AI idea suggestion line + one-click plan", () => {
+  const idea = (o: Record<string, unknown> = {}) => ({
+    kind: "ai" as const,
+    planned_card_id: null,
+    platform: "tiktok" as const,
+    format: "video",
+    source_snapshot: { saved_from: "plan", suggested_date: "2026-12-31" },
+    ...o,
+  });
+
+  it("'Suggested: Thu 31 Dec · TT Video' with a day to plan on", () => {
+    expect(aiSuggestion(idea(), "2026-11-19")).toEqual({
+      label: "Suggested: Thu 31 Dec · TT Video",
+      day: "2026-12-31",
+    });
+    expect(planOnLabel("2026-12-31")).toBe("Plan on Thu 31 Dec");
+  });
+
+  it("today still counts; a passed day says so and has no one-click plan", () => {
+    expect(aiSuggestion(idea(), "2026-12-31")?.day).toBe("2026-12-31");
+    expect(aiSuggestion(idea(), "2027-01-01")).toEqual({
+      label: "Suggested: Thu 31 Dec · TT Video (passed)",
+      day: null,
+    });
+  });
+
+  it("without platform / format: just the day", () => {
+    expect(aiSuggestion(idea({ platform: null, format: null }), "2026-11-19")?.label).toBe(
+      "Suggested: Thu 31 Dec",
+    );
+    expect(aiSuggestion(idea({ platform: "instagram", format: null }), "2026-11-19")?.label).toBe(
+      "Suggested: Thu 31 Dec · IG",
+    );
+  });
+
+  it("nothing for planned ideas, other kinds, Ask Blip ideas or bad dates", () => {
+    expect(aiSuggestion(idea({ planned_card_id: "card-1" }), "2026-11-19")).toBeNull();
+    expect(aiSuggestion(idea({ kind: "note" }), "2026-11-19")).toBeNull();
+    expect(
+      aiSuggestion(idea({ source_snapshot: { saved_from: "ask-blip" } }), "2026-11-19"),
+    ).toBeNull();
+    expect(
+      aiSuggestion(idea({ source_snapshot: { suggested_date: "31/12/2026" } }), "2026-11-19"),
+    ).toBeNull();
   });
 });
