@@ -1,8 +1,7 @@
 import { ChevronDown, Download } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useToast } from "../../components/toast-context";
 import { Tooltip } from "../../components/Tooltip";
 import { useClient } from "../../lib/useClient";
@@ -12,12 +11,13 @@ import { todayIso } from "../calendar/events/dates";
 import { useHolidays } from "../calendar/useHolidays";
 import { useSavedPulls } from "../overview/useOverviewData";
 import { csvFileName, downloadCsv } from "./csv";
+import { ClearPullDialog } from "./ClearPullDialog";
+import { DeleteAllIdeasDialog } from "./DeleteAllIdeasDialog";
 import {
-  ClearPullError,
   fetchCardsForExport,
   fetchIdeasForExport,
   fetchLatestPullPosts,
-  useClearPull,
+  useIdeaCount,
 } from "./settings-api";
 import {
   cardsCsv,
@@ -36,15 +36,17 @@ import {
 export function DataCard({ isAdmin }: { isAdmin: boolean }) {
   const client = useClient();
   const pulls = useSavedPulls();
-  const clear = useClearPull(client.data?.id);
-  const toast = useToast();
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const ideaCount = useIdeaCount(isAdmin ? client.data?.id : undefined);
+  const [clearOpen, setClearOpen] = useState(false);
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const hasPull = !!pulls.data?.latest;
   const clearBlocked = !isAdmin
     ? "Only admins can clear the saved pull"
     : pulls.isSuccess && !hasPull
       ? "There’s no saved pull to clear"
       : null;
+  const count = ideaCount.data ?? 0;
+  const deleteAllBlocked = ideaCount.isSuccess && count === 0 ? "The idea board is empty" : null;
 
   return (
     <Card title="Data">
@@ -56,60 +58,88 @@ export function DataCard({ isAdmin }: { isAdmin: boolean }) {
         />
         <Row
           title="Clear saved pull"
-          text="Removes both saved pulls. The next Refresh starts fresh."
+          text="Remove the latest pull, the previous one, or both. The next Refresh starts fresh."
           action={
-            <Tooltip content={clearBlocked ?? ""} enabled={!!clearBlocked}>
-              {(tip) => (
+            <Blockable reason={clearBlocked}>
+              {(blocked) => (
                 <Button
                   variant="secondary"
-                  aria-disabled={!!clearBlocked || undefined}
-                  aria-describedby={clearBlocked ? tip["aria-describedby"] : undefined}
-                  onClick={(e) => {
-                    if (clearBlocked) return tip.onToggle(e);
-                    clear.reset();
-                    setConfirmOpen(true);
-                  }}
-                  className={clearBlocked ? "cursor-not-allowed text-muted" : ""}
+                  {...blocked}
+                  onClick={(e) => (blocked.onBlocked ? blocked.onBlocked(e) : setClearOpen(true))}
                 >
                   Clear
                 </Button>
               )}
-            </Tooltip>
+            </Blockable>
           }
         />
+        {/* Admins only: members never see it (the database refuses them anyway). */}
+        {isAdmin && (
+          <Row
+            title="Delete all ideas"
+            text={`Every idea on the board${ideaCount.isSuccess ? ` (${count})` : ""}, with comments and images. Calendar cards stay.`}
+            action={
+              <Blockable reason={deleteAllBlocked}>
+                {(blocked) => (
+                  <Button
+                    variant="danger"
+                    {...blocked}
+                    disabled={ideaCount.isPending}
+                    onClick={(e) =>
+                      blocked.onBlocked ? blocked.onBlocked(e) : setDeleteAllOpen(true)
+                    }
+                  >
+                    Delete all
+                  </Button>
+                )}
+              </Blockable>
+            }
+          />
+        )}
       </div>
 
-      <ConfirmDialog
-        open={confirmOpen}
-        onClose={() => !clear.isPending && setConfirmOpen(false)}
-        title="Clear saved pull?"
-        description="Both saved pulls and their thumbnails are deleted for the whole team. Ideas saved from posts keep their own copy. The next Refresh starts fresh."
-        confirmLabel={clear.isPending ? "Clearing…" : "Clear pull"}
-        busy={clear.isPending}
-        onConfirm={() =>
-          clear.mutate(undefined, {
-            onSuccess: () => {
-              setConfirmOpen(false);
-              toast.show({
-                title: "Cleared the saved pull",
-                detail: "Press Refresh on the Overview for a new one.",
-                pose: "success",
-              });
-            },
-          })
-        }
-      >
-        {clear.isError && (
-          <p role="alert" className="text-center text-small text-spark-text">
-            {clear.error instanceof ClearPullError && clear.error.reason === "running"
-              ? "A Refresh is running. Try again when it’s done."
-              : clear.error instanceof ClearPullError && clear.error.reason === "not_admin"
-                ? "Only admins can clear the saved pull."
-                : "Couldn’t clear it. Check your connection and try again."}
-          </p>
-        )}
-      </ConfirmDialog>
+      {clearOpen && <ClearPullDialog open onClose={() => setClearOpen(false)} />}
+      {deleteAllOpen && client.data && (
+        <DeleteAllIdeasDialog
+          open
+          onClose={() => setDeleteAllOpen(false)}
+          clientId={client.data.id}
+          count={count}
+          onCountChanged={() => void ideaCount.refetch()}
+        />
+      )}
     </Card>
+  );
+}
+
+/** A button that explains itself with a tooltip when it can't be used (aria-disabled, not hidden). */
+function Blockable({
+  reason,
+  children,
+}: {
+  reason: string | null;
+  children: (props: {
+    "aria-disabled"?: true;
+    "aria-describedby"?: string;
+    className: string;
+    onBlocked?: (e: { currentTarget: Element }) => void;
+  }) => ReactElement;
+}) {
+  return (
+    <Tooltip content={reason ?? ""} enabled={!!reason}>
+      {(tip) =>
+        children(
+          reason
+            ? {
+                "aria-disabled": true,
+                "aria-describedby": tip["aria-describedby"],
+                className: "cursor-not-allowed opacity-60",
+                onBlocked: tip.onToggle,
+              }
+            : { className: "" },
+        )
+      }
+    </Tooltip>
   );
 }
 

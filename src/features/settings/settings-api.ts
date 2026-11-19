@@ -93,27 +93,108 @@ export function useGroqMeter() {
 }
 
 export class ClearPullError extends Error {
-  constructor(readonly reason: "running" | "not_admin" | "failed") {
+  constructor(readonly reason: "running" | "changed" | "none" | "not_admin" | "failed") {
     super(reason);
     this.name = "ClearPullError";
   }
 }
 
-/** Deletes both saved pulls (admin Edge Function `clear-pull`). The next Refresh starts fresh. */
+export type ClearWhich = "latest" | "previous" | "both";
+
+/**
+ * Deletes the latest, the previous or both saved pulls (admin Edge Function `clear-pull`). `pullId` is
+ * the pull the dialog showed, so a pull that landed meanwhile is never deleted by mistake.
+ */
 export function useClearPull(clientId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const res = await callFunction<{ deleted: number }>("clear-pull", { clientId });
+    mutationFn: async ({ which, pullId }: { which: ClearWhich; pullId?: string }) => {
+      const res = await callFunction<{ deleted: number }>("clear-pull", {
+        clientId,
+        which,
+        ...(pullId && { pullId }),
+      });
       if (res.ok) return res.data;
+      const code = res.data?.error;
+      if (res.status === 409 && code === "pulls_changed") throw new ClearPullError("changed");
       if (res.status === 409) throw new ClearPullError("running");
+      if (res.status === 404) throw new ClearPullError("none");
       if (res.status === 403) throw new ClearPullError("not_admin");
       throw new ClearPullError("failed");
     },
-    onSuccess: () => {
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["pulls"] });
       void queryClient.invalidateQueries({ queryKey: ["posts"] });
       void queryClient.invalidateQueries({ queryKey: ["usage_sizes"] });
+      void queryClient.invalidateQueries({ queryKey: ["pull_post_counts"] });
+    },
+  });
+}
+
+/** Post counts of the saved pulls, for the clear dialog ("16 Nov · 169 posts"). */
+export function usePullPostCounts(ids: string[], enabled: boolean) {
+  return useQuery({
+    queryKey: ["pull_post_counts", ...ids],
+    enabled: enabled && ids.length > 0,
+    queryFn: async () => {
+      const counts = await Promise.all(
+        ids.map(async (id) => {
+          const { count, error } = await supabase
+            .from("posts")
+            .select("id", { count: "exact", head: true })
+            .eq("pull_id", id);
+          if (error) throw error;
+          return [id, count ?? 0] as const;
+        }),
+      );
+      return new Map(counts);
+    },
+  });
+}
+
+/** Admins: deletes every idea of the client (delete_all_ideas). `expected` = the number typed. */
+export class DeleteAllError extends Error {
+  constructor(
+    readonly reason: "count_changed" | "not_admin" | "failed",
+    readonly current: number | null = null,
+  ) {
+    super(reason);
+    this.name = "DeleteAllError";
+  }
+}
+export async function deleteAllIdeas(
+  clientId: string,
+  expected: number,
+): Promise<{ deleted: number; imagePaths: string[] }> {
+  const { data, error } = await supabase.rpc("delete_all_ideas", {
+    p_client: clientId,
+    p_expected: expected,
+  });
+  if (error) {
+    if (error.message.includes("count_changed")) {
+      const n = Number(error.details);
+      throw new DeleteAllError("count_changed", Number.isFinite(n) ? n : null);
+    }
+    if (error.code === "42501" || error.message.includes("not_admin"))
+      throw new DeleteAllError("not_admin");
+    throw new DeleteAllError("failed");
+  }
+  const d = (data ?? {}) as { deleted?: number; image_paths?: string[] };
+  return { deleted: d.deleted ?? 0, imagePaths: d.image_paths ?? [] };
+}
+
+/** How many ideas the client has (for "Delete all ideas" and its type-the-number confirm). */
+export function useIdeaCount(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ["ideas", clientId, "count"],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("ideas")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", clientId!);
+      if (error) throw error;
+      return count ?? 0;
     },
   });
 }

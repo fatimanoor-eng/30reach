@@ -117,6 +117,9 @@ const RPCS = {
   usage_sizes: {},
   set_member_role: { p_user: NO_SUCH_ID, p_role: "member" },
   set_member_access: { p_user: NO_SUCH_ID, p_active: true },
+  delete_ideas: { p_ids: [NO_SUCH_ID] },
+  restore_ideas: { p_snapshots: [] },
+  delete_all_ideas: { p_client: NO_SUCH_ID, p_expected: -1 }, // -1 never matches: nothing deleted
 };
 for (const [fn, args] of Object.entries(RPCS)) {
   const { status, body } = await call("POST", `/rest/v1/rpc/${fn}`, {

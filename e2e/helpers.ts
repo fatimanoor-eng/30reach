@@ -99,6 +99,21 @@ export async function stubSupabase(
     route.fulfill(ok({ database_bytes: 42 * 1024 * 1024, storage_bytes: { "post-thumbs": 0 } })),
   );
   await page.route("**/rest/v1/usage_meters**", (route) => route.fulfill(ok(null)));
+  // Idea count for "Delete all ideas" (HEAD …?count=exact): an empty board unless a spec says
+  // otherwise. Content-Range has to be exposed for the browser to read it cross-origin.
+  await page.route("**/rest/v1/ideas**", (route) =>
+    route.request().method() === "HEAD"
+      ? route.fulfill({
+          status: 200,
+          headers: {
+            "content-range": "*/0",
+            "access-control-expose-headers": "Content-Range",
+            "access-control-allow-origin": "*",
+          },
+          body: "",
+        })
+      : route.fallback(),
+  );
   await page.route("**/rest/v1/pulls**", (route) => route.fulfill(ok(null)));
   await page.route("**/rest/v1/competitors**", (route) =>
     route.fulfill(

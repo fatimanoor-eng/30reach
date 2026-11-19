@@ -74,12 +74,12 @@ export function AppShell() {
 
                 <BottomTabs className="md:hidden" />
 
-                {/* Mobile Ask Blip: floating Blip button; hidden while a sheet/dialog is open. */}
+                {/* Mobile Ask Blip: floating Blip button; hidden while a sheet/dialog is open or the idea board is in Select mode. */}
                 <button
                   type="button"
                   onClick={openAskPlain}
                   aria-label="Ask Blip"
-                  className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 inline-flex size-14 items-center justify-center rounded-full bg-ink shadow-lg md:hidden [body:has(dialog[open])_&]:hidden"
+                  className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 inline-flex size-14 items-center justify-center rounded-full bg-ink shadow-lg md:hidden [body:has([data-select-bar])_&]:hidden [body:has(dialog[open])_&]:hidden"
                 >
                   <BlipIdle className="h-auto w-9" />
                 </button>

@@ -21,6 +21,9 @@ import {
   rowSpan,
   imageShape,
   type Idea,
+  bulkDeleteToast,
+  deletableIds,
+  UNDO_MS,
 } from "./idea-rules";
 
 const idea = (id: string, extra: Partial<Idea> = {}): Idea => ({
@@ -266,5 +269,26 @@ describe("who can delete", () => {
     expect(deleteBlockedMessage(idea("c", { creator: null }))).toBe(
       "Only the person who added it or an admin can delete this idea.",
     );
+  });
+});
+
+describe("Select mode (delete many)", () => {
+  const ideas = [
+    { id: "mine", created_by: "me" },
+    { id: "theirs", created_by: "ryan" },
+    { id: "ai", created_by: null },
+  ];
+  it("members can tick only their own ideas; admins any (AI ideas included)", () => {
+    expect([...deletableIds(ideas, "me", false)]).toEqual(["mine"]);
+    expect([...deletableIds(ideas, "me", true)]).toEqual(["mine", "theirs", "ai"]);
+    expect([...deletableIds(ideas, null, false)]).toEqual([]);
+  });
+  it("toast wording, with what the database skipped", () => {
+    expect(bulkDeleteToast(1, 0)).toEqual({ title: "Deleted the idea" });
+    expect(bulkDeleteToast(3, 0)).toEqual({ title: "Deleted 3 ideas" });
+    expect(bulkDeleteToast(2, 1).detail).toBe(
+      "1 wasn’t deleted: only the person who added an idea, or an admin, can delete it.",
+    );
+    expect(UNDO_MS).toBe(10_000);
   });
 });

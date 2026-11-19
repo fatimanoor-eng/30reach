@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ago,
+  clearChoices,
   DB_LIMIT_BYTES,
   fill,
   formatBytes,
@@ -131,5 +132,31 @@ describe("team", () => {
     expect(teamErrorText("cannot_remove_self")).toMatch(/your own access/);
     expect(teamErrorText(undefined)).toMatch(/Couldn’t save that/);
     expect(teamErrorText("weird")).toMatch(/Couldn’t save that/);
+  });
+});
+
+describe("Clear saved pull: choices and effects", () => {
+  it("two saved pulls: Latest / Previous / Both, with dates and post counts", () => {
+    const c = clearChoices({ date: "16 Nov", posts: 169 }, { date: "6 Nov", posts: 1 });
+    expect(c.map((x) => [x.which, x.label])).toEqual([
+      ["latest", "Latest · 16 Nov · 169 posts"],
+      ["previous", "Previous · 6 Nov · 1 post"],
+      ["both", "Both"],
+    ]);
+    expect(c[0].effect).toBe(
+      "The dashboards show the previous pull (6 Nov). What’s new disappears.",
+    );
+    expect(c[1].effect).toMatch(/stay the same\. What’s new disappears/);
+    expect(c[2].effect).toMatch(/empty until the next Refresh/);
+  });
+  it("one saved pull: just that one; none: nothing", () => {
+    expect(clearChoices({ date: "16 Nov", posts: null }, null)).toEqual([
+      {
+        which: "latest",
+        label: "The saved pull · 16 Nov",
+        effect: "The dashboards are empty until the next Refresh.",
+      },
+    ]);
+    expect(clearChoices(null, null)).toEqual([]);
   });
 });

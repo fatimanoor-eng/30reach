@@ -364,3 +364,31 @@ export function deleteBlockedMessage(idea: Pick<Idea, "kind" | "creator">): stri
     ? `Only ${first} (who added it) or an admin can delete this idea.`
     : "Only the person who added it or an admin can delete this idea.";
 }
+
+// ───────────────────────────── Select mode (delete many)
+
+/** How long "Deleted … · Undo" stays (single and many). */
+export const UNDO_MS = 10_000;
+
+/** The ids among `ideas` this person may delete (their own; every one for an admin). */
+export function deletableIds(
+  ideas: Pick<Idea, "id" | "created_by">[],
+  userId: string | null | undefined,
+  isAdmin: boolean,
+): Set<string> {
+  return new Set(ideas.filter((i) => canDeleteIdea(i, userId, isAdmin)).map((i) => i.id));
+}
+
+/** "Deleted 3 ideas" / "Deleted the idea", plus how many the database skipped (not theirs). */
+export function bulkDeleteToast(
+  deleted: number,
+  skipped: number,
+): { title: string; detail?: string } {
+  const title = deleted === 1 ? "Deleted the idea" : `Deleted ${deleted} ideas`;
+  return skipped > 0
+    ? {
+        title,
+        detail: `${skipped} ${skipped === 1 ? "wasn’t" : "weren’t"} deleted: only the person who added an idea, or an admin, can delete it.`,
+      }
+    : { title };
+}

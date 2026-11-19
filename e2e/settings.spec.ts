@@ -70,6 +70,7 @@ async function setup(
     refuse?: string;
     clear?: (r: Route) => Promise<void> | void;
     noPull?: boolean;
+    deleteAll?: (r: Route) => Promise<void> | void;
   } = {},
 ) {
   const team = TEAM.map((m) => ({ ...m }));
@@ -116,15 +117,32 @@ async function setup(
     ),
   );
   const LATEST = { id: "pull-new", started_at: "2026-11-16T16:20:00Z", status: "done" };
+  const PREVIOUS = { id: "pull-old", started_at: "2026-11-06T10:00:00Z", status: "done" };
   await page.route("**/rest/v1/pulls**", (r) => {
     const url = r.request().url();
     if (url.includes("status=eq.running")) return r.fulfill(json(null));
     const single = (r.request().headers()["accept"] ?? "").includes("vnd.pgrst.object");
     if (opts.noPull) return r.fulfill(json(single ? null : []));
-    return r.fulfill(json(single ? LATEST : [LATEST]));
+    // Honour limit=1 like PostgREST (maybeSingle() errors on more than one row).
+    const list = url.includes("limit=1") ? [LATEST] : [LATEST, PREVIOUS];
+    return r.fulfill(json(single ? LATEST : list));
   });
-  await page.route("**/rest/v1/posts**", (r) =>
-    r.fulfill(
+  // HEAD …?count=exact → "Content-Range: */N" (post counts per pull, the idea count).
+  const head = (r: Route, n: number) =>
+    r.fulfill({
+      status: 200,
+      // Cross-origin: the browser only shows Content-Range when it's exposed (Supabase does that).
+      headers: {
+        "content-range": `*/${n}`,
+        "access-control-expose-headers": "Content-Range",
+        "access-control-allow-origin": "*",
+      },
+      body: "",
+    });
+  await page.route("**/rest/v1/posts**", (r) => {
+    if (r.request().method() === "HEAD")
+      return head(r, r.request().url().includes("pull-old") ? 140 : 169);
+    return r.fulfill(
       json([
         {
           competitor_id: "c-hims",
@@ -140,9 +158,24 @@ async function setup(
           counts_hidden: false,
         },
       ]),
-    ),
+    );
+  });
+  await page.route("**/rest/v1/ideas**", (r) =>
+    r.request().method() === "HEAD" ? head(r, 12) : r.fulfill(json([])),
   );
-  await page.route("**/rest/v1/ideas**", (r) => r.fulfill(json([])));
+  await page.route("**/rest/v1/rpc/delete_all_ideas", async (r) => {
+    calls.push({
+      fn: "delete_all_ideas",
+      body: r.request().postDataJSON() as Record<string, unknown>,
+    });
+    if (opts.deleteAll) return opts.deleteAll(r);
+    return r.fulfill(json({ deleted: 12, image_paths: ["client-1/a.webp", "client-1/b.jpg"] }));
+  });
+  await page.route("**/storage/v1/object/idea-images", async (r) => {
+    const { prefixes } = r.request().postDataJSON() as { prefixes: string[] };
+    calls.push({ fn: "storage remove", body: { prefixes } });
+    return r.fulfill(json(prefixes.map((name) => ({ name }))));
+  });
   await page.route("**/rest/v1/calendar_cards**", (r) => r.fulfill(json([])));
   await page.route("**/rest/v1/holiday_cache**", (r) => {
     const year = new URL(r.request().url()).searchParams.get("year");
@@ -270,32 +303,117 @@ test("Settings — members see roles only and can't clear the pull", async ({ pa
   await expect(page.getByRole("tooltip")).toHaveText("Only admins can clear the saved pull");
   await clear.click({ force: true }); // aria-disabled: Playwright won't click it otherwise
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  // "Delete all ideas" isn't offered to members at all.
+  await expect(page.getByRole("button", { name: "Delete all" })).toHaveCount(0);
 });
 
-test("Settings — Clear saved pull: confirm, then clear-pull deletes both", async ({
+test("Settings — Clear saved pull: pick Latest / Previous / Both, each explained", async ({
   page,
 }, info) => {
   const { calls } = await setup(page);
   await open(page);
   await page.getByRole("button", { name: "Clear", exact: true }).click();
   const confirm = page.getByRole("dialog", { name: "Clear saved pull?" });
-  await expect(confirm).toBeVisible();
+  await expect(confirm.getByText("Latest · 16 Nov · 169 posts")).toBeVisible();
+  await expect(confirm.getByText("Previous · 6 Nov · 140 posts")).toBeVisible();
+  await expect(
+    confirm.getByText("The dashboards show the previous pull (6 Nov). What’s new disappears."),
+  ).toBeVisible();
+  await expect(
+    confirm.getByText("The dashboards are empty until the next Refresh, which starts fresh."),
+  ).toBeVisible();
+  // Nothing is picked until the admin picks.
+  await expect(confirm.getByRole("button", { name: "Clear pull" })).toBeDisabled();
+  await confirm.getByRole("radio", { name: /^Previous/ }).check();
   await page.waitForTimeout(300); // dialog / sheet animation
   if (isPhone(page)) await tapTargetsOk(page);
   await expect(page).toHaveScreenshot(`settings-clear-confirm-${info.project.name}.png`);
   await confirm.getByRole("button", { name: "Clear pull" }).click();
-  await expect(page.getByText("Cleared the saved pull")).toBeVisible();
-  expect(calls).toEqual([{ fn: "clear-pull", body: { clientId: "client-1" } }]);
+  await expect(page.getByText("Cleared the previous pull")).toBeVisible();
+  // The pull the dialog showed goes along, so a newer pull is never deleted by mistake.
+  expect(calls).toEqual([
+    { fn: "clear-pull", body: { clientId: "client-1", which: "previous", pullId: "pull-old" } },
+  ]);
 });
 
-test("Settings — Clear saved pull while a Refresh runs says so", async ({ page }) => {
-  await setup(page, { clear: (r) => r.fulfill(json({ error: "pull_running" }, 409)) });
+test("Settings — Clear both saved pulls", async ({ page }) => {
+  const { calls } = await setup(page);
   await open(page);
   await page.getByRole("button", { name: "Clear", exact: true }).click();
   const confirm = page.getByRole("dialog", { name: "Clear saved pull?" });
+  await confirm.getByRole("radio", { name: /^Both/ }).check();
+  await confirm.getByRole("button", { name: "Clear both pulls" }).click();
+  await expect(page.getByText("Cleared both saved pulls")).toBeVisible();
+  expect(calls).toEqual([{ fn: "clear-pull", body: { clientId: "client-1", which: "both" } }]);
+});
+
+test("Settings — Clear saved pull while a Refresh runs, or after the pulls changed", async ({
+  page,
+}) => {
+  let n = 0;
+  await setup(page, {
+    clear: (r) => r.fulfill(json({ error: ++n === 1 ? "pull_running" : "pulls_changed" }, 409)),
+  });
+  await open(page);
+  await page.getByRole("button", { name: "Clear", exact: true }).click();
+  const confirm = page.getByRole("dialog", { name: "Clear saved pull?" });
+  await confirm.getByRole("radio", { name: /^Latest/ }).check();
   await confirm.getByRole("button", { name: "Clear pull" }).click();
   await expect(confirm.getByRole("alert")).toHaveText(
     "A Refresh is running. Try again when it’s done.",
+  );
+  await confirm.getByRole("button", { name: "Clear pull" }).click();
+  await expect(confirm.getByRole("alert")).toHaveText(
+    "The saved pulls changed meanwhile. Close this and open it again.",
+  );
+});
+
+test("Settings — Delete all ideas: type the number to enable it (admins)", async ({
+  page,
+}, info) => {
+  const { calls } = await setup(page);
+  await open(page);
+  await expect(
+    page.getByText("Every idea on the board (12), with comments and images.", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Delete all" }).click();
+  const confirm = page.getByRole("dialog", { name: "Delete all 12 ideas?" });
+  const go = confirm.getByRole("button", { name: "Delete 12 ideas" });
+  await expect(go).toBeDisabled();
+  const field = confirm.getByRole("textbox", { name: "Type 12 to confirm" });
+  await field.fill("11");
+  await expect(go).toBeDisabled();
+  await field.fill("12");
+  await expect(go).toBeEnabled();
+  await page.waitForTimeout(300);
+  if (isPhone(page)) await tapTargetsOk(page);
+  await expect(page).toHaveScreenshot(`settings-delete-all-${info.project.name}.png`);
+  await go.click();
+  await expect(page.getByText("Deleted all 12 ideas")).toBeVisible();
+  expect(calls[0]).toEqual({
+    fn: "delete_all_ideas",
+    body: { p_client: "client-1", p_expected: 12 },
+  });
+  // Images go right after (comments went with the ideas in the database).
+  await expect
+    .poll(() => calls.find((c) => c.fn === "storage remove")?.body)
+    .toEqual({
+      prefixes: ["client-1/a.webp", "client-1/b.jpg"],
+    });
+});
+
+test("Settings — Delete all ideas refuses if the board changed meanwhile", async ({ page }) => {
+  await setup(page, {
+    deleteAll: (r) =>
+      r.fulfill(json({ code: "P0001", message: "count_changed", details: "13" }, 400)),
+  });
+  await open(page);
+  await page.getByRole("button", { name: "Delete all" }).click();
+  const confirm = page.getByRole("dialog", { name: "Delete all 12 ideas?" });
+  await confirm.getByRole("textbox", { name: "Type 12 to confirm" }).fill("12");
+  await confirm.getByRole("button", { name: "Delete 12 ideas" }).click();
+  await expect(confirm.getByRole("alert")).toHaveText(
+    "The board changed: it has 13 ideas now. Type the new number.",
   );
 });
 
@@ -369,4 +487,18 @@ test("Access removed — is_team() is false: Blip/Error screen with Sign out", a
   if (isPhone(page)) await tapTargetsOk(page);
   await noSidewaysScroll(page);
   await expect(page).toHaveScreenshot(`access-removed-${info.project.name}.png`);
+});
+
+test("Settings — a failed export says so", async ({ page }) => {
+  await setup(page);
+  await page.route("**/rest/v1/posts**", (r) =>
+    r.request().method() === "GET" ? r.fulfill(json({ message: "boom" }, 500)) : r.fallback(),
+  );
+  await open(page);
+  await page.getByRole("button", { name: "Export" }).click();
+  await page
+    .getByRole("list", { name: "Export as CSV" })
+    .getByRole("button", { name: /Posts/ })
+    .click();
+  await expect(page.getByText("Couldn’t export that")).toBeVisible();
 });

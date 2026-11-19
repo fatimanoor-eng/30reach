@@ -241,6 +241,39 @@ async function setup(
     return r.fulfill({ status: 201, body: "" });
   });
 
+  // delete_ideas / restore_ideas (Select mode), same rule: skips ideas this person may not delete.
+  await page.route("**/rest/v1/rpc/delete_ideas", async (r: Route) => {
+    const { p_ids } = r.request().postDataJSON() as { p_ids: string[] };
+    calls.push({ method: "RPC delete_ideas", url: r.request().url(), body: { p_ids } });
+    const deleted: { idea: Row; comments: Comment[] }[] = [];
+    let skipped = 0;
+    for (const id of p_ids) {
+      const row = rows.find((x) => x.id === id);
+      if (!row) continue;
+      if (role !== "admin" && row.created_by !== ME) {
+        skipped++;
+        continue;
+      }
+      rows.splice(rows.indexOf(row), 1);
+      const cs = comments.filter((c) => c.idea_id === id);
+      for (const c of cs) comments.splice(comments.indexOf(c), 1);
+      deleted.push({ idea: { ...row }, comments: cs });
+    }
+    return r.fulfill(json({ deleted, skipped }));
+  });
+  await page.route("**/rest/v1/rpc/restore_ideas", async (r: Route) => {
+    const { p_snapshots } = r.request().postDataJSON() as {
+      p_snapshots: { idea: Row; comments: Comment[] }[];
+    };
+    calls.push({ method: "RPC restore_ideas", url: r.request().url(), body: p_snapshots });
+    for (const snap of p_snapshots) {
+      rows.push(snap.idea);
+      comments.push(...snap.comments);
+    }
+    rows.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    return r.fulfill(json(p_snapshots.length));
+  });
+
   // delete_idea / restore_idea, with the database's rule: the creator or an admin.
   await page.route("**/rest/v1/rpc/delete_idea", async (r: Route) => {
     const { p_idea_id } = r.request().postDataJSON() as { p_idea_id: string };
@@ -1139,4 +1172,69 @@ test("AI idea from Plan {month} — 'Suggested: Thu 31 Dec · TT Video' and 'Pla
   });
   // Planned now: the tile shows the badge instead of the suggestion.
   await expect(tile.getByText("Suggested: Thu 31 Dec · TT Video")).toHaveCount(0);
+});
+
+// ───────────────────────────── Select mode: delete many, with Undo
+
+test("ideas — Select mode: tick your own ideas, delete them, Undo brings them back", async ({
+  page,
+}, info) => {
+  const { calls, removed } = await setup(page, { role: "member" });
+  await open(page);
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  const bar = page.getByRole("toolbar", { name: "Selected ideas" });
+  await expect(bar.getByText("Select ideas to delete")).toBeVisible();
+
+  // A member can tick only ideas they added; others' are dimmed and can't be ticked.
+  const theirs = page.getByRole("checkbox", { name: /^Can’t delete/ }).first();
+  await expect(theirs).toHaveAttribute("aria-disabled", "true");
+  const mine = page.getByRole("checkbox", { name: /^Select idea/ });
+  const n = await mine.count();
+  expect(n).toBeGreaterThanOrEqual(2);
+  await mine.nth(0).click();
+  await mine.nth(1).click();
+  await expect(mine.nth(0)).toHaveAttribute("aria-checked", "true");
+  await expect(bar.getByText("2 selected")).toBeVisible();
+  await expect(bar.getByRole("button", { name: `Select all you can delete (${n})` })).toBeVisible();
+  if (info.project.name === "mobile-390") await tapTargetsOk(page);
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot(`ideas-select-${info.project.name}.png`);
+
+  await bar.getByRole("button", { name: "Delete 2 ideas" }).click();
+  const confirm = page.getByRole("dialog", { name: "Delete 2 ideas?" });
+  await expect(
+    confirm.getByText(
+      "Their comments go with them. Calendar cards made from them stay. You can undo for a few seconds.",
+    ),
+  ).toBeVisible();
+  await confirm.getByRole("button", { name: "Delete 2 ideas" }).click();
+  await expect(page.getByText("Deleted 2 ideas")).toBeVisible();
+  await expect(bar).toBeHidden(); // back to the normal board
+  const del = calls.find((c) => c.method === "RPC delete_ideas")!.body as { p_ids: string[] };
+  expect(del.p_ids).toHaveLength(2);
+
+  // Undo: all of them back, and their images are never removed.
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("Restored 2 ideas")).toBeVisible();
+  expect(calls.some((c) => c.method === "RPC restore_ideas")).toBe(true);
+  expect(removed).toEqual([]);
+});
+
+test("ideas — Select mode: Cancel or Esc leaves it; nothing is deleted", async ({ page }) => {
+  const { calls } = await setup(page, { role: "admin" });
+  await open(page);
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  // Admins can tick anyone's idea, AI ideas too.
+  await expect(page.getByRole("checkbox", { name: /^Can’t delete/ })).toHaveCount(0);
+  await page
+    .getByRole("checkbox", { name: /^Select idea/ })
+    .first()
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("toolbar", { name: "Selected ideas" })).toBeHidden();
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  await expect(page.getByRole("toolbar").getByText("Select ideas to delete")).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("toolbar", { name: "Selected ideas" })).toBeHidden();
+  expect(calls.filter((c) => c.method.startsWith("RPC delete"))).toEqual([]);
 });

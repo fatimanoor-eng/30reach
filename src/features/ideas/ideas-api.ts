@@ -187,6 +187,35 @@ export async function restoreIdea(snapshot: unknown): Promise<void> {
   if (error) throw error;
 }
 
+/** Select mode's delete: what Undo needs for each idea that went, and how many were skipped. */
+export type DeletedIdeas = { snapshots: unknown[]; imagePaths: string[]; skipped: number };
+
+/**
+ * Deletes many ideas at once (delete_ideas). The database deletes only the ones this person may
+ * delete (their own, or any for an admin) and skips the rest. Images stay until Undo is gone.
+ */
+export async function deleteIdeas(ideas: Pick<Idea, "id" | "image_path">[]): Promise<DeletedIdeas> {
+  const { data, error } = await supabase.rpc("delete_ideas", { p_ids: ideas.map((i) => i.id) });
+  if (error)
+    throw new DeleteError("Couldn’t delete them. Check your connection and try again.", "other");
+  const d = (data ?? {}) as {
+    deleted?: { idea?: { id?: string; image_path?: string | null } }[];
+    skipped?: number;
+  };
+  const snapshots = d.deleted ?? [];
+  return {
+    snapshots,
+    imagePaths: snapshots.flatMap((s) => (s.idea?.image_path ? [s.idea.image_path] : [])),
+    skipped: d.skipped ?? 0,
+  };
+}
+
+/** Undo for deleteIdeas: all of them back, or none (restore_ideas runs in one transaction). */
+export async function restoreIdeas(snapshots: unknown[]): Promise<void> {
+  const { error } = await supabase.rpc("restore_ideas", { p_snapshots: snapshots });
+  if (error) throw error;
+}
+
 // ───────────────────────────── Plan it (14d) → plan_idea (migration *_plan_idea.sql)
 
 export class PlanError extends Error {

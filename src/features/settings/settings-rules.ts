@@ -148,3 +148,41 @@ export const TEAM_ERRORS: Record<string, string> = {
 };
 export const teamErrorText = (code: string | undefined) =>
   (code && TEAM_ERRORS[code]) || "Couldn’t save that. Check your connection and try again.";
+
+// ───────────────────────────── Clear saved pull: the choices and what each does
+
+export type SavedPullInfo = { date: string; posts: number | null } | null;
+export type ClearChoice = { which: "latest" | "previous" | "both"; label: string; effect: string };
+
+const postsLabel = (n: number | null) =>
+  n === null ? "" : ` · ${n.toLocaleString("en-US")} ${n === 1 ? "post" : "posts"}`;
+
+/** Latest / Previous / Both (only the ones that exist), labelled with date and post count. */
+export function clearChoices(latest: SavedPullInfo, previous: SavedPullInfo): ClearChoice[] {
+  if (!latest) return [];
+  if (!previous)
+    return [
+      {
+        which: "latest",
+        label: `The saved pull · ${latest.date}${postsLabel(latest.posts)}`,
+        effect: "The dashboards are empty until the next Refresh.",
+      },
+    ];
+  return [
+    {
+      which: "latest",
+      label: `Latest · ${latest.date}${postsLabel(latest.posts)}`,
+      effect: `The dashboards show the previous pull (${previous.date}). What’s new disappears.`,
+    },
+    {
+      which: "previous",
+      label: `Previous · ${previous.date}${postsLabel(previous.posts)}`,
+      effect: "The dashboards stay the same. What’s new disappears (nothing to compare with).",
+    },
+    {
+      which: "both",
+      label: "Both",
+      effect: "The dashboards are empty until the next Refresh, which starts fresh.",
+    },
+  ];
+}

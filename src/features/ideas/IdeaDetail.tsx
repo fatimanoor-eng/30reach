@@ -17,6 +17,7 @@ import { useClient } from "../../lib/useClient";
 import { AiTag } from "../calendar/CardTile";
 import {
   canDeleteIdea,
+  UNDO_MS,
   deleteBlockedMessage,
   formatLabel,
   ideaAge,
@@ -42,7 +43,6 @@ import { PlanIt } from "./PlanIt";
 import { TagEditor } from "./TagEditor";
 
 /** How long "Deleted the idea · Undo" stays. */
-const UNDO_MS = 10_000;
 
 const KIND_LABEL: Record<Idea["kind"], string> = {
   screenshot: "SCREENSHOT",

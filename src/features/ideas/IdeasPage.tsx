@@ -1,4 +1,4 @@
-import { Plus, Search } from "lucide-react";
+import { ListChecks, Plus, Search } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -15,6 +15,9 @@ import { EmptyState } from "../../components/EmptyState";
 import { LoadError } from "../../components/LoadError";
 import { ModalPresence } from "../../components/ModalPresence";
 import { useToast } from "../../components/toast-context";
+import { useAuth } from "../../lib/auth/auth-context";
+import { useProfile } from "../../lib/auth/useProfile";
+import { SelectBar } from "./SelectBar";
 import { Bone, Skeleton } from "../../components/Skeleton";
 import { AddIdeaSheet } from "./AddIdeaSheet";
 import { CaptureBar } from "./CaptureBar";
@@ -24,6 +27,7 @@ import { BentoGrid, BentoItem } from "./BentoGrid";
 import { IdeaCard } from "./IdeaCard";
 import { IdeaDetail } from "./IdeaDetail";
 import {
+  deletableIds,
   filterIdeas,
   looksLikeUrl,
   normaliseUrl,
@@ -117,6 +121,36 @@ export function IdeasPage() {
   const all = useMemo(() => ideas.data ?? [], [ideas.data]);
   const counts = useMemo(() => tabCounts(all), [all]);
   const shown = useMemo(() => filterIdeas(all, tab, query), [all, tab, query]);
+
+  // ── Select mode (delete many): only ideas this person may delete can be ticked.
+  const { user } = useAuth();
+  const profile = useProfile();
+  const isAdmin = profile.data?.role === "admin";
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const allowed = useMemo(() => deletableIds(all, user?.id, isAdmin), [all, user?.id, isAdmin]);
+  // Ticked ideas still on the board (a refresh can remove some); hidden by a tab or search still count.
+  const selected = all.filter((i) => picked.has(i.id) && allowed.has(i.id));
+  const shownAllowed = shown.filter((i) => allowed.has(i.id));
+  const stopSelecting = useCallback(() => {
+    setSelecting(false);
+    setPicked(new Set());
+  }, []);
+  const toggle = (id: string) =>
+    setPicked((p) => {
+      const next = new Set(p);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  useEffect(() => {
+    if (!selecting) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector("dialog[open]")) stopSelecting();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selecting, stopSelecting]);
 
   // ── 14c detail: ?idea=<id> (&plan=1 opens Plan it straight away). The last open idea is kept so
   // the drawer can slide out after the URL changes.
@@ -257,6 +291,15 @@ export function IdeasPage() {
                   imageUrl={imageFor(idea)}
                   now={now}
                   onOpen={(plan) => openDetail(idea.id, plan)}
+                  selection={
+                    selecting
+                      ? {
+                          selected: picked.has(idea.id),
+                          allowed: allowed.has(idea.id),
+                          onToggle: () => toggle(idea.id),
+                        }
+                      : undefined
+                  }
                 />
               </BentoItem>
             ))}
@@ -296,6 +339,15 @@ export function IdeasPage() {
                 className="min-w-0 flex-1 bg-transparent text-body-sm outline-none placeholder:text-muted"
               />
             </label>
+            {all.length > 0 && !selecting && (
+              <Button
+                variant="secondary"
+                icon={<ListChecks size={16} aria-hidden="true" />}
+                onClick={() => setSelecting(true)}
+              >
+                Select
+              </Button>
+            )}
             <button
               type="button"
               onClick={() => setSheetOpen(true)}
@@ -316,6 +368,15 @@ export function IdeasPage() {
           <IdeaTabs tab={tab} counts={counts} onChange={setTab} />
         )}
         {body}
+        {selecting && (
+          <SelectBar
+            selected={selected}
+            selectableCount={shownAllowed.length}
+            onSelectAll={() => setPicked(new Set(shownAllowed.map((i) => i.id)))}
+            onCancel={stopSelecting}
+            onDeleted={stopSelecting}
+          />
+        )}
       </div>
       <AddIdeaSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
       <ModalPresence open={!!openIdea}>

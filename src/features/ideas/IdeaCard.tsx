@@ -1,4 +1,4 @@
-import { CalendarCheck, CalendarDays, ImageIcon, Link2, StickyNote } from "lucide-react";
+import { CalendarCheck, CalendarDays, Check, ImageIcon, Link2, StickyNote } from "lucide-react";
 import { Link } from "react-router";
 import { Chip } from "../../components/Chip";
 import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
@@ -114,6 +114,7 @@ export function IdeaCard({
   imageUrl,
   now,
   onOpen,
+  selection,
 }: {
   idea: Idea;
   imageUrl?: string;
@@ -121,6 +122,11 @@ export function IdeaCard({
   now: number;
   /** Open the 14c detail; `plan` = straight into Plan it (the tile's "Plan it" link). */
   onOpen: (plan: boolean) => void;
+  /**
+   * Select mode (delete many): the whole tile becomes a checkbox; links, Plan it and Plan on are
+   * covered. `allowed` = this person may delete it (their own, or any for an admin).
+   */
+  selection?: { selected: boolean; allowed: boolean; onToggle: () => void };
 }) {
   const text = ideaText(idea);
   const snap = idea.source_snapshot;
@@ -157,13 +163,48 @@ export function IdeaCard({
         isNote ? "bg-bloom" : "border border-line bg-surface"
       }`}
     >
-      {/* The whole tile opens the detail; links and Plan it sit above this button (z-10). */}
-      <button
-        type="button"
-        onClick={() => onOpen(false)}
-        aria-label={`Open idea: ${label}`}
-        className="absolute inset-0 rounded-card focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
-      />
+      {/* The whole tile opens the detail; links and Plan it sit above this button (z-10). In
+          select mode a checkbox covers everything (z-20). */}
+      {selection ? (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={selection.selected}
+          aria-disabled={!selection.allowed || undefined}
+          aria-label={
+            selection.allowed
+              ? `Select idea: ${label}`
+              : `Can’t delete (only who added it or an admin): ${label}`
+          }
+          title={
+            selection.allowed
+              ? undefined
+              : "Only the person who added it, or an admin, can delete it"
+          }
+          onClick={() => selection.allowed && selection.onToggle()}
+          className={`absolute inset-0 z-20 rounded-card focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink ${
+            selection.selected ? "ring-2 ring-ink ring-inset" : ""
+          } ${selection.allowed ? "cursor-pointer" : "cursor-not-allowed bg-surface/50"}`}
+        >
+          {selection.allowed && (
+            <span
+              aria-hidden="true"
+              className={`absolute top-2.5 right-2.5 inline-flex size-5 items-center justify-center rounded-[5px] ${
+                selection.selected ? "bg-ink text-white" : "border-[1.5px] border-ink bg-surface"
+              }`}
+            >
+              {selection.selected && <Check size={13} strokeWidth={3} />}
+            </span>
+          )}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onOpen(false)}
+          aria-label={`Open idea: ${label}`}
+          className="absolute inset-0 rounded-card focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
+        />
+      )}
 
       {idea.planned && <PlannedBadge planned={idea.planned} />}
 

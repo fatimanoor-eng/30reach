@@ -53,6 +53,28 @@ export async function finishImageDelete(path: string): Promise<void> {
   if (!error) cancelImageDelete(path);
 }
 
+/** Holds many (Select mode's Undo, or "Delete all ideas" before removing them). */
+export function holdImageDeletes(paths: string[], now = Date.now()): void {
+  paths.forEach((p) => mine.add(p));
+  const set = new Set(paths);
+  write([...read().filter((p) => !set.has(p.path)), ...paths.map((path) => ({ path, at: now }))]);
+}
+
+export function cancelImageDeletes(paths: string[]): void {
+  paths.forEach((p) => mine.delete(p));
+  const set = new Set(paths);
+  write(read().filter((p) => !set.has(p.path)));
+}
+
+/** Removes many images, 100 per request. Any that fail stay listed for the next visit's sweep. */
+export async function finishImageDeletes(paths: string[]): Promise<void> {
+  for (let i = 0; i < paths.length; i += 100) {
+    const batch = paths.slice(i, i + 100);
+    const { error } = await supabase.storage.from(IDEA_BUCKET).remove(batch);
+    if (!error) cancelImageDeletes(batch);
+  }
+}
+
 /** Paths already swept on this page load (effects can run twice in development). */
 const swept = new Set<string>();
 
