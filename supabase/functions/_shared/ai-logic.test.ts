@@ -10,6 +10,8 @@ import {
   clip,
   CLAIMS_SCHEMA,
   firstName,
+  groqErrorLog,
+  groqRequestBody,
   healthRedFlags,
   hookContext,
   HOOKS_SCHEMA,
@@ -283,6 +285,35 @@ describe("Groq responses", () => {
     [ASK_SCHEMA, ASK_LIGHT_SCHEMA, PLAN_SCHEMA, CLAIMS_SCHEMA, HOOKS_SCHEMA].forEach((s) =>
       check(s.schema),
     );
+  });
+
+  it("schemas use only keywords Groq's strict mode documents (no minItems, maxLength, format…)", () => {
+    const allowed = new Set([
+      "type",
+      "properties",
+      "required",
+      "additionalProperties",
+      "items",
+      "enum",
+    ]);
+    const walk = (s: Record<string, unknown>, path: string): void => {
+      for (const key of Object.keys(s)) expect(allowed, `${path}.${key}`).toContain(key);
+      expect(["object", "array", "string", "boolean", "number", "integer"]).toContain(s.type);
+      if (s.enum) {
+        expect(s.type).toBe("string");
+        (s.enum as unknown[]).forEach((v) => expect(typeof v).toBe("string"));
+      }
+      if (s.type === "object")
+        for (const [k, v] of Object.entries(
+          s.properties as Record<string, Record<string, unknown>>,
+        ))
+          walk(v, `${path}.${k}`);
+      if (s.type === "array") walk(s.items as Record<string, unknown>, `${path}[]`);
+    };
+    for (const s of [ASK_SCHEMA, ASK_LIGHT_SCHEMA, PLAN_SCHEMA, CLAIMS_SCHEMA, HOOKS_SCHEMA]) {
+      expect(s.name).toMatch(/^[a-z_]{1,64}$/);
+      walk(s.schema, s.name);
+    }
   });
 });
 
@@ -667,6 +698,74 @@ describe("hookContext", () => {
     expect(ctx.top_openings).toEqual([
       { brand: "Hims", format: "video", first_line: "A doctor answers", likes: 900, views: 1000 },
     ]);
+  });
+});
+
+describe("Groq request and errors", () => {
+  const body = groqRequestBody({
+    model: "openai/gpt-oss-120b",
+    system: "SYSTEM PROMPT",
+    user: "USER PROMPT",
+    schema: ASK_SCHEMA,
+    maxTokens: 3000,
+  });
+
+  it("sends only params Groq documents for gpt-oss + strict json_schema", () => {
+    expect(Object.keys(body).sort()).toEqual(
+      [
+        "include_reasoning",
+        "max_completion_tokens",
+        "messages",
+        "model",
+        "reasoning_effort",
+        "response_format",
+        "temperature",
+      ].sort(),
+    );
+    expect(["low", "medium", "high"]).toContain(body.reasoning_effort);
+    expect(body.include_reasoning).toBe(false);
+    expect(body).not.toHaveProperty("reasoning_format"); // not supported on gpt-oss
+    expect(body).not.toHaveProperty("stream"); // not supported with Structured Outputs
+    expect(body).not.toHaveProperty("tools");
+    expect(body.response_format).toEqual({
+      type: "json_schema",
+      json_schema: { name: "blip_answer", schema: ASK_SCHEMA.schema, strict: true },
+    });
+    expect(body.messages.map((m) => m.role)).toEqual(["system", "user"]);
+  });
+
+  it("logs Groq's error safely: code, type, param, message; never keys or model output", () => {
+    const err = JSON.stringify({
+      error: {
+        message:
+          "Failed to generate JSON. Please adjust your prompt. Key gsk_abc123XYZ was used. Authorization: Bearer gsk_zzz",
+        type: "invalid_request_error",
+        code: "json_validate_failed",
+        param: "response_format",
+        failed_generation: '{"type":"insight","lead":"Hims posts SECRET DATA',
+      },
+    });
+    const line = groqErrorLog("ask-blip full", 400, err);
+    expect(line).toMatch(
+      /^ask-blip full · Groq HTTP 400 · json_validate_failed \(invalid_request_error\) · param response_format: Failed to generate JSON/,
+    );
+    expect(line).toContain("failed_generation 48 chars");
+    expect(line).not.toMatch(/gsk_[A-Za-z0-9]/);
+    expect(line).not.toContain("SECRET DATA");
+  });
+
+  it("copes with a non-JSON or empty error body", () => {
+    expect(groqErrorLog("plan-month", 502, "<html>Bad gateway</html>")).toBe(
+      "plan-month · Groq HTTP 502 · 24 chars, not a Groq error object",
+    );
+    expect(groqErrorLog("plan-month", 400, "")).toBe(
+      "plan-month · Groq HTTP 400 · 0 chars, not a Groq error object",
+    );
+  });
+
+  it("clips a long message to 300 characters", () => {
+    const long = JSON.stringify({ error: { message: "x ".repeat(400) } });
+    expect(groqErrorLog("f", 400, long).length).toBeLessThan(340);
   });
 });
 

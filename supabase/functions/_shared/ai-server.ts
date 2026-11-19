@@ -9,6 +9,8 @@ import {
   DEFAULT_GROQ_MODEL,
   type Format,
   GROQ_URL,
+  groqErrorLog,
+  groqRequestBody,
   groqRetryAfter,
   type PullData,
   parseGroqJson,
@@ -40,7 +42,9 @@ async function saveMeter(admin: SupabaseClient, headers: Headers, model: string)
 /**
  * One JSON answer from Groq (strict schema), validated by `validate`. If the JSON is cut off,
  * invalid or fails validation, asks ONCE more (`validate` gets the attempt number, so the last try
- * can be a little more lenient). 429 → rate_limited (no retry: the user sees "Blip needs a break").
+ * can be a little more lenient). 429 → rate_limited (the browser decides about waiting).
+ * Any other HTTP error (400 included) is logged with Groq's error body (groqErrorLog) and NOT
+ * retried: the same request would fail the same way.
  */
 export async function groqJson<T>(o: {
   admin: SupabaseClient;
@@ -63,18 +67,15 @@ export async function groqJson<T>(o: {
       res = await fetch(GROQ_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          temperature: 0.3,
-          max_completion_tokens: o.maxTokens,
-          reasoning_effort: "low",
-          include_reasoning: false,
-          response_format: { type: "json_schema", json_schema: { ...o.schema, strict: true } },
-          messages: [
-            { role: "system", content: o.system },
-            { role: "user", content: o.user },
-          ],
-        }),
+        body: JSON.stringify(
+          groqRequestBody({
+            model,
+            system: o.system,
+            user: o.user,
+            schema: o.schema,
+            maxTokens: o.maxTokens,
+          }),
+        ),
         signal: AbortSignal.timeout(45_000),
       });
     } catch (err) {
@@ -89,10 +90,9 @@ export async function groqJson<T>(o: {
       return { ok: false, error: "rate_limited", retryAfter: groqRetryAfter(res.headers) };
     }
     if (!res.ok) {
-      // 400 can mean the model broke the strict schema: worth one more try.
-      console.error(`${o.fn}: Groq HTTP ${res.status} (attempt ${attempt})`);
-      await res.body?.cancel();
-      if (res.status === 400 && attempt === 1) continue;
+      // Not retried: a 400 (bad request, or a JSON Groq couldn't finish) fails the same way twice.
+      const text = await res.text().catch(() => "");
+      console.error(`${groqErrorLog(o.label ?? o.fn, res.status, text)} (attempt ${attempt})`);
       return { ok: false, error: "ai_unavailable" };
     }
 

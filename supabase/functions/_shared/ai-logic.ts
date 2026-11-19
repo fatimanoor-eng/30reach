@@ -480,6 +480,64 @@ export function parseGroqMeter(h: HeaderBag, model: string): GroqMeter | null {
 }
 
 /**
+ * The chat completion request. Every param is one Groq documents for gpt-oss: strict json_schema
+ * (all properties required, additionalProperties false), reasoning_effort low|medium|high,
+ * include_reasoning false (reasoning_format isn't supported on gpt-oss, so it's never sent). No
+ * streaming or tools: Groq doesn't support them with Structured Outputs.
+ */
+export function groqRequestBody(o: {
+  model: string;
+  system: string;
+  user: string;
+  schema: { name: string; schema: Record<string, unknown> };
+  maxTokens: number;
+}) {
+  return {
+    model: o.model,
+    temperature: 0.3,
+    // Reasoning tokens count here too: too small and Groq can't finish the JSON (400).
+    max_completion_tokens: o.maxTokens,
+    reasoning_effort: "low",
+    include_reasoning: false,
+    response_format: { type: "json_schema", json_schema: { ...o.schema, strict: true } },
+    messages: [
+      { role: "system", content: o.system },
+      { role: "user", content: o.user },
+    ],
+  };
+}
+
+/**
+ * Groq's error body as one safe log line: status, code, type, param and message (key-like strings
+ * masked, max 300 chars), and only the LENGTH of failed_generation (model output can echo our data).
+ * Never the prompt. "ask-blip full · Groq HTTP 400 · json_validate_failed (invalid_request_error): …"
+ */
+export function groqErrorLog(label: string, status: number, body: string): string {
+  let err: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (isObj(parsed) && isObj(parsed.error)) err = parsed.error;
+  } catch {
+    /* not JSON: logged as a length only */
+  }
+  const mask = (t: string) =>
+    t.replace(/gsk_[A-Za-z0-9]+/g, "gsk_…").replace(/Bearer\s+\S+/gi, "Bearer …");
+  const str = (v: unknown) => (isStr(v) && v.trim() ? mask(v.trim()) : null);
+  const code = str(err.code);
+  const type = str(err.type);
+  const param = str(err.param);
+  const message = str(err.message);
+  const failed = isStr(err.failed_generation) ? err.failed_generation.length : null;
+  return [
+    `${label} · Groq HTTP ${status}`,
+    code || type ? ` · ${code ?? "?"}${type ? ` (${type})` : ""}` : "",
+    param ? ` · param ${param}` : "",
+    message ? `: ${clip(message, 300)}` : ` · ${body.length} chars, not a Groq error object`,
+    failed != null ? ` · failed_generation ${failed} chars` : "",
+  ].join("");
+}
+
+/**
  * One log line per Groq response, for tuning against the free plan's tokens per minute:
  * "ask-blip light · tokens 412 in + 96 out (reasoning 40) = 508 · 7.4K/min left". Never the content.
  */

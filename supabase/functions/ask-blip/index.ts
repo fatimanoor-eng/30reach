@@ -87,7 +87,9 @@ export default {
       system: askSystem({ client, firstName: firstName(who?.full_name, who?.email) }),
       user: askUser({ summaryJson, history: input.history, question: input.question }),
       schema: ASK_SCHEMA,
-      maxTokens: 1500,
+      // Reasoning over the ~2.5K-token summary counts here too; 1,500 could run out before the JSON
+      // was finished (Groq 400). ~3K in + 3K max stays under the 8K tokens/minute.
+      maxTokens: 3000,
       validate: (raw) => validateAskAnswer(raw, refs),
     });
     if (!result.ok) return aiFailure(result);
