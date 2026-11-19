@@ -11,3 +11,5 @@ CLAUDE.md
 .spike
 # Supabase CLI local state (written by `supabase link` etc.)
 supabase/.temp
+# README uses * bullets on purpose (Prettier would turn them into -)
+README.md
