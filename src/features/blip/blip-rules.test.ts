@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { BlipAnswer, BlipInsight, SourcePost } from "../../lib/ai/ai-api";
 import { AiError, answerText } from "../../lib/ai/ai-api";
 import {
+  REVEAL_WPS,
+  revealSegments,
+  typingDelay,
+  wordCount,
   BREATHER_CAP_S,
   breatherWait,
   isLightQuestion,
@@ -375,5 +379,45 @@ describe("Ask Blip breather (one automatic retry after a 429)", () => {
     });
     expect(run).toHaveBeenCalledTimes(1);
     expect(onWait).not.toHaveBeenCalled();
+  });
+});
+
+describe("Ask Blip typing and reveal", () => {
+  it("reveals at 35–45 words per second", () => {
+    expect(REVEAL_WPS).toBeGreaterThanOrEqual(35);
+    expect(REVEAL_WPS).toBeLessThanOrEqual(45);
+  });
+
+  it("counts words, emoji included, ignoring extra spaces", () => {
+    expect(wordCount("Hims is winning 🎯")).toBe(4);
+    expect(wordCount("  two   words ")).toBe(2);
+    expect(wordCount("")).toBe(0);
+  });
+
+  it("reveals across segments in order: lead, points, For {client}", () => {
+    const segs = ["Hims wins big", "Q&A videos", "For OBU: try it"];
+    expect(revealSegments(segs, 0)).toEqual(["", "", ""]);
+    expect(revealSegments(segs, 2)).toEqual(["Hims wins", "", ""]);
+    expect(revealSegments(segs, 3)).toEqual(["Hims wins big", "", ""]);
+    expect(revealSegments(segs, 4)).toEqual(["Hims wins big", "Q&A", ""]);
+    expect(revealSegments(segs, 6)).toEqual(["Hims wins big", "Q&A videos", "For"]);
+    expect(revealSegments(segs, 99)).toEqual(segs);
+  });
+
+  it("keeps the text exactly as written once complete (spacing, emoji, punctuation)", () => {
+    const text = "LETS GOOO 🚀 Hims just had a big week, want the top post?";
+    expect(revealSegments([text], wordCount(text))).toEqual([text]);
+    expect(revealSegments(["", "a b"], 1)).toEqual(["", "a"]);
+  });
+
+  it("code replies type for 400–700 ms", () => {
+    expect(typingDelay(() => 0)).toBe(400);
+    expect(typingDelay(() => 0.5)).toBe(550);
+    expect(typingDelay(() => 0.9999)).toBe(700);
+    for (let i = 0; i < 50; i++) {
+      const d = typingDelay();
+      expect(d).toBeGreaterThanOrEqual(400);
+      expect(d).toBeLessThanOrEqual(700);
+    }
   });
 });

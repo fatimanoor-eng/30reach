@@ -1,14 +1,15 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, ChevronLeft, Send, X } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, Send, Square, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { BlipError, BlipIdle, BlipThinking } from "../../components/blip/BlipPoses";
 import { useNativeModal } from "../../components/useNativeModal";
-import { AI_COPY, answerText, type BlipInsight } from "../../lib/ai/ai-api";
+import { AI_COPY, answerText, type BlipChat, type BlipInsight } from "../../lib/ai/ai-api";
 import { useProfile } from "../../lib/auth/useProfile";
 import { useCompetitors } from "../../lib/useCompetitors";
 import { useClient } from "../../lib/useClient";
 import { formatShortDate } from "../../lib/format";
+import { useMediaQuery } from "../../lib/useMediaQuery";
 import { createIdea } from "../ideas/ideas-api";
 import { usePullPosts, useSavedPulls } from "../overview/useOverviewData";
 import {
@@ -17,16 +18,26 @@ import {
   firstNameOf,
   greeting,
   MAX_QUESTION,
+  revealSegments,
   sourceLabel,
   suggestions,
   topBrand,
+  wordCount,
 } from "./blip-rules";
 import type { BlipThread } from "./useBlipThread";
+import { useReveal } from "./useReveal";
+
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
 /**
  * 12 Ask Blip (side panel from 768 px) / M11 (full screen on phones). Answers come only from the saved
- * pull (the `ask-blip` function sends Groq a compact summary) and cite the posts used. Blip/Thinking
- * shows while answering. "Add idea to board" saves a `kind 'ai'` idea (no creator → admins delete it).
+ * pull (the `ask-blip` function sends Groq a compact summary) and cite the posts used. "Add idea to
+ * board" saves a `kind 'ai'` idea (no creator → admins delete it).
+ *
+ * Chat feel: three bouncing dots while Blip "types", then the answer appears word by word (40 words/s;
+ * sources and actions fade in after). A click on the message, any key or Stop finishes it at once.
+ * The thread follows the reveal unless the person scrolled up. Reduced motion: still dots, no reveal.
+ * Screen readers hear each answer once, in full, from one live region (never word by word).
  *
  * The thread (session only, no table) is owned by the shell (useBlipThread), so this drawer mounts
  * and unmounts like the others and reopening keeps the conversation.
@@ -50,9 +61,14 @@ export function AskBlipPanel({
   const competitors = useCompetitors();
   const navigate = useNavigate();
 
-  const { messages, busy } = thread;
+  const { messages, busy, revealingId, finishReveal } = thread;
+  const revealing = revealingId != null;
+  const reduced = useMediaQuery(REDUCED_MOTION);
   const [draft, setDraft] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  /** Follow new content only while the person is at (or near) the bottom. */
+  const stick = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const clientId = client.data?.id;
@@ -61,7 +77,12 @@ export function AskBlipPanel({
   const noPull = pulls.isSuccess && !latest;
 
   function ask(question: string) {
+    if (revealing) {
+      finishReveal(); // Enter / a chip mid-reveal finishes it; the next one sends
+      return;
+    }
     setDraft("");
+    stick.current = true;
     void thread.ask(question);
   }
 
@@ -70,11 +91,48 @@ export function AskBlipPanel({
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  // Keep the newest message in view.
+  // Follow the thread as it grows (new messages, the reveal, fade-ins) unless scrolled up.
   useEffect(() => {
     const el = threadRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, open]);
+    const content = contentRef.current;
+    if (!el || !content) return;
+    el.scrollTop = el.scrollHeight;
+    const follow = () => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    };
+    const ro = new ResizeObserver(follow);
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el && stick.current) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  // Reduced motion: no reveal at all. Closing the panel mid-reveal finishes it (no replay on reopen).
+  useEffect(() => {
+    if (reduced && revealing) finishReveal();
+  }, [reduced, revealing, finishReveal]);
+  useEffect(() => () => finishReveal(), [finishReveal]);
+
+  // Any key finishes the reveal.
+  useEffect(() => {
+    if (!revealing) return;
+    const onKey = () => finishReveal();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [revealing, finishReveal]);
+
+  // One announcement per new message, in full: typing, catching breath, then the whole answer.
+  const last = messages.at(-1);
+  const announcement =
+    last?.status === "pending"
+      ? last.breather
+        ? BREATHER_TEXT
+        : "Blip is typing…"
+      : last?.status === "done"
+        ? answerText(last.answer)
+        : "";
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -134,70 +192,90 @@ export function AskBlipPanel({
 
         <div
           ref={threadRef}
-          aria-live="polite"
-          className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 md:gap-5 md:border-t md:border-line md:px-6 md:py-5"
+          data-testid="blip-thread"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+          }}
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:border-t md:border-line md:px-6 md:py-5"
         >
-          {noPull ? (
-            <Notice pose="idle" text={AI_COPY.noPull} />
-          ) : (
-            latest &&
-            posts.data && (
-              <BlipSays>
-                <p className="text-body-sm">
-                  {greeting({
-                    firstName,
-                    pullStartedAt: latest.started_at,
-                    posts: posts.data.length,
-                    brands: new Set(posts.data.map((p) => p.competitor_id)).size,
-                  })}
-                </p>
-              </BlipSays>
-            )
-          )}
-          {messages.map((m) => (
-            <div key={m.id} className="flex flex-col gap-4 md:gap-5">
-              <p className="max-w-[85%] self-end rounded-panel bg-ink px-3.5 py-2.5 text-body-sm break-words text-white md:max-w-77 md:rounded-card">
-                {m.question}
-              </p>
-              {m.status === "pending" && (
-                <p className="flex items-center gap-2.5 text-small text-muted">
-                  <BlipThinking className="h-8 w-auto shrink-0" />
-                  {m.breather ? BREATHER_TEXT : "Blip is thinking…"}
-                </p>
-              )}
-              {m.status === "error" && (
-                <Notice
-                  pose={m.kind === "no_pull" ? "idle" : "error"}
-                  text={
-                    m.kind === "rate_limited"
-                      ? AI_COPY.rateLimited
-                      : m.kind === "no_pull"
-                        ? AI_COPY.noPull
-                        : AI_COPY.failed
-                  }
-                  retry={m.kind === "failed" ? () => thread.retry(m.id) : undefined}
-                />
-              )}
-              {m.status === "done" && m.answer.type === "chat" && (
+          <div ref={contentRef} className="flex flex-col gap-4 md:gap-5">
+            {noPull ? (
+              <Notice pose="idle" text={AI_COPY.noPull} />
+            ) : (
+              latest &&
+              posts.data && (
                 <BlipSays>
-                  <p className="text-body-sm">{m.answer.message}</p>
+                  <p className="text-body-sm">
+                    {greeting({
+                      firstName,
+                      pullStartedAt: latest.started_at,
+                      posts: posts.data.length,
+                      brands: new Set(posts.data.map((p) => p.competitor_id)).size,
+                    })}
+                  </p>
                 </BlipSays>
-              )}
-              {m.status === "done" && m.answer.type === "insight" && (
-                <BlipSays>
-                  <Answer
-                    answer={m.answer}
-                    clientId={clientId ?? null}
-                    onOpenIdea={(ideaId) => {
-                      onClose();
-                      navigate(`/ideas?idea=${ideaId}`);
-                    }}
+              )
+            )}
+            {messages.map((m) => (
+              <div key={m.id} className="flex flex-col gap-4 md:gap-5">
+                <p className="max-w-[85%] self-end rounded-panel bg-ink px-3.5 py-2.5 text-body-sm break-words text-white md:max-w-77 md:rounded-card">
+                  {m.question}
+                </p>
+                {m.status === "pending" &&
+                  (m.breather ? (
+                    <p className="flex items-center gap-2.5 text-small text-muted">
+                      <BlipThinking className="h-8 w-auto shrink-0" />
+                      {BREATHER_TEXT}
+                    </p>
+                  ) : (
+                    <BlipSays>
+                      <TypingDots />
+                    </BlipSays>
+                  ))}
+                {m.status === "error" && (
+                  <Notice
+                    pose={m.kind === "no_pull" ? "idle" : "error"}
+                    text={
+                      m.kind === "rate_limited"
+                        ? AI_COPY.rateLimited
+                        : m.kind === "no_pull"
+                          ? AI_COPY.noPull
+                          : AI_COPY.failed
+                    }
+                    retry={m.kind === "failed" ? () => thread.retry(m.id) : undefined}
                   />
-                </BlipSays>
-              )}
-            </div>
-          ))}
+                )}
+                {m.status === "done" && m.answer.type === "chat" && (
+                  <BlipSays onSkip={m.animate ? () => finishReveal(m.id) : undefined}>
+                    <ChatReply
+                      answer={m.answer}
+                      animate={!!m.animate && !reduced}
+                      onDone={() => finishReveal(m.id)}
+                    />
+                  </BlipSays>
+                )}
+                {m.status === "done" && m.answer.type === "insight" && (
+                  <BlipSays onSkip={m.animate ? () => finishReveal(m.id) : undefined}>
+                    <Answer
+                      answer={m.answer}
+                      animate={!!m.animate && !reduced}
+                      onDone={() => finishReveal(m.id)}
+                      clientId={clientId ?? null}
+                      onOpenIdea={(ideaId) => {
+                        onClose();
+                        navigate(`/ideas?idea=${ideaId}`);
+                      }}
+                    />
+                  </BlipSays>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
+        <p aria-live="polite" aria-atomic="true" className="sr-only">
+          {announcement}
+        </p>
 
         <form
           onSubmit={submit}
@@ -209,7 +287,7 @@ export function AskBlipPanel({
               <button
                 key={c}
                 type="button"
-                disabled={busy || noPull}
+                disabled={busy || revealing || noPull}
                 onClick={() => ask(c)}
                 className="inline-flex min-h-11 shrink-0 items-center md:min-h-0"
               >
@@ -231,22 +309,36 @@ export function AskBlipPanel({
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  // Mid-reveal, Enter only finishes the reveal (the document listener does that).
                   e.preventDefault();
                   ask(draft);
                 }
               }}
               className="[field-sizing:content] max-h-32 min-h-6 flex-1 resize-none bg-transparent text-body outline-none placeholder:text-muted md:text-body-sm"
             />
-            <button
-              type="submit"
-              aria-label="Send"
-              disabled={busy || noPull || !draft.trim()}
-              className="inline-flex size-11 shrink-0 items-center justify-center md:size-8"
-            >
-              <span className="inline-flex size-9 items-center justify-center rounded-full bg-ink text-white md:size-8 md:rounded-control">
-                <Send size={15} aria-hidden="true" />
-              </span>
-            </button>
+            {revealing ? (
+              <button
+                type="button"
+                aria-label="Stop"
+                onClick={() => finishReveal()}
+                className="inline-flex size-11 shrink-0 items-center justify-center md:size-8"
+              >
+                <span className="inline-flex size-9 items-center justify-center rounded-full bg-ink text-white md:size-8 md:rounded-control">
+                  <Square size={12} fill="currentColor" aria-hidden="true" />
+                </span>
+              </button>
+            ) : (
+              <button
+                type="submit"
+                aria-label="Send"
+                disabled={busy || noPull || !draft.trim()}
+                className="inline-flex size-11 shrink-0 items-center justify-center md:size-8"
+              >
+                <span className="inline-flex size-9 items-center justify-center rounded-full bg-ink text-white md:size-8 md:rounded-control">
+                  <Send size={15} aria-hidden="true" />
+                </span>
+              </button>
+            )}
           </div>
           <p className="hidden mono-label text-muted normal-case md:block">
             Answers only from the saved pull. If it isn’t in the data, 30reach says so.
@@ -258,12 +350,48 @@ export function AskBlipPanel({
 }
 
 /** A Blip message: the small idle avatar beside it (greeting, chat replies and insights). */
-function BlipSays({ children }: { children: ReactNode }) {
+function BlipSays({ children, onSkip }: { children: ReactNode; onSkip?: () => void }) {
+  // Click / tap mid-reveal shows it all (keyboard: any key, or Stop).
   return (
-    <div className="flex items-start gap-2.5">
+    <div className="flex items-start gap-2.5" onClick={onSkip}>
       <BlipIdle className="h-8 w-auto shrink-0" />
       <div className="min-w-0 flex-1 pt-1">{children}</div>
     </div>
+  );
+}
+
+/** Blip is typing: three bouncing dots in a bubble (still with reduced motion). */
+function TypingDots() {
+  return (
+    <span
+      data-testid="blip-typing"
+      aria-hidden="true"
+      className="inline-flex items-center gap-1 rounded-panel bg-bg px-3.5 py-3 md:rounded-card"
+    >
+      <span className="blip-dot size-1.5 rounded-full bg-muted" />
+      <span className="blip-dot size-1.5 rounded-full bg-muted" />
+      <span className="blip-dot size-1.5 rounded-full bg-muted" />
+    </span>
+  );
+}
+
+/** Small talk: just the line, revealed word by word. No Copy, sources or "Add idea". */
+function ChatReply({
+  answer,
+  animate,
+  onDone,
+}: {
+  answer: BlipChat;
+  animate: boolean;
+  onDone: () => void;
+}) {
+  const shown = useReveal(wordCount(answer.message), animate, onDone);
+  const [text] = revealSegments([answer.message], shown);
+  // Hidden from screen readers while it builds up; the live region reads it once, in full.
+  return (
+    <p className="text-body-sm" aria-hidden={animate || undefined}>
+      {text}
+    </p>
   );
 }
 
@@ -298,13 +426,28 @@ function Notice({
 
 function Answer({
   answer,
+  animate,
+  onDone,
   clientId,
   onOpenIdea,
 }: {
   answer: BlipInsight;
+  animate: boolean;
+  onDone: () => void;
   clientId: string | null;
   onOpenIdea: (ideaId: string) => void;
 }) {
+  // Reveal order: lead, points, "For {client}:"; then sources and actions fade in.
+  const segments = [answer.lead, ...answer.points, answer.forClient];
+  const shown = useReveal(
+    segments.reduce((n, t) => n + wordCount(t), 0),
+    animate,
+    onDone,
+  );
+  const [lead, ...rest] = revealSegments(segments, shown);
+  const points = rest.slice(0, answer.points.length);
+  const forClient = rest[answer.points.length];
+  const [fadeIn] = useState(animate); // fade only when this answer was revealed, not on reopen
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState<{ id: string } | "saving" | "error" | null>(null);
   const [copied, setCopied] = useState(false);
@@ -351,69 +494,79 @@ function Answer({
 
   return (
     <div className="flex flex-col gap-2.5 text-body-sm md:gap-3">
-      <p>{answer.lead}</p>
-      {answer.points.map((p, i) => (
-        <p key={i}>
-          {i + 1}.&nbsp; {p}
-        </p>
-      ))}
-      {answer.forClient && <p>{answer.forClient}</p>}
-      {answer.sources.length > 0 && (
-        <div className="flex flex-col gap-1.5 rounded-control bg-bg px-3 py-2.5">
-          <p className="mono-label text-muted">
-            Based on {answer.sources.length} {answer.sources.length === 1 ? "post" : "posts"}
-          </p>
-          {answer.sources.map((s) => (
-            <a
-              key={s.id}
-              href={s.url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex min-h-11 items-center gap-1.5 self-start text-small text-blue hover:underline md:min-h-0"
-            >
-              {sourceLabel(s)}
-              <ArrowUpRight size={12} aria-hidden="true" />
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          ))}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-x-4 text-small font-medium">
-        {answer.idea &&
-          (saved && typeof saved === "object" ? (
-            <span className="inline-flex min-h-11 items-center gap-1.5 text-fresh md:min-h-0">
-              Saved to idea board ·
-              <button
-                type="button"
-                onClick={() => onOpenIdea(saved.id)}
-                className="text-blue hover:underline"
-              >
-                Open
-              </button>
-            </span>
-          ) : (
+      {/* Hidden from screen readers while it builds up; the live region reads it once, in full. */}
+      <div className="flex flex-col gap-2.5 md:gap-3" aria-hidden={animate || undefined}>
+        {lead && <p>{lead}</p>}
+        {points.map(
+          (p, i) =>
+            p && (
+              <p key={i}>
+                {i + 1}.&nbsp; {p}
+              </p>
+            ),
+        )}
+        {forClient && <p>{forClient}</p>}
+      </div>
+      {!animate && (
+        <div className={`flex flex-col gap-2.5 md:gap-3 ${fadeIn ? "blip-fade-in" : ""}`}>
+          {answer.sources.length > 0 && (
+            <div className="flex flex-col gap-1.5 rounded-control bg-bg px-3 py-2.5">
+              <p className="mono-label text-muted">
+                Based on {answer.sources.length} {answer.sources.length === 1 ? "post" : "posts"}
+              </p>
+              {answer.sources.map((s) => (
+                <a
+                  key={s.id}
+                  href={s.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-11 items-center gap-1.5 self-start text-small text-blue hover:underline md:min-h-0"
+                >
+                  {sourceLabel(s)}
+                  <ArrowUpRight size={12} aria-hidden="true" />
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-x-4 text-small font-medium">
+            {answer.idea &&
+              (saved && typeof saved === "object" ? (
+                <span className="inline-flex min-h-11 items-center gap-1.5 text-fresh md:min-h-0">
+                  Saved to idea board ·
+                  <button
+                    type="button"
+                    onClick={() => onOpenIdea(saved.id)}
+                    className="text-blue hover:underline"
+                  >
+                    Open
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void addIdea()}
+                  disabled={saved === "saving" || !clientId}
+                  className="min-h-11 text-blue hover:underline disabled:opacity-60 md:min-h-0"
+                >
+                  {saved === "saving" ? "Adding…" : "Add idea to board"}
+                </button>
+              ))}
             <button
               type="button"
-              onClick={() => void addIdea()}
-              disabled={saved === "saving" || !clientId}
-              className="min-h-11 text-blue hover:underline disabled:opacity-60 md:min-h-0"
+              onClick={() => void copy()}
+              className="hidden text-muted hover:text-ink md:inline"
             >
-              {saved === "saving" ? "Adding…" : "Add idea to board"}
+              {copied ? "Copied" : "Copy"}
             </button>
-          ))}
-        <button
-          type="button"
-          onClick={() => void copy()}
-          className="hidden text-muted hover:text-ink md:inline"
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
-        {saved === "error" && (
-          <span role="alert" className="text-spark">
-            Couldn’t add it. Try again.
-          </span>
-        )}
-      </div>
+            {saved === "error" && (
+              <span role="alert" className="text-spark">
+                Couldn’t add it. Try again.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

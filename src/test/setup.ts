@@ -25,6 +25,16 @@ if (!window.matchMedia) {
     }) as MediaQueryList;
 }
 
+// jsdom has no ResizeObserver (Ask Blip follows its thread with one). A no-op is enough here:
+// layout never changes in jsdom.
+if (typeof window.ResizeObserver === "undefined") {
+  window.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 // jsdom's <dialog> may lack showModal/close. Minimal stand-ins: toggle the `open` attribute.
 const proto = HTMLDialogElement.prototype;
 if (!proto.showModal) {

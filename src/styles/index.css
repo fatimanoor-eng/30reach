@@ -128,3 +128,47 @@ dialog[data-motion][data-instant]::backdrop {
 .skeleton-delay {
   animation: skeleton-appear 1ms linear var(--skeleton-delay) both;
 }
+
+/* ---------- Ask Blip: typing dots and reveal fade ----------
+   Three dots bounce in turn while Blip "types"; sources and actions fade in after the word-by-word
+   reveal. Reduced motion: dots stand still and nothing fades (the reveal itself is skipped in code). */
+:root {
+  --motion-blip-dot: 1s;
+  --motion-blip-fade: 200ms;
+}
+@keyframes blip-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+.blip-dot {
+  animation: blip-dot var(--motion-blip-dot) ease-in-out infinite;
+}
+.blip-dot:nth-child(2) {
+  animation-delay: calc(var(--motion-blip-dot) * 0.15);
+}
+.blip-dot:nth-child(3) {
+  animation-delay: calc(var(--motion-blip-dot) * 0.3);
+}
+@keyframes blip-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.blip-fade-in {
+  animation: blip-fade-in var(--motion-blip-fade) ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .blip-dot,
+  .blip-fade-in {
+    animation: none;
+  }
+}

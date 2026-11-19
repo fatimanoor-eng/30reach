@@ -12,6 +12,7 @@ import {
   matchSmallTalk,
   smallTalkReply,
   type Message,
+  typingDelay,
   withBreather,
 } from "./blip-rules";
 
@@ -22,6 +23,9 @@ import {
  * A pure greeting / thanks ("hiiii!!", "thx") is answered here with a rotating line (no Groq call,
  * no tokens). Other short small talk goes in light mode (no data summary). A rate limit shows
  * "One sec, catching my breath…", waits (≤ 30 s) and retries once before the breather message.
+ *
+ * New answers arrive with `animate: true` (the panel reveals them word by word, then calls
+ * finishReveal). Code replies show the typing dots for 400–700 ms first.
  */
 export function useBlipThread(clientId: string | undefined) {
   const profile = useProfile();
@@ -53,17 +57,30 @@ export function useBlipThread(clientId: string | undefined) {
       if (!q || !clientId || inFlight.current) return;
       const id = nextId.current++;
       const small = matchSmallTalk(q);
+      inFlight.current = true;
       if (small) {
         const turn = current.filter((m) => m.status === "done" && m.local === small.kind).length;
         const message = smallTalkReply(small, firstName, turn);
-        latest.current = [
-          ...current,
-          { id, question: q, status: "done", local: small.kind, answer: { type: "chat", message } },
-        ];
-        setMessages(latest.current);
+        setMessages((m) => [...m, { id, question: q, status: "pending" }]);
+        window.setTimeout(() => {
+          setMessages((m) =>
+            m.map((x) =>
+              x.id === id
+                ? {
+                    id,
+                    question: q,
+                    status: "done",
+                    local: small.kind,
+                    animate: true,
+                    answer: { type: "chat", message },
+                  }
+                : x,
+            ),
+          );
+          inFlight.current = false;
+        }, typingDelay());
         return;
       }
-      inFlight.current = true;
       const history = historyFrom(current);
       const light = isLightQuestion(q, names);
       const setBreather = (breather: boolean) =>
@@ -80,7 +97,9 @@ export function useBlipThread(clientId: string | undefined) {
           { onWait: () => setBreather(true) },
         );
         setMessages((m) =>
-          m.map((x) => (x.id === id ? { id, question: q, status: "done", answer } : x)),
+          m.map((x) =>
+            x.id === id ? { id, question: q, status: "done", answer, animate: true } : x,
+          ),
         );
       } catch (err) {
         const kind = err instanceof AiError ? err.kind : "failed";
@@ -94,6 +113,19 @@ export function useBlipThread(clientId: string | undefined) {
     [clientId, firstName, names],
   );
 
+  /** The reveal ended or was skipped: show the message in full from now on (no replay on reopen). */
+  const finishReveal = useCallback((id?: number) => {
+    setMessages((m) =>
+      m.some((x) => x.status === "done" && x.animate && (id == null || x.id === id))
+        ? m.map((x) =>
+            x.status === "done" && x.animate && (id == null || x.id === id)
+              ? { ...x, animate: false }
+              : x,
+          )
+        : m,
+    );
+  }, []);
+
   /** Drop a failed turn and ask it again. */
   const retry = useCallback(
     (id: number) => {
@@ -106,7 +138,15 @@ export function useBlipThread(clientId: string | undefined) {
     [ask],
   );
 
-  return { messages, busy: messages.some((m) => m.status === "pending"), ask, retry };
+  return {
+    messages,
+    busy: messages.some((m) => m.status === "pending"),
+    /** The message being revealed word by word, if any. */
+    revealingId: messages.find((m) => m.status === "done" && m.animate)?.id ?? null,
+    ask,
+    retry,
+    finishReveal,
+  };
 }
 
 export type BlipThread = ReturnType<typeof useBlipThread>;

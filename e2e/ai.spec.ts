@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
 import { BRANDS, makePosts, NOW } from "./overview-fixtures";
@@ -23,6 +23,14 @@ const json = (body: unknown, status = 200) => ({
 const LATEST = { id: "pull-new", started_at: "2026-11-16T16:20:00Z", status: "done" };
 const PREVIOUS = { id: "pull-old", started_at: "2026-11-06T10:00:00Z", status: "done" };
 const isPhone = (page: Page) => (page.viewportSize()?.width ?? 0) < 768;
+/**
+ * Text Blip shows in the thread, in full (a half-revealed line doesn't contain it yet). Scoped to the
+ * thread because the screen-reader live region holds a second, hidden copy.
+ */
+const said = (dialog: Locator, text: string) => dialog.getByTestId("blip-thread").getByText(text);
+/** The reveal is over (Stop is back to Send), so Enter sends instead of finishing the reveal. */
+const idle = (dialog: Locator) =>
+  expect(dialog.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 10_000 }); // LONG ≈ 5 s of words
 
 const ANSWER = {
   type: "insight",
@@ -252,7 +260,7 @@ test("Ask Blip — answers from the pull, cites posts, adds the idea (12 / M11)"
   const answered = new Promise<void>((resolve) => (release = resolve));
   const { added, sent } = await setup(page, {
     "ask-blip": async (r) => {
-      await answered; // hold the answer so "Blip is thinking…" can be checked
+      await answered; // hold the answer so the typing dots can be checked
       await r.fulfill(json(ANSWER));
     },
   });
@@ -274,9 +282,12 @@ test("Ask Blip — answers from the pull, cites posts, adds the idea (12 / M11)"
     .getByRole("textbox", { name: "Ask Blip a question" })
     .fill("Why is Hims doing better on TikTok?");
   await page.keyboard.press("Enter");
-  await expect(dialog.getByText("Blip is thinking…")).toBeVisible();
+  await expect(dialog.getByTestId("blip-typing")).toBeVisible();
+  if (isPhone(page)) await tapTargetsOk(page);
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot(`ask-blip-typing-${info.project.name}.png`);
   release();
-  await expect(dialog.getByText(ANSWER.lead)).toBeVisible();
+  await expect(said(dialog, ANSWER.lead)).toBeVisible();
   expect(sent["ask-blip"][0]).toMatchObject({
     clientId: "client-1",
     question: "Why is Hims doing better on TikTok?",
@@ -307,6 +318,7 @@ test("Ask Blip — answers from the pull, cites posts, adds the idea (12 / M11)"
   });
 
   // A follow-up sends the earlier turn as history; closing and reopening keeps the thread.
+  await idle(dialog);
   await dialog.getByRole("button", { name: "Give me 3 post ideas for OBU" }).click();
   await expect.poll(() => sent["ask-blip"].length).toBe(2);
   expect((sent["ask-blip"][1].history as unknown[]).length).toBe(1);
@@ -332,42 +344,147 @@ test("Ask Blip — chat replies: small talk from Groq, bare hi / thanks answered
   await box.fill("Hey! 👋");
   await page.keyboard.press("Enter");
   await expect(
-    dialog.getByText(
+    said(
+      dialog,
       "Hey Fatima! 👋 Ready when you are. Want to see what changed since the last pull?",
     ),
   ).toBeVisible();
+  await idle(dialog);
   await box.fill("hiiii!!");
   await page.keyboard.press("Enter");
   await expect(
-    dialog.getByText("Hiiii Fatima! 🙌 Let’s find something good. Who should we look at first?"),
+    said(dialog, "Hiiii Fatima! 🙌 Let’s find something good. Who should we look at first?"),
   ).toBeVisible();
 
   // Hype goes to Groq; the chat reply has no sources and nothing to add to the board.
+  await idle(dialog);
   await box.fill("lets gooo");
   await page.keyboard.press("Enter");
-  await expect(dialog.getByText(CHAT.message)).toBeVisible();
+  await expect(said(dialog, CHAT.message)).toBeVisible();
   expect(sent["ask-blip"]).toHaveLength(1);
   expect(sent["ask-blip"][0]).toMatchObject({ question: "lets gooo", history: [] });
   await expect(dialog.getByText(/Based on \d+ post/)).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: "Add idea to board" })).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: "Copy" })).toHaveCount(0); // insights only
 
+  await idle(dialog);
   await box.fill("thank you!");
   await page.keyboard.press("Enter");
   await expect(
-    dialog.getByText("Anytime, Fatima! 🙌 Shout if you want to dig into anything else."),
+    said(dialog, "Anytime, Fatima! 🙌 Shout if you want to dig into anything else."),
   ).toBeVisible();
   expect(sent["ask-blip"]).toHaveLength(1);
 
   // Code-written replies aren't sent back as history; Groq's chat reply is.
+  await idle(dialog);
   await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
   await expect.poll(() => sent["ask-blip"].length).toBe(2);
   expect(sent["ask-blip"][1].history).toEqual([{ q: "lets gooo", a: CHAT.message }]);
-  await expect(dialog.getByText(CHAT.message)).toHaveCount(2);
+  await expect(said(dialog, CHAT.message)).toHaveCount(2);
 
+  await idle(dialog);
   if (isPhone(page)) await tapTargetsOk(page);
   await noSidewaysScroll(page);
   await expect(page).toHaveScreenshot(`ask-blip-chat-${info.project.name}.png`);
+});
+
+// ───────────────────────────── Ask Blip chat feel: typing dots, reveal, Stop, scroll, a11y
+
+const LONG = {
+  ...ANSWER,
+  points: Array.from(
+    { length: 8 },
+    (_, i) =>
+      `Point ${i + 1}: Hims posts short clinician Q&A videos on TikTok most weeks, and they keep pulling far more likes than anything else in this pull.`,
+  ),
+};
+
+test("Ask Blip — typing dots, then a word-by-word reveal; Stop, a key or a tap finishes it", async ({
+  page,
+}) => {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await setup(page, {
+    "ask-blip": async (r) => {
+      await held;
+      await r.fulfill(json(LONG));
+    },
+  });
+  await open(page, "/overview");
+  const dialog = await openAskBlip(page);
+  const box = dialog.getByRole("textbox", { name: "Ask Blip a question" });
+  const live = dialog.locator('[aria-live="polite"]');
+
+  // Code reply: dots for 400–700 ms, then the reveal.
+  await box.fill("hey!");
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByTestId("blip-typing")).toBeVisible();
+  await expect(live).toHaveText("Blip is typing…");
+  await expect(dialog.getByTestId("blip-typing")).toHaveCount(0);
+  const hey = "Hey Fatima! 👋 Ready when you are. Want to see what changed since the last pull?";
+  await expect(live).toHaveText(hey); // announced once, in full, while the words appear
+  // Stop finishes the reveal at once and turns back into Send.
+  const stop = dialog.getByRole("button", { name: "Stop" });
+  if (await stop.isVisible()) await stop.click();
+  await expect(said(dialog, hey)).toBeVisible();
+  await idle(dialog);
+
+  // Insight: dots until the answer arrives; sources and actions only after the reveal.
+  await box.fill("Why is Hims doing better on TikTok?");
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByTestId("blip-typing")).toBeVisible();
+  release();
+  await expect(stop).toBeVisible(); // ~4 s of words at 40 words/s
+  await expect(dialog.getByText("Based on 2 posts")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Add idea to board" })).toHaveCount(0);
+  await expect(live).toContainText(LONG.points[7]);
+  await page.keyboard.press("Shift"); // any key
+  await expect(said(dialog, LONG.points[7])).toBeVisible();
+  await expect(dialog.getByText("Based on 2 posts")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Add idea to board" })).toBeVisible();
+  await idle(dialog);
+
+  // A tap on the message finishes it too.
+  await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
+  await expect(stop).toBeVisible();
+  await dialog.getByTestId("blip-thread").locator("p").filter({ hasText: /^Hims/ }).last().click();
+  await idle(dialog);
+  await expect(said(dialog, LONG.points[7])).toHaveCount(2);
+});
+
+test("Ask Blip — follows the reveal, but not after scrolling up", async ({ page }) => {
+  await setup(page, { "ask-blip": (r) => r.fulfill(json(LONG)) });
+  await open(page, "/overview");
+  const dialog = await openAskBlip(page);
+  const thread = dialog.getByTestId("blip-thread");
+  const atBottom = () =>
+    thread.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight < 48);
+
+  await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
+  await idle(dialog);
+  await expect.poll(atBottom).toBe(true);
+
+  await dialog.getByRole("button", { name: "Give me 3 post ideas for OBU" }).click();
+  await expect(dialog.getByRole("button", { name: "Stop" })).toBeVisible();
+  await thread.evaluate((el) => el.scrollTo({ top: 0 }));
+  await idle(dialog);
+  expect(await thread.evaluate((el) => el.scrollTop)).toBeLessThan(50); // stayed where they were
+});
+
+test("Ask Blip — reduced motion: no reveal, the whole answer at once", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await setup(page, { "ask-blip": (r) => r.fulfill(json(LONG)) });
+  await open(page, "/overview");
+  const dialog = await openAskBlip(page);
+  await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
+  await expect(said(dialog, LONG.points[7])).toBeVisible();
+  await expect(dialog.getByText("Based on 2 posts")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Stop" })).toHaveCount(0);
+  expect(
+    await dialog
+      .locator(".blip-dot")
+      .evaluateAll((els) => els.map((el) => getComputedStyle(el).animationName)),
+  ).toEqual([]); // dots are gone by now; their animation is off under reduced motion anyway
 });
 
 test("Ask Blip — rate limit: catches its breath, retries once, then the breather line", async ({
@@ -383,7 +500,7 @@ test("Ask Blip — rate limit: catches its breath, retries once, then the breath
   await open(page, "/overview");
   const dialog = await openAskBlip(page);
   await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
-  await expect(dialog.getByText("One sec, catching my breath…")).toBeVisible();
+  await expect(said(dialog, "One sec, catching my breath…")).toBeVisible();
   await expect(
     dialog.getByText("I need a quick breather. Groq asked me to slow down. Try again in a minute."),
   ).toBeVisible();
@@ -407,9 +524,9 @@ test("Ask Blip — a rate limit that clears answers after the retry", async ({ p
   await open(page, "/overview");
   const dialog = await openAskBlip(page);
   await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
-  await expect(dialog.getByText("One sec, catching my breath…")).toBeVisible();
-  await expect(dialog.getByText(ANSWER.lead)).toBeVisible();
-  await expect(dialog.getByText("One sec, catching my breath…")).toHaveCount(0);
+  await expect(said(dialog, "One sec, catching my breath…")).toBeVisible();
+  await expect(said(dialog, ANSWER.lead)).toBeVisible();
+  await expect(said(dialog, "One sec, catching my breath…")).toHaveCount(0);
   await expect(dialog.getByText(/quick breather/)).toHaveCount(0);
 });
 
@@ -424,12 +541,13 @@ test("Ask Blip — short small talk goes light (no data), data questions don't",
   const box = dialog.getByRole("textbox", { name: "Ask Blip a question" });
   await box.fill("hehehe");
   await page.keyboard.press("Enter");
-  await expect(dialog.getByText(CHAT.message)).toBeVisible();
+  await expect(said(dialog, CHAT.message)).toBeVisible();
   expect(sent["ask-blip"][0]).toMatchObject({ question: "hehehe", light: true });
 
+  await idle(dialog);
   await box.fill("how is Hims doing?");
   await page.keyboard.press("Enter");
-  await expect(dialog.getByText(ANSWER.lead)).toBeVisible();
+  await expect(said(dialog, ANSWER.lead)).toBeVisible();
   expect(sent["ask-blip"][1].light).toBeUndefined();
   expect(sent["ask-blip"][1].history).toEqual([{ q: "hehehe", a: CHAT.message }]);
 });
@@ -439,7 +557,7 @@ test("Ask Blip — “Ask Blip what changed” (05e) opens it with that question
   await open(page, "/overview");
   await page.getByRole("button", { name: "Ask Blip what changed" }).click();
   const dialog = page.getByRole("dialog", { name: "Ask Blip" });
-  await expect(dialog.getByText(ANSWER.lead)).toBeVisible();
+  await expect(said(dialog, ANSWER.lead)).toBeVisible();
   expect(sent["ask-blip"]).toHaveLength(1);
   expect(sent["ask-blip"][0].question).toBe("What changed since the last pull?");
 });

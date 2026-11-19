@@ -345,6 +345,33 @@ export async function withBreather<T>(
   }
 }
 
+// ───────────────────────────── typing dots and word-by-word reveal
+
+/** Reveal speed (within the 35–45 words/s asked for). */
+export const REVEAL_WPS = 40;
+
+const WORD = /\S+\s*/g;
+/** Number of words in a text. */
+export const wordCount = (text: string) => text.match(WORD)?.length ?? 0;
+
+/**
+ * The visible part of each segment once `shown` words have been revealed, across all segments in
+ * order (lead, points, "For {client}:"). Segments not reached yet are "" (not rendered at all).
+ */
+export function revealSegments(segments: string[], shown: number): string[] {
+  let left = Math.max(0, shown);
+  return segments.map((seg) => {
+    const words = seg.match(WORD) ?? [];
+    const take = Math.min(words.length, left);
+    left -= take;
+    return words.slice(0, take).join("").trimEnd();
+  });
+}
+
+/** How long a code reply "types" before it appears: 400–700 ms, randomised. */
+export const typingDelay = (rand: () => number = Math.random) =>
+  400 + Math.round(Math.min(1, Math.max(0, rand())) * 300);
+
 export type Message =
   | {
       id: number;
@@ -358,6 +385,8 @@ export type Message =
       question: string;
       status: "done";
       answer: BlipAnswer;
+      /** New answer still to be revealed word by word (cleared when the reveal ends or is skipped). */
+      animate?: boolean;
       /** Answered in code (small talk): not sent back to Groq as history. */
       local?: SmallTalk;
     }
