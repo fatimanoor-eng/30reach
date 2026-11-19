@@ -870,6 +870,10 @@ test("card — Suggest caption: 2 platform-style options, the picked one fills C
   await options.first().click();
   await expect(dialog.getByRole("textbox", { name: "Caption" })).toHaveValue(CAPTIONS[0]);
   await expect(dialog.getByText("Pick a caption")).toHaveCount(0);
+  // A picked suggestion is an unsaved change: Save is highlighted and closing asks first.
+  await expect(dialog.getByRole("button", { name: "Save (unsaved changes)" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Discard changes?" })).toBeVisible();
 });
 
 test("card — Suggest caption needs a title or hook first", async ({ page }) => {

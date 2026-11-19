@@ -16,6 +16,7 @@ export function ConfirmDialog({
   onConfirm,
   busy = false,
   disabled = false,
+  cancelLabel,
   children,
 }: {
   open: boolean;
@@ -29,6 +30,8 @@ export function ConfirmDialog({
   /** while the action runs: the red button is disabled (the caller also ignores Cancel / Esc) */
   busy?: boolean;
   disabled?: boolean;
+  /** Default "Cancel" (e.g. "Keep editing") */
+  cancelLabel?: string;
   /** e.g. an error line */
   children?: ReactNode;
 }) {
@@ -41,6 +44,7 @@ export function ConfirmDialog({
       illustration={<BlipError className="h-auto w-full" />}
       title={title}
       description={description}
+      cancelLabel={cancelLabel}
       primary={{
         label: confirmLabel,
         variant: "danger",

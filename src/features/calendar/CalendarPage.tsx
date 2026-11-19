@@ -135,7 +135,12 @@ export function CalendarPage() {
     card: CalendarCard | null;
     date: IsoDay;
   } | null>(null);
-  if (panelKey && panelKey !== panel?.key) {
+  // Keep the snapshot current: a card saved and reopened must show what was saved. The snapshot
+  // itself stays after closing so the drawer can slide out, but reopening the SAME card used to reuse
+  // the copy from the first open (old caption, hook, visual idea) — and a second Save would have
+  // written those old values back.
+  const freshCard = !!panelKey && !panelKey.startsWith("new:") && panelCard !== panel?.card;
+  if (panelKey && (panelKey !== panel?.key || freshCard)) {
     setPanel({
       key: panelKey,
       card: panelKey.startsWith("new:") ? null : panelCard,

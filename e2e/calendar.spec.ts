@@ -679,3 +679,115 @@ test("calendar — Inspired by shows the idea a card came from (09)", async ({ p
   await inspired.click();
   await expect(page).toHaveURL(/\/ideas\?idea=idea-ai$/);
 });
+
+// ───────────────────────────── bug: caption gone after closing and reopening the card
+
+test("calendar — hook, caption and visual idea are saved and come back on reopen and reload", async ({
+  page,
+}) => {
+  const { calls } = await setup(page);
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  const dialog = page.getByRole("dialog");
+  const hook = "One meal doesn’t undo your progress.";
+  const caption =
+    "Three small swaps for holiday dinners.\nNo guilt, just options.\n\n#holidays #wellness";
+  const visual = "Clinician in a kitchen, 3 text cards.";
+  await dialog.getByRole("textbox", { name: "Hook" }).fill(hook);
+  await dialog.getByRole("textbox", { name: "Caption" }).fill(caption);
+  await dialog.getByRole("textbox", { name: "Visual idea" }).fill(visual);
+  await dialog.getByRole("button", { name: /^Save/ }).click();
+  // The text changed, so the advisory check runs; Done closes.
+  await expect(dialog.getByText("No health claims found.", { exact: false })).toBeVisible();
+  expect(calls.find((c) => c.method === "PATCH")).toMatchObject({
+    id: "k2",
+    body: { hook, caption, visual_idea: visual },
+  });
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // Reopen the same card in the app. (The bug: the drawer reused its first snapshot of the card.)
+  await page
+    .getByRole("button", { name: /Holiday eating, no guilt/ })
+    .first()
+    .click();
+  const again = page.getByRole("dialog");
+  await expect(again.getByRole("textbox", { name: "Caption" })).toHaveValue(caption);
+  await expect(again.getByRole("textbox", { name: "Hook" })).toHaveValue(hook);
+  await expect(again.getByRole("textbox", { name: "Visual idea" })).toHaveValue(visual);
+  // Nothing changed since: closing doesn't ask.
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // A full reload reads it back from the table too.
+  await page.reload();
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  await expect(page.getByRole("dialog").getByRole("textbox", { name: "Caption" })).toHaveValue(
+    caption,
+  );
+});
+
+test("calendar — closing with unsaved changes asks first: Keep editing / Discard", async ({
+  page,
+}, info) => {
+  const { calls } = await setup(page);
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  const dialog = page.getByRole("dialog", { name: /Holiday eating/ });
+  const save = dialog.getByRole("button", { name: /^Save/ });
+  await expect(save).not.toHaveAttribute("data-dirty");
+
+  await dialog.getByRole("textbox", { name: "Caption" }).fill("A caption I haven’t saved yet");
+  // Unsaved: Save is filled with a Flash dot and says so to screen readers.
+  await expect(dialog.getByRole("button", { name: "Save (unsaved changes)" })).toHaveAttribute(
+    "data-dirty",
+    "true",
+  );
+
+  // Esc (and the backdrop, and ‹ Calendar on phones) asks instead of dropping the edit.
+  await page.keyboard.press("Escape");
+  const confirm = page.getByRole("dialog", { name: "Discard changes?" });
+  await expect(confirm).toBeVisible();
+  await expect(confirm.getByText("Your edits to this card haven’t been saved.")).toBeVisible();
+  await page.waitForTimeout(300); // sheet / dialog animation
+  if (!isDesktop(page)) await tapTargetsOk(page);
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot(`card-discard-${info.project.name}.png`);
+
+  await confirm.getByRole("button", { name: "Keep editing" }).click();
+  await expect(confirm).toBeHidden();
+  await expect(dialog.getByRole("textbox", { name: "Caption" })).toHaveValue(
+    "A caption I haven’t saved yet",
+  );
+
+  // Phones close with ‹ Calendar; tablet / desktop with Esc. Both ask; Discard closes without saving.
+  if (isDesktop(page)) await page.keyboard.press("Escape");
+  else await dialog.getByRole("button", { name: "Calendar", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Discard changes?" })
+    .getByRole("button", { name: "Discard" })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(calls.filter((c) => c.method === "PATCH")).toEqual([]);
+
+  // Reopened: the saved caption (none), not the discarded one.
+  await page
+    .getByRole("button", { name: /Holiday eating, no guilt/ })
+    .first()
+    .click();
+  await expect(page.getByRole("dialog").getByRole("textbox", { name: "Caption" })).toHaveValue(
+    "Three small things our clinicians suggest for holiday dinners: eat before you go, start with protein, and skip the guilt. One meal doesn’t undo your progress.",
+  );
+});
+
+test("calendar — typing and undoing back to the saved text isn't an unsaved change", async ({
+  page,
+}) => {
+  await setup(page);
+  await open(page, "/calendar?date=2026-12-04&card=k2");
+  const dialog = page.getByRole("dialog", { name: /Holiday eating/ });
+  const title = dialog.getByRole("textbox", { name: "Title" });
+  await title.fill("Holiday eating, no guilt!");
+  await title.fill("Holiday eating, no guilt");
+  await expect(dialog.getByRole("button", { name: /^Save/ })).not.toHaveAttribute("data-dirty");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});

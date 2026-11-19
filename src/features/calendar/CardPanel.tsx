@@ -54,16 +54,12 @@ export function CardPanel({
 }) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [fields, setFields] = useState<CardFields>(() => ({
-    date: card?.date ?? newDate,
-    platform: card?.platform ?? null,
-    format: card?.format ?? null,
-    title: card?.title ?? "",
-    hook: card?.hook ?? null,
-    caption: card?.caption ?? null,
-    visual_idea: card?.visual_idea ?? null,
-    status: card?.status ?? "idea",
-  }));
+  const [fields, setFields] = useState<CardFields>(() => fieldsFrom(card, newDate));
+  // What's on the server (as opened, then as last saved). Anything else is an unsaved change,
+  // including a picked hook or caption suggestion: closing then asks "Discard changes?".
+  const [baseline, setBaseline] = useState(() => JSON.stringify(fieldsFrom(card, newDate)));
+  const dirty = JSON.stringify(fields) !== baseline;
+  const [discardOpen, setDiscardOpen] = useState(false);
   // After the first save of a new card, later saves update that row (not insert another).
   const [savedId, setSavedId] = useState<string | null>(card?.id ?? null);
   const [justSaved, setJustSaved] = useState<string | null>(null); // fields key at the last save
@@ -141,6 +137,7 @@ export function CardPanel({
       return;
     }
     setSavedId(id);
+    setBaseline(JSON.stringify(fields));
     await queryClient.invalidateQueries({ queryKey: ["calendar_cards"] });
     setSaving(false);
     const lastChecked =
@@ -214,6 +211,12 @@ export function CardPanel({
   }
 
   const done = justSaved !== null && justSaved === JSON.stringify(fields);
+  /** Esc, the backdrop, ‹ Calendar: unsaved edits are never dropped silently. */
+  const requestClose = () => {
+    if (saving) return;
+    if (dirty) setDiscardOpen(true);
+    else onClose();
+  };
   const shownCheck = check && check.key === checkKey(fields) ? check.value : null;
   const canSuggest = !!(fields.title.trim() || fields.caption?.trim());
   const canSuggestCaption = !!(fields.title.trim() || fields.hook?.trim());
@@ -359,11 +362,18 @@ export function CardPanel({
             Move to idea board
           </Button>
         )}
+        {/* Filled + a Flash dot while there are unsaved changes; quieter (outline) when there are none. */}
         <Button
+          variant={dirty || done || saving ? "primary" : "secondary"}
           onClick={() => (done ? onClose() : void save())}
           disabled={saving}
+          aria-label={dirty && !saving ? "Save (unsaved changes)" : undefined}
+          data-dirty={dirty || undefined}
           className="flex-1 md:flex-none"
         >
+          {dirty && !saving && (
+            <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-flash" />
+          )}
           {saving ? "Saving…" : done ? "Done" : "Save"}
         </Button>
       </div>
@@ -374,7 +384,7 @@ export function CardPanel({
     <>
       <Drawer
         open={open}
-        onClose={onClose}
+        onClose={requestClose}
         title={card ? `Post card: ${card.title}` : "New post"}
         backLabel="Calendar"
         hideClose
@@ -499,6 +509,18 @@ export function CardPanel({
           )}
         </div>
       </Drawer>
+      <ConfirmDialog
+        open={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        title="Discard changes?"
+        description="Your edits to this card haven’t been saved."
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        onConfirm={() => {
+          setDiscardOpen(false);
+          onClose();
+        }}
+      />
       {card && (
         <ConfirmDialog
           open={confirmOpen}
@@ -582,4 +604,18 @@ function TextArea({
       className={`[field-sizing:content] w-full resize-none rounded-control border border-line bg-surface px-3.5 py-2.5 text-body outline-none focus:border-ink ${minRows ? "min-h-20" : "min-h-11"}`}
     />
   );
+}
+
+/** The form's fields for a card (or a new post on `newDate`). */
+function fieldsFrom(card: CalendarCard | null, newDate: IsoDay): CardFields {
+  return {
+    date: card?.date ?? newDate,
+    platform: card?.platform ?? null,
+    format: card?.format ?? null,
+    title: card?.title ?? "",
+    hook: card?.hook ?? null,
+    caption: card?.caption ?? null,
+    visual_idea: card?.visual_idea ?? null,
+    status: card?.status ?? "idea",
+  };
 }
