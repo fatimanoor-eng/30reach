@@ -20,6 +20,7 @@ export function SignInPage() {
   );
 
   if (status === "team") return <Navigate to="/overview" replace />;
+  if (status === "removed") return <Navigate to="/access-removed" replace />;
   if (status === "wrongAccount") return <Navigate to="/wrong-account" replace />;
   if (status === "loading") return <AuthLayout busy />;
 

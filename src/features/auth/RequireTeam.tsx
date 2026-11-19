@@ -10,5 +10,6 @@ export function RequireTeam() {
   if (status === "loading") return <div className="min-h-dvh bg-bg" aria-busy="true" />;
   if (status === "signedOut") return <Navigate to="/sign-in" replace />;
   if (status === "wrongAccount") return <Navigate to="/wrong-account" replace />;
+  if (status === "removed") return <Navigate to="/access-removed" replace />;
   return <Outlet />;
 }

@@ -21,6 +21,25 @@ export async function requireTeam(ctx: { supabase: RpcClient }): Promise<Respons
   return error || data !== true ? json({ error: "not_team" }, 403) : null;
 }
 
+/** Admins only (is_admin(): team, not removed, role admin). 403 { error: "not_admin" } otherwise. */
+export async function requireAdmin(ctx: { supabase: RpcClient }): Promise<Response | null> {
+  const { data, error } = await ctx.supabase.rpc("is_admin");
+  return error || data !== true ? json({ error: "not_admin" }, 403) : null;
+}
+
+/** Remove post-thumbs/{client}/{pull}/* (Storage doesn't cascade with the rows). */
+export async function deleteThumbnails(admin: SupabaseClient, clientId: string, pullId: string) {
+  const folder = `${clientId}/${pullId}`;
+  for (;;) {
+    const { data, error } = await admin.storage.from("post-thumbs").list(folder, { limit: 1000 });
+    if (error || !data || data.length === 0) return;
+    const { error: removeError } = await admin.storage
+      .from("post-thumbs")
+      .remove(data.map((f) => `${folder}/${f.name}`));
+    if (removeError || data.length < 1000) return;
+  }
+}
+
 export async function readJson(req: Request): Promise<Record<string, unknown>> {
   try {
     const body = await req.json();

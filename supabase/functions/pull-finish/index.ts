@@ -11,12 +11,12 @@ import {
   type TaskStatus,
 } from "../_shared/pull-logic.ts";
 import {
+  deleteThumbnails,
   fetchCreditUsage,
   json,
   readJson,
   requireTeam,
   saveCreditsCache,
-  type SupabaseClient,
   withSupabase,
 } from "../_shared/server.ts";
 
@@ -110,16 +110,3 @@ export default {
     });
   }),
 };
-
-/** Remove post-thumbs/{client}/{pull}/* (Storage doesn't cascade with the rows). */
-async function deleteThumbnails(admin: SupabaseClient, clientId: string, pullId: string) {
-  const folder = `${clientId}/${pullId}`;
-  for (;;) {
-    const { data, error } = await admin.storage.from("post-thumbs").list(folder, { limit: 1000 });
-    if (error || !data || data.length === 0) return;
-    const { error: removeError } = await admin.storage
-      .from("post-thumbs")
-      .remove(data.map((f) => `${folder}/${f.name}`));
-    if (removeError || data.length < 1000) return;
-  }
-}

@@ -482,3 +482,8 @@ entrypoint = "./functions/suggest-hooks/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/suggest-caption/index.ts"
+
+[functions.clear-pull]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/clear-pull/index.ts"

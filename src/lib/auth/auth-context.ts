@@ -5,8 +5,9 @@ import { createContext, useContext } from "react";
  * signedOut    — no session
  * team         — signed in with an @breakthirty.com account
  * wrongAccount — signed in, but not a team account (only if the hook was off when they signed up)
+ * removed      — a team account whose access an admin removed (is_team() is false; Settings › Team)
  */
-export type AuthStatus = "loading" | "signedOut" | "team" | "wrongAccount";
+export type AuthStatus = "loading" | "signedOut" | "team" | "wrongAccount" | "removed";
 
 export type AuthUser = {
   id: string;

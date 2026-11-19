@@ -37,6 +37,7 @@ export function SelectChip<T extends string>({
   disabled = false,
   disabledReason,
   openRequest = 0,
+  align = "left",
 }: {
   /** what it sets, for screen readers ("Platform") */
   label: string;
@@ -50,6 +51,8 @@ export function SelectChip<T extends string>({
   disabledReason?: string;
   /** Increase it to open the menu from outside (format opens after a platform is picked). */
   openRequest?: number;
+  /** Which edge the menu lines up with: "right" for a chip at the right edge (Settings › Team). */
+  align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -184,7 +187,7 @@ export function SelectChip<T extends string>({
           aria-label={label}
           aria-activedescendant={`${listId}-${active}`}
           onKeyDown={onListKey}
-          className="absolute top-full left-0 z-20 mt-1 flex min-w-36 flex-col gap-0.5 rounded-[10px] border border-line bg-surface p-1.5 shadow-lg outline-none"
+          className={`absolute top-full ${align === "right" ? "right-0" : "left-0"} z-20 mt-1 flex min-w-36 flex-col gap-0.5 rounded-[10px] border border-line bg-surface p-1.5 shadow-lg outline-none`}
         >
           {options.map((o, i) => (
             <li

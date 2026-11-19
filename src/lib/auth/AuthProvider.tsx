@@ -45,11 +45,44 @@ async function startGoogleSignIn(): Promise<{ error: string | null }> {
   return { error: error?.message ?? null };
 }
 
+/**
+ * Has an admin removed this team account? Asks the database (is_team() also checks the removed
+ * flag). If the check itself fails (network), let them in: RLS still refuses a removed person's
+ * every read and write, so this only decides which screen to show.
+ */
+async function isRemoved(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc("is_team");
+    return !error && data === false;
+  } catch {
+    return false;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<{ status: AuthStatus; user: AuthUser | null }>({
     status: supabaseConfigured ? "loading" : "signedOut",
     user: null,
   });
+  // The access check for the signed-in team user (by id), so a token refresh doesn't re-ask.
+  const [access, setAccess] = useState<{ userId: string; removed: boolean } | null>(null);
+  const teamUserId = state.status === "team" ? state.user?.id : undefined;
+  useEffect(() => {
+    if (!teamUserId || access?.userId === teamUserId) return;
+    let live = true;
+    void isRemoved().then((removed) => live && setAccess({ userId: teamUserId, removed }));
+    return () => {
+      live = false;
+    };
+  }, [teamUserId, access?.userId]);
+  const status: AuthStatus =
+    state.status !== "team"
+      ? state.status
+      : access?.userId !== teamUserId
+        ? "loading"
+        : access?.removed
+          ? "removed"
+          : "team";
 
   useEffect(() => {
     if (!supabaseConfigured) return;
@@ -65,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       ...state,
+      status,
       signInWithGoogle: startGoogleSignIn,
       signOut: async () => {
         await supabase.auth.signOut({ scope: "local" });
@@ -74,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return startGoogleSignIn();
       },
     }),
-    [state],
+    [state, status],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

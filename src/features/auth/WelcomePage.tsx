@@ -34,6 +34,7 @@ export function WelcomePage() {
   if (status === "loading") return <AuthLayout busy />;
   if (status === "signedOut") return <Navigate to="/sign-in" replace />;
   if (status === "wrongAccount") return <Navigate to="/wrong-account" replace />;
+  if (status === "removed") return <Navigate to="/access-removed" replace />;
   if (!fresh) return <Navigate to="/overview" replace />;
 
   function open() {

@@ -4,6 +4,7 @@ import { SignInPage } from "../features/auth/SignInPage";
 import { WelcomePage } from "../features/auth/WelcomePage";
 import { WrongAccountPage } from "../features/auth/WrongAccountPage";
 import { MorePage } from "../features/more/MorePage";
+import { AccessRemovedPage } from "../features/auth/AccessRemovedPage";
 import { NotFoundPage } from "../features/NotFoundPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
@@ -66,6 +67,7 @@ export const routes: RouteObject[] = [
   { path: "sign-in", element: <SignInPage /> },
   { path: "welcome", element: <WelcomePage /> },
   { path: "wrong-account", element: <WrongAccountPage /> },
+  { path: "access-removed", element: <AccessRemovedPage /> },
   // Protected
   { element: <RequireTeam />, children: appRoutes },
 ];

@@ -98,7 +98,7 @@ report(
     : `HTTP ${upload.status} — UPLOAD WAS ACCEPTED. Delete idea-images/${probe} in the dashboard.`,
 );
 
-// Slice 10 functions: execute is granted to authenticated only. A random id means that even if the
+// Slice 10 + 12 functions: execute is granted to authenticated only. A random id means that even if the
 // call were allowed it would only fail with "not found" — nothing is ever written.
 const NO_SUCH_ID = "00000000-0000-4000-8000-000000000000";
 const RPCS = {
@@ -112,6 +112,11 @@ const RPCS = {
   card_to_idea: { p_card_id: NO_SUCH_ID },
   delete_idea: { p_idea_id: NO_SUCH_ID },
   restore_idea: { p_snapshot: { idea: { id: NO_SUCH_ID }, comments: [] } },
+  // Slice 12 (Settings): read-only, or acting on a person who doesn't exist.
+  team_members: {},
+  usage_sizes: {},
+  set_member_role: { p_user: NO_SUCH_ID, p_role: "member" },
+  set_member_access: { p_user: NO_SUCH_ID, p_active: true },
 };
 for (const [fn, args] of Object.entries(RPCS)) {
   const { status, body } = await call("POST", `/rest/v1/rpc/${fn}`, {

@@ -76,6 +76,29 @@ export async function stubSupabase(
   await page.route("**/rest/v1/clients**", (route) =>
     route.fulfill(ok({ id: "client-1", name: "OBU Health" })),
   );
+  // Access check on app open (is_team() also checks the "removed" flag, Slice 12).
+  await page.route("**/rest/v1/rpc/is_team", (route) => route.fulfill(ok(true)));
+  // Settings (Slice 12) defaults: just the signed-in person, fixed sizes, no Groq reading yet.
+  // settings.spec.ts registers its own (the last registered route wins).
+  await page.route("**/rest/v1/rpc/team_members", (route) =>
+    route.fulfill(
+      ok([
+        {
+          id: "00000000-0000-4000-8000-000000000001",
+          email: "fatima.noor@breakthirty.com",
+          full_name: profile.full_name,
+          role: profile.role,
+          disabled_at: null,
+          last_sign_in_at: null, // "Signed in …" depends on today; settings.spec.ts fixes the clock
+          created_at: "2026-11-01T00:00:00Z",
+        },
+      ]),
+    ),
+  );
+  await page.route("**/rest/v1/rpc/usage_sizes", (route) =>
+    route.fulfill(ok({ database_bytes: 42 * 1024 * 1024, storage_bytes: { "post-thumbs": 0 } })),
+  );
+  await page.route("**/rest/v1/usage_meters**", (route) => route.fulfill(ok(null)));
   await page.route("**/rest/v1/pulls**", (route) => route.fulfill(ok(null)));
   await page.route("**/rest/v1/competitors**", (route) =>
     route.fulfill(
