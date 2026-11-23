@@ -95,10 +95,10 @@ export default {
     const pageCap = taskPageCap(platform, pull.page_cap);
     const { data: competitor } = await admin
       .from("competitors")
-      .select("id, instagram_handle, tiktok_handle, linkedin_url")
+      .select("id, instagram_handle, tiktok_handle, linkedin_url, facebook_url, facebook_followers")
       .eq("id", task.competitor_id)
       .single();
-    // Handle (Instagram/TikTok) or company page URL (LinkedIn).
+    // Handle (Instagram/TikTok) or page URL (LinkedIn company page, Facebook page).
     const handle: string | null = competitor?.[TARGET_COLUMN[platform]] ?? null;
     if (!handle) {
       const { data } = await release({
@@ -203,7 +203,11 @@ export default {
       pages,
       credits_used: creditsUsed,
       posts_found: task.posts_found + keep.length,
-      followers: page.followers ?? task.followers,
+      // Facebook posts carry no follower count: use the one saved when the page was checked (16a).
+      followers:
+        page.followers ??
+        task.followers ??
+        (platform === "facebook" ? (competitor?.facebook_followers ?? null) : null),
       error_code: !decision.more && decision.reason === "budget" ? "budget" : null,
       finished_at: decision.more ? null : new Date().toISOString(),
     });

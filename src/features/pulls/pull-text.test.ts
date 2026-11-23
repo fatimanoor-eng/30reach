@@ -8,6 +8,7 @@ import {
   mobileProgressLine,
   possessive,
   problemSentence,
+  targetNoun,
   refreshIntro,
   selectionCost,
   tookLabel,
@@ -143,6 +144,30 @@ describe("LinkedIn (Slice 15a)", () => {
   it("progress line includes LinkedIn", () => {
     expect(mobileProgressLine([task("instagram", "done"), task("linkedin", "queued")])).toBe(
       "Instagram done · LinkedIn waiting",
+    );
+  });
+});
+
+describe("Facebook (Slice 16a)", () => {
+  it("a missing Facebook page is a page, not a handle", () => {
+    expect(
+      problemSentence([{ brand: "WeightWatchers", platform: "facebook", code: "not_found" }]),
+    ).toBe("WeightWatchers’ Facebook page wasn’t found.");
+    expect(targetNoun("facebook")).toBe("page");
+    expect(targetNoun("tiktok")).toBe("handle");
+  });
+  it("Facebook row in the confirm dialog and its cost", () => {
+    const p = preview(500);
+    p.estimate.perPlatform.facebook = { tasks: 6, expected: 24, max: 48 };
+    expect(availablePlatforms(p)).toEqual(["instagram", "tiktok", "facebook"]);
+    expect(selectionCost(p, ["facebook"])).toEqual({ expected: 24, max: 48 });
+  });
+  it("an estimate without a facebook entry (pull-start not redeployed yet) still works", () => {
+    expect(selectionCost(preview(500), ["facebook"])).toEqual({ expected: 0, max: 0 });
+  });
+  it("progress line includes Facebook", () => {
+    expect(mobileProgressLine([task("linkedin", "done"), task("facebook", "queued")])).toBe(
+      "LinkedIn done · Facebook waiting",
     );
   });
 });

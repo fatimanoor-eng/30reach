@@ -94,7 +94,7 @@ export class FirecrawlRateLimited extends Error {
   }
 }
 
-/** Firecrawl Alexandria provider + capability + options for one page (INTEGRATIONS.md §2a + LinkedIn spike). */
+/** Firecrawl Alexandria provider + capability + options for one page (INTEGRATIONS.md §2a + LinkedIn / Facebook spikes). */
 function pageRequest(platform: Platform, target: string, cursor: string | null) {
   if (platform === "instagram")
     return {
@@ -113,6 +113,12 @@ function pageRequest(platform: Platform, target: string, cursor: string | null) 
         ...(cursor ? { max_cursor: cursor } : {}),
       },
     };
+  if (platform === "facebook")
+    return {
+      provider: "scrapecreators",
+      capability: "facebook/profile-posts",
+      options: { url: target, ...(cursor ? { cursor } : {}) },
+    };
   // LinkedIn: `target` is the company page URL; the cursor packs page + paginationToken.
   const { page, token } = decodeLinkedInCursor(cursor);
   return {
@@ -127,15 +133,29 @@ function pageRequest(platform: Platform, target: string, cursor: string | null) 
 }
 
 /**
- * ONE page of posts via Firecrawl: ScrapeCreators for Instagram/TikTok (2 credits; 0 if not found),
- * HarvestAPI for LinkedIn (1–2 credits, also for an empty page; 0 if the page doesn't exist).
- * `target` = the handle (Instagram/TikTok) or the company page URL (LinkedIn).
+ * ONE page of posts via Firecrawl: ScrapeCreators for Instagram/TikTok (2 credits; 0 if not found) and
+ * Facebook (1 credit, 3 posts; 0 if not found), HarvestAPI for LinkedIn (1–2 credits, also for an empty
+ * page; 0 if the page doesn't exist).
+ * `target` = the handle (Instagram/TikTok) or the page URL (LinkedIn company page, Facebook page).
  */
-export async function scrapePage(platform: Platform, target: string, cursor: string | null) {
+export function scrapePage(platform: Platform, target: string, cursor: string | null) {
+  return alexandria(pageRequest(platform, target, cursor));
+}
+
+/**
+ * A Facebook page's profile via AnyAPI (followers): 5 credits, 0 if the page doesn't exist (measured
+ * 24 Nov). Used only by check-handle when a Facebook page is saved or changed, never by a pull.
+ */
+export function scrapeFacebookProfile(url: string) {
+  return alexandria({ provider: "anyapi", capability: "facebook/profile", options: { url } });
+}
+
+/** One Alexandria call through Firecrawl /v2/scrape. 429 → FirecrawlRateLimited, other non-2xx → FirecrawlHttpError. */
+async function alexandria(request: { provider: string; capability: string; options: unknown }) {
   const res = await fetch("https://api.firecrawl.dev/v2/scrape", {
     method: "POST",
     headers: { Authorization: `Bearer ${firecrawlKey()}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ alexandria: pageRequest(platform, target, cursor) }),
+    body: JSON.stringify({ alexandria: request }),
     signal: AbortSignal.timeout(60_000),
   });
   if (res.status === 429) {

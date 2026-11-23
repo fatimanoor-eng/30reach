@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import { noSidewaysScroll, signInAs, stubSupabase } from "./helpers";
+import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
 
 /*
  * Slice 5 pull UI with every Supabase / Edge Function call answered locally — 0 Firecrawl credits.
@@ -133,6 +133,39 @@ test("05 / M03 confirm cost with LinkedIn (Slice 15a)", async ({ page }) => {
 
   await noSidewaysScroll(page);
   await expect(page).toHaveScreenshot("refresh-confirm-linkedin.png");
+});
+
+test("05 / M03 confirm cost with all four platforms (Slice 16a Facebook)", async ({
+  page,
+}, info) => {
+  await setup(page);
+  const p = preview(500);
+  const withFacebook = {
+    ...p,
+    estimate: {
+      perPlatform: {
+        ...p.estimate.perPlatform,
+        linkedin: { tasks: 6, expected: 6, max: 24 },
+        facebook: { tasks: 6, expected: 21, max: 48 },
+      },
+      expected: 87,
+      max: 168,
+    },
+  };
+  await page.route("**/functions/v1/pull-start**", (r) => r.fulfill(json(withFacebook)));
+  await openRefresh(page);
+
+  const dialog = page.getByRole("dialog", { name: "Refresh competitor data?" });
+  await expect(dialog.getByLabel("Facebook")).toBeChecked();
+  await expect(dialog.getByText("~21 credits")).toBeVisible();
+  await expect(dialog.getByText("up to 168 credits")).toBeVisible();
+  await dialog.getByLabel("Facebook").uncheck();
+  await expect(dialog.getByText("up to 120 credits")).toBeVisible();
+  await dialog.getByLabel("Facebook").check();
+
+  await noSidewaysScroll(page);
+  if (info.project.name === "mobile-390") await tapTargetsOk(page);
+  await expect(page).toHaveScreenshot("refresh-confirm-facebook.png");
 });
 
 test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, info) => {

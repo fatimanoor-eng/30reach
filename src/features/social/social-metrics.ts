@@ -4,7 +4,7 @@
 // LinkedIn (Slice 15b): likes = reactions, reposts shown in the caption (never ranked), no views.
 
 import { formatCompact, plural } from "../../lib/format";
-import type { Platform } from "../../lib/platforms";
+import type { ShownPlatform as Platform } from "../../lib/platforms";
 import {
   type BrandRef,
   engagement,

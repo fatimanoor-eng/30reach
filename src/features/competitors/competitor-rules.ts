@@ -1,4 +1,5 @@
-// Competitors (Slice 8: 07 / 07b / 07c; LinkedIn Slice 15a). Pure rules, tested in competitor-rules.test.ts.
+// Competitors (Slice 8: 07 / 07b / 07c; LinkedIn Slice 15a; Facebook Slice 16a). Pure rules, tested in
+// competitor-rules.test.ts.
 import {
   type Platform,
   PLATFORM_NAME,
@@ -6,11 +7,24 @@ import {
   STATUS_KEY,
   TARGET_KEY,
 } from "../../lib/platforms";
+import { formatCompact, formatShortDate } from "../../lib/format";
 import type { Competitor } from "../../lib/useCompetitors";
+import { targetNoun } from "../pulls/pull-text";
+
+export { targetNoun };
 
 export { PLATFORM_NAME, PLATFORMS };
-/** Credits per handle / LinkedIn page that exists (spikes: 2, LinkedIn 1–2); not found = 0. */
-export const CHECK_COST = 2;
+/**
+ * Most a check can cost for a handle / page that exists; not found = 0. Instagram / TikTok: a first page
+ * of posts (2); LinkedIn: 1–2; Facebook: AnyAPI's page profile with the followers (5, spike 24 Nov).
+ * Same numbers as check-handle (CHECK_COST there).
+ */
+export const CHECK_COST: Record<Platform, number> = {
+  instagram: 2,
+  tiktok: 2,
+  linkedin: 2,
+  facebook: 5,
+};
 
 // ───────────────────────────────────────────── initials
 /**
@@ -30,7 +44,7 @@ export function suggestInitials(name: string): string {
 export const MAX_INITIALS = 3;
 
 // ───────────────────────────────────────────── handles
-const PATTERN: Record<Exclude<Platform, "linkedin">, RegExp> = {
+const PATTERN: Record<"instagram" | "tiktok", RegExp> = {
   instagram: /^[a-z0-9._]{1,30}$/,
   tiktok: /^[a-z0-9._]{2,24}$/,
 };
@@ -61,13 +75,92 @@ export const linkedInUrl = (slug: string) => `https://www.linkedin.com/company/$
 export const linkedInDisplay = (url: string) =>
   url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
 
+// ───────────────────────────────────────────── Facebook page
+// Same rule as supabase/functions/_shared/pull-logic.ts (facebookPageUrl); kept in sync by hand.
+/** First path parts that are never a page: groups, events, single posts, personal profiles, Facebook's own. */
+const FACEBOOK_NOT_A_PAGE = new Set([
+  "groups",
+  "events",
+  "watch",
+  "reel",
+  "reels",
+  "videos",
+  "photo",
+  "photo.php",
+  "photos",
+  "posts",
+  "permalink.php",
+  "story.php",
+  "share",
+  "sharer",
+  "sharer.php",
+  "people",
+  "pages",
+  "marketplace",
+  "gaming",
+  "hashtag",
+  "login",
+  "help",
+  "policies",
+  "settings",
+  "home.php",
+  "search",
+  "stories",
+]);
+const FACEBOOK_SLUG = /^[a-z0-9][a-z0-9.-]{1,99}$/;
+
+/**
+ * Page link or username → canonical https://www.facebook.com/<slug> (or …/profile.php?id=<id>), or null.
+ * Accepts "facebook.com/weightwatchers/", "m.facebook.com/x/posts", "fb.com/x", "@x" or "x".
+ */
+export function facebookPageUrl(input: string): string | null {
+  const v = input.trim();
+  if (!v) return null;
+  const link = v.match(
+    /^(?:https?:\/\/)?(?:(?:www|m|web|mobile|business)\.)?(?:facebook\.com|fb\.com)(\/[^?#]*)?(\?[^#]*)?/i,
+  );
+  let slug: string;
+  if (link) {
+    const parts = (link[1] ?? "").split("/").filter(Boolean);
+    if (parts.length === 0) return null;
+    const first = parts[0].toLowerCase();
+    if (first === "profile.php") {
+      const id = new URLSearchParams(link[2] ?? "").get("id");
+      return id && /^\d{5,25}$/.test(id) ? `https://www.facebook.com/profile.php?id=${id}` : null;
+    }
+    if (FACEBOOK_NOT_A_PAGE.has(first)) return null;
+    slug = parts[0];
+  } else {
+    if (/[/:?#\s]/.test(v)) return null; // some other link or text
+    slug = v.replace(/^@/, "");
+  }
+  try {
+    slug = decodeURIComponent(slug).toLowerCase();
+  } catch {
+    return null;
+  }
+  return FACEBOOK_SLUG.test(slug) && !FACEBOOK_NOT_A_PAGE.has(slug)
+    ? `https://www.facebook.com/${slug}`
+    : null;
+}
+/** Stored URL → what the field and the table show: "facebook.com/weightwatchers". */
+export const facebookDisplay = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "");
+
+/** Page URL (LinkedIn / Facebook) or handle → what the field, the table and the cards show. */
+export function targetDisplay(platform: Platform, value: string): string {
+  if (platform === "linkedin") return linkedInDisplay(value);
+  if (platform === "facebook") return facebookDisplay(value);
+  return value;
+}
+
 export type HandleInput =
   { kind: "empty" } | { kind: "ok"; handle: string } | { kind: "invalid"; message: string };
 
 /**
  * What someone typed → what's stored. Instagram/TikTok: the handle (lowercase, no "@"); accepts "@noom",
  * "noom" or a profile link ("instagram.com/noom/", "https://www.tiktok.com/@noom?lang=en"). LinkedIn:
- * the canonical company page URL; accepts a page link or its slug. Invalid input never costs credits.
+ * the canonical company page URL; accepts a page link or its slug. Facebook: the canonical page URL;
+ * accepts a page link or its username. Invalid input never costs credits.
  */
 export function parseHandle(platform: Platform, input: string): HandleInput {
   let v = input.trim();
@@ -77,6 +170,12 @@ export function parseHandle(platform: Platform, input: string): HandleInput {
     return slug
       ? { kind: "ok", handle: linkedInUrl(slug) }
       : { kind: "invalid", message: "Use a company page link (linkedin.com/company/…)." };
+  }
+  if (platform === "facebook") {
+    const url = facebookPageUrl(v);
+    return url
+      ? { kind: "ok", handle: url }
+      : { kind: "invalid", message: "Use a Facebook page link (facebook.com/…)." };
   }
   const host = platform === "instagram" ? "instagram\\.com" : "tiktok\\.com";
   const link = v.match(new RegExp(`^(?:https?://)?(?:www\\.|m\\.)?${host}/@?([^/?#]+)`, "i"));
@@ -133,4 +232,36 @@ export function competitorStatus(c: Competitor): { label: string; tone: StatusTo
   if (present.length === 0 || present.some((p) => status(p) === "unchecked"))
     return { label: "Not checked", tone: "neutral" };
   return { label: "OK", tone: "ok" };
+}
+
+// ───────────────────────────────────────────── 07b copy
+/**
+ * Green message under a field that was found. Facebook adds the followers the check read, and "as of
+ * {date}" once saved (the count isn't refreshed by pulls): "Found · public page · 2.9M followers as of 24 Nov".
+ */
+export function foundMessage(
+  platform: Platform,
+  followers?: number | null,
+  asOf?: string | null,
+  now: Date = new Date(),
+): string {
+  if (platform === "linkedin") return "Found · public company page";
+  if (platform !== "facebook") return "Found · public account";
+  if (followers === null || followers === undefined) return "Found · public page";
+  const date = asOf ? formatShortDate(asOf, now) : null;
+  return `Found · public page · ${formatCompact(followers)} followers${date ? ` as of ${date}` : ""}`;
+}
+
+/**
+ * Cost line above Save (07b). Instagram / TikTok / LinkedIn checks cost up to 2 each; Facebook up to 5
+ * (it also reads the followers). "Checking costs up to 5 credits" when only a Facebook page is checked.
+ */
+export function checkCostNote(toCheck: Platform[]): string {
+  if (toCheck.length === 0) return "No handle to check · no credits";
+  const total = toCheck.reduce((n, p) => n + CHECK_COST[p], 0);
+  const others = toCheck.filter((p) => p !== "facebook");
+  if (others.length === 0) return `Checking costs up to ${total} credits`;
+  if (others.length === toCheck.length)
+    return `Checking costs ${CHECK_COST.instagram} credits per handle · up to ${total} now`;
+  return `Checking costs ${CHECK_COST.instagram} per handle, ${CHECK_COST.facebook} for Facebook · up to ${total} now`;
 }

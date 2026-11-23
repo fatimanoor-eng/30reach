@@ -1,28 +1,39 @@
 // Pure rules for the `check-handle` Edge Function (Slice 8, INTEGRATIONS.md §2c). Tested in logic.test.ts.
 import {
+  facebookPageUrl,
   linkedInSlug,
   linkedInUrl,
   type PageResult,
   type Platform,
   PLATFORMS,
+  type ProfileResult,
 } from "../_shared/pull-logic.ts";
 
 /** Handles are stored lowercase without "@". Instagram 1–30 chars, TikTok 2–24; letters, digits, . and _. */
-export const HANDLE_PATTERN: Record<Exclude<Platform, "linkedin">, RegExp> = {
+export const HANDLE_PATTERN: Record<"instagram" | "tiktok", RegExp> = {
   instagram: /^[a-z0-9._]{1,30}$/,
   tiktok: /^[a-z0-9._]{2,24}$/,
 };
 
-/** A check costs at most one first page (2 credits); refuse if the balance can't cover it. */
-export const CHECK_COST = 2;
+/**
+ * Most a check can cost; refuse if the balance can't cover it. Instagram / TikTok / LinkedIn: one first
+ * page of posts (2). Facebook: AnyAPI facebook/profile for the followers (5; 0 if the page doesn't exist).
+ */
+export const CHECK_COST: Record<Platform, number> = {
+  instagram: 2,
+  tiktok: 2,
+  linkedin: 2,
+  facebook: 5,
+};
 
-/** `handle` = the Instagram/TikTok handle, or the LinkedIn company page URL (canonical). */
+/** `handle` = the Instagram/TikTok handle, or the LinkedIn / Facebook page URL (canonical). */
 export type CheckRequest = { platform: Platform; handle: string };
 
 /**
  * Body → request, or the error code to return (400). The browser already normalises; this re-checks,
  * so a malformed handle or page never reaches Firecrawl. LinkedIn accepts a company page URL or slug
- * and is normalised to https://www.linkedin.com/company/<slug>/.
+ * and is normalised to https://www.linkedin.com/company/<slug>/; Facebook accepts a page link or
+ * username and is normalised to https://www.facebook.com/<slug> (facebookPageUrl).
  */
 export function parseCheckRequest(body: Record<string, unknown>): CheckRequest | { error: string } {
   const platform = body.platform as Platform;
@@ -31,6 +42,10 @@ export function parseCheckRequest(body: Record<string, unknown>): CheckRequest |
   if (platform === "linkedin") {
     const slug = linkedInSlug(input);
     return slug ? { platform, handle: linkedInUrl(slug) } : { error: "bad_handle" };
+  }
+  if (platform === "facebook") {
+    const url = facebookPageUrl(input);
+    return url ? { platform, handle: url } : { error: "bad_handle" };
   }
   const raw = input.trim().replace(/^@/, "").toLowerCase();
   if (!HANDLE_PATTERN[platform].test(raw)) return { error: "bad_handle" };
@@ -53,4 +68,16 @@ export function checkOutcome(page: PageResult): CheckOutcome {
     return { status: "ok", creditsUsed: page.creditsCost, followers: page.followers };
   if (page.code === "not_found") return { status: "not_found", creditsUsed: page.creditsCost };
   return { error: page.code, creditsUsed: page.creditsCost };
+}
+
+/**
+ * Facebook: the AnyAPI profile → outcome. `found: false` = the page doesn't exist or isn't public
+ * (0 credits); found = ok with the follower count, which the browser saves with today's date.
+ */
+export function profileOutcome(profile: ProfileResult): CheckOutcome {
+  if (profile.kind === "ok")
+    return { status: "ok", creditsUsed: profile.creditsCost, followers: profile.followers };
+  if (profile.code === "not_found")
+    return { status: "not_found", creditsUsed: profile.creditsCost };
+  return { error: profile.code, creditsUsed: profile.creditsCost };
 }

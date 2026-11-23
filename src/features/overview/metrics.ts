@@ -3,7 +3,7 @@
 // LinkedIn (Slice 15b): `likes` holds all reactions, `shares` the reposts (shown, not ranked), no views.
 
 import { formatCompact, plural } from "../../lib/format";
-import { PLATFORM_NAME, type Platform } from "../../lib/platforms";
+import { PLATFORM_NAME, type ShownPlatform as Platform } from "../../lib/platforms";
 
 export type OverviewPost = {
   id: string;

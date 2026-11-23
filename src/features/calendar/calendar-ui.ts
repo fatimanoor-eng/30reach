@@ -1,9 +1,10 @@
 // Shared labels and colour classes for the calendar (DESIGN_SYSTEM › Calendar post card, All-day event bar).
-import { PLATFORM_FILL, PLATFORM_NAME, type Platform } from "../../lib/platforms";
+import { PLATFORM_FILL, PLATFORM_NAME, type ShownPlatform } from "../../lib/platforms";
 import type { EventKind } from "./events";
 
 export type CardStatus = "idea" | "drafting" | "approved" | "posted";
-export type CardPlatform = Platform;
+/** Facebook joins the calendar in Slice 16c. */
+export type CardPlatform = ShownPlatform;
 export type CardOrigin = "manual" | "idea" | "ai";
 
 export type CalendarCard = {

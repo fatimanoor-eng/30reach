@@ -5,8 +5,9 @@ import type { TaskProgress } from "../../lib/pulls/run-pull";
 
 export const PLATFORM_LABEL = PLATFORM_NAME;
 
-/** "handle" for Instagram/TikTok, "page" for a LinkedIn company page. */
-export const targetNoun = (p: Platform) => (p === "linkedin" ? "page" : "handle");
+/** "handle" for Instagram/TikTok, "page" for a LinkedIn company page or a Facebook page. */
+export const targetNoun = (p: Platform) =>
+  p === "linkedin" || p === "facebook" ? "page" : "handle";
 
 const NO_TASKS = { tasks: 0, expected: 0, max: 0 };
 /** One platform's estimate (a pull-start from before LinkedIn has no `linkedin` entry). */
@@ -18,7 +19,7 @@ export const possessive = (name: string) => (/s$/i.test(name) ? `${name}’` : `
 
 const finished = (t: TaskProgress) => t.status === "done" || t.status === "failed";
 
-/** M04 one-liner: "Instagram done · TikTok 3 of 6 brands · LinkedIn waiting". */
+/** M04 one-liner: "Instagram done · TikTok 3 of 6 brands · LinkedIn waiting · Facebook waiting". */
 export function mobileProgressLine(tasks: TaskProgress[]): string {
   return PLATFORMS.map((platform) => {
     const list = tasks.filter((t) => t.platform === platform);

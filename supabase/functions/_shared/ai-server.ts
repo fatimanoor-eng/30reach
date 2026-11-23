@@ -17,6 +17,7 @@ import {
   parseGroqJson,
   parseGroqMeter,
   type Platform,
+  PLATFORMS,
   retryModeAfter,
   type SummaryPost,
   tokenLog,
@@ -124,6 +125,7 @@ export function aiFailure(f: AiFailure): Response {
 }
 
 // ───────────────────────────────────────────── the saved pull
+/** Posts for the summary. loadPull reads only ai-logic PLATFORMS: Facebook stays out until Slice 16c. */
 const POST_COLUMNS =
   "id, competitor_id, platform, external_id, url, posted_at, format, caption, hashtags, likes, comments, views, shares, counts_hidden";
 
@@ -158,11 +160,25 @@ export async function loadPull(
   const [latest, prev] = pulls as { id: string; started_at: string }[];
   const [brands, posts, prevPosts, tasks] = await Promise.all([
     db.from("competitors").select("id, name").eq("client_id", clientId),
-    db.from("posts").select(POST_COLUMNS).eq("pull_id", latest.id).eq("hidden", false),
+    db
+      .from("posts")
+      .select(POST_COLUMNS)
+      .eq("pull_id", latest.id)
+      .eq("hidden", false)
+      .in("platform", PLATFORMS),
     prev
-      ? db.from("posts").select(POST_COLUMNS).eq("pull_id", prev.id).eq("hidden", false)
+      ? db
+          .from("posts")
+          .select(POST_COLUMNS)
+          .eq("pull_id", prev.id)
+          .eq("hidden", false)
+          .in("platform", PLATFORMS)
       : Promise.resolve({ data: [], error: null }),
-    db.from("pull_tasks").select("competitor_id, platform, followers").eq("pull_id", latest.id),
+    db
+      .from("pull_tasks")
+      .select("competitor_id, platform, followers")
+      .eq("pull_id", latest.id)
+      .in("platform", PLATFORMS),
   ]);
   if (brands.error || posts.error || prevPosts.error || tasks.error) {
     return { ok: false, error: "load_failed" };

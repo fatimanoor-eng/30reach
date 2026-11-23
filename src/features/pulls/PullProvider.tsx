@@ -19,7 +19,7 @@ import type { Competitor } from "../../lib/useCompetitors";
 import { CREDITS_QUERY_KEY, creditsLeft } from "../../lib/useCredits";
 import { PullContext, type PullUiState } from "./pull-context";
 import { PullProgressDialog } from "./PullProgressDialog";
-import { problemSentence, tookLabel } from "./pull-text";
+import { problemSentence, targetNoun, tookLabel } from "./pull-text";
 import { RefreshDialog } from "./RefreshDialog";
 
 const deps = { listTasks, pullTask, pullFinish };
@@ -108,7 +108,7 @@ export function PullProvider({ children }: { children: ReactNode }) {
           pose: "error",
           action: handleProblem
             ? {
-                label: handleProblem.platform === "linkedin" ? "Fix page" : "Fix handle",
+                label: targetNoun(handleProblem.platform) === "page" ? "Fix page" : "Fix handle",
                 onClick: () =>
                   navigate(
                     fixTarget

@@ -1,4 +1,4 @@
-import { PLATFORMS } from "../../lib/platforms";
+import { SHOWN_PLATFORMS as PLATFORMS } from "../../lib/platforms";
 import { PLATFORM_BAR, PLATFORM_LABEL, STATUS_LABEL, STATUSES } from "./calendar-ui";
 import { AiTag, StatusDot } from "./CardTile";
 import { EventToggles } from "./EventToggles";

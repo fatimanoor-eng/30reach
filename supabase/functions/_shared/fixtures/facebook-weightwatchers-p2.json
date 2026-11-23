@@ -1,0 +1,139 @@
+{
+  "success": true,
+  "data": {
+    "alexandria": [
+      {
+        "provider": "scrapecreators",
+        "capability": "facebook/profile-posts",
+        "creditsCost": 1,
+        "data": {
+          "success": true,
+          "posts": [
+            {
+              "id": "1198589906033467",
+              "parent_publication_time": "2026-11-21T18:05:44.000Z",
+              "is_paid_partnership": null,
+              "text": "Peanut butter isn’t the only game in town — here are the pros and cons to using almond butter, cashew butter, soy butter, or sunflower seed butter instead.",
+              "url": "https://www.facebook.com/weightwatchers/posts/pfbid02eZXQ4KzLfzdsxGGytdDEDFVSo75Sos8xY5rNGbPNERvMxmGFYRpMqdJ1HMbZ7Xi7l",
+              "link_attachment": {
+                "url": "https://www.weightwatchers.com/us/blog/smartpoint-nut-butter-guide?utm_source=facebook&utm_medium=organicsocial&utm_campaign=blog-us&utm_content=null",
+                "title": "The Healthiest Nut and Seed Butters, According to a Dietitian",
+                "description": "Peanut butter isn’t the only game in town — here are the pros and cons to using almond butter, cashew butter, soy butter, or sunflower butter instead.",
+                "source": "weightwatchers.com",
+                "image_url": "https://external-lga3-2.xx.fbcdn.net/emg1/v/t13/13176114622852879394?url=https%3A%2F%2Fstoryblok.weightwatchers.com%2Ff%2F286334833788875%2F2400x1256%2Fbd948df291%2Fwhat-s-the-difference-between-nut-butters_-_-desktop.jpg%2Fm%2F1200x0%2Ffilters%3Aquality%2875%29&fb_obo=1&utld=weightwatchers.com&_nc_sid=c97757&_nc_ht=external-lga3-2.xx.fbcdn.net&stp=c0.5000x0.5000f_dst-jpg_flffffff_p1000x522_q75_tt6&ccb=18-1&_nc_gid=NoRkpGrAqJhj-lsori83GQ&_nc_zt=3&oh=06_Q3_FAZJFYcqrTrJP-TAIaBhrr1sCbFyUuZ-AsPDt2QJCMpF6&oe=6B06A01B"
+              },
+              "author": {
+                "__typename": "User",
+                "name": "WeightWatchers",
+                "short_name": "WeightWatchers",
+                "id": "100076474051751"
+              },
+              "videoDetails": {},
+              "image": null,
+              "reactionCount": 10,
+              "share_count": 5,
+              "reaction_counts": {
+                "thankful": 0,
+                "like": 9,
+                "love": 1,
+                "care": 0,
+                "haha": 0,
+                "wow": 0,
+                "sad": 0,
+                "anger": 0,
+                "pride": 0,
+                "confused": 0
+              },
+              "commentCount": 3,
+              "videoViewCount": null,
+              "publishTime": 1795284344,
+              "creation_time": "2026-11-21T18:05:44.000Z"
+            },
+            {
+              "id": "1197584876133970",
+              "is_paid_partnership": null,
+              "text": "The Thanksgiving appetizer you won’t believe is 4 Points per cup. \n\n📝 Click the link for the recipe: https://ww.visitlink.me/QN86ay",
+              "url": "https://www.facebook.com/reel/1758411675222118/",
+              "permalink": "https://www.facebook.com/reel/1758411675222118/",
+              "author": {
+                "__typename": "User",
+                "name": "WeightWatchers",
+                "short_name": "WeightWatchers",
+                "id": "100076474051751"
+              },
+              "reactionCount": 32,
+              "reaction_counts": {
+                "thankful": 0,
+                "like": 26,
+                "love": 5,
+                "care": 1,
+                "haha": 0,
+                "wow": 0,
+                "sad": 0,
+                "anger": 0,
+                "pride": 0,
+                "confused": 0
+              },
+              "commentCount": 0,
+              "videoViewCount": 7491,
+              "publishTime": 1795205203,
+              "creation_time": "2026-11-20T20:06:43.000Z",
+              "videoDetails": {
+                "thumbnailUrl": "https://scontent-lga3-2.xx.fbcdn.net/v/t15.5256-10/896107377_1758412955221990_2098003130227723194_n.jpg?stp=dst-jpg_s960x960_tt6&_nc_cat=106&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=be8305&_nc_ohc=YwMh_A323ZoQ7kNvwERRIaV&_nc_oc=AdpWMtqpmXuVvIQwqhH5neylTvm3x7pQ9pRoXxoLhmwHGgoBJe-L9fa7UH5_Bxl1KfQ&_nc_zt=23&_nc_ht=scontent-lga3-2.xx&_nc_gid=NoRkpGrAqJhj-lsori83GQ&_nc_ss=78180&oh=00_AQSLnUjlo_BFbArxG3Fqdc2PBelxTrarXtCRvdg56Jvuaw&oe=6B0A93A0"
+              },
+              "image": "https://scontent-lga3-2.xx.fbcdn.net/v/t15.5256-10/896107377_1758412955221990_2098003130227723194_n.jpg?stp=dst-jpg_p565x565_tt6&_nc_cat=106&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=d2b52d&_nc_ohc=YwMh_A323ZoQ7kNvwERRIaV&_nc_oc=AdpWMtqpmXuVvIQwqhH5neylTvm3x7pQ9pRoXxoLhmwHGgoBJe-L9fa7UH5_Bxl1KfQ&_nc_zt=23&_nc_ht=scontent-lga3-2.xx&_nc_gid=NoRkpGrAqJhj-lsori83GQ&_nc_ss=78180&oh=00_AQR4tJOC4uRIU2wXUfgfqAi4xWAI948OgRynNQqRokOUcA&oe=6B0A93A0",
+              "images": [
+                "https://scontent-lga3-2.xx.fbcdn.net/v/t15.5256-10/896107377_1758412955221990_2098003130227723194_n.jpg?stp=dst-jpg_p565x565_tt6&_nc_cat=106&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=d2b52d&_nc_ohc=YwMh_A323ZoQ7kNvwERRIaV&_nc_oc=AdpWMtqpmXuVvIQwqhH5neylTvm3x7pQ9pRoXxoLhmwHGgoBJe-L9fa7UH5_Bxl1KfQ&_nc_zt=23&_nc_ht=scontent-lga3-2.xx&_nc_gid=NoRkpGrAqJhj-lsori83GQ&_nc_ss=78180&oh=00_AQR4tJOC4uRIU2wXUfgfqAi4xWAI948OgRynNQqRokOUcA&oe=6B0A93A0"
+              ],
+              "parent_publication_time": "2026-11-20T20:06:43.000Z",
+              "share_count": 8
+            },
+            {
+              "id": "1196500399575751",
+              "is_paid_partnership": null,
+              "text": "Dressing the body you have, and loving it. ✨\n\nCelebrity stylist Erin Walsh stopped by Weight Watchers HQ to share her top 3 tips for intentional dressing:\n\n👚 Start with how you want to feel.\n👖 Tailor or rent while your body's changing.\n👠 Edit your closet for who you're becoming.\n\nWant more tips from Erin? Hear her on The Weigh In podcast at the link: https://ww.visitlink.me/NFWYIV",
+              "url": "https://www.facebook.com/reel/1794761476026385/",
+              "permalink": "https://www.facebook.com/reel/1794761476026385/",
+              "author": {
+                "__typename": "User",
+                "name": "WeightWatchers",
+                "short_name": "WeightWatchers",
+                "id": "100076474051751"
+              },
+              "reactionCount": 19,
+              "reaction_counts": {
+                "thankful": 0,
+                "like": 17,
+                "love": 2,
+                "care": 0,
+                "haha": 0,
+                "wow": 0,
+                "sad": 0,
+                "anger": 0,
+                "pride": 0,
+                "confused": 0
+              },
+              "commentCount": 2,
+              "videoViewCount": 4713,
+              "publishTime": 1795118810,
+              "creation_time": "2026-11-19T20:06:50.000Z",
+              "videoDetails": {
+                "thumbnailUrl": "https://scontent-lga3-2.xx.fbcdn.net/v/t15.5256-10/904460667_1794762289359637_7751542281028544998_n.jpg?stp=dst-jpg_s960x960_tt6&_nc_cat=103&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=be8305&_nc_ohc=EZiNUE39gI4Q7kNvwEH0wpz&_nc_oc=Ado9oZa3M0G-DUQtedBhUYecMXURoGvhRGfzcvqbQOJ5KIbSV17Z7jOWS8UPxmqmPzo&_nc_zt=23&_nc_ht=scontent-lga3-2.xx&_nc_gid=NoRkpGrAqJhj-lsori83GQ&_nc_ss=78180&oh=00_AQRtffAd0peS3vvgD7enVwdzFoj0IWsWjtNhRQlDS9bYmg&oe=6B0A96A4"
+              },
+              "image": "https://scontent-lga3-2.xx.fbcdn.net/v/t15.5256-10/904460667_1794762289359637_7751542281028544998_n.jpg?_nc_cat=103&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=d2b52d&_nc_ohc=EZiNUE39gI4Q7kNvwEH0wpz&_nc_oc=Ado9oZa3M0G-DUQtedBhUYecMXURoGvhRGfzcvqbQOJ5KIbSV17Z7jOWS8UPxmqmPzo&_nc_zt=23&_nc_ht=scontent-lga3-2.xx&_nc_gid=NoRkpGrAqJhj-lsori83GQ&_nc_ss=78180&oh=00_AQQ1TurmC8lecdVa7VRNFcaVBlXKh4ET25WluIcWD0YcEw&oe=6B0A96A4",
+              "images": [
+                "https://scontent-lga3-2.xx.fbcdn.net/v/t15.5256-10/904460667_1794762289359637_7751542281028544998_n.jpg?_nc_cat=103&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=d2b52d&_nc_ohc=EZiNUE39gI4Q7kNvwEH0wpz&_nc_oc=Ado9oZa3M0G-DUQtedBhUYecMXURoGvhRGfzcvqbQOJ5KIbSV17Z7jOWS8UPxmqmPzo&_nc_zt=23&_nc_ht=scontent-lga3-2.xx&_nc_gid=NoRkpGrAqJhj-lsori83GQ&_nc_ss=78180&oh=00_AQQ1TurmC8lecdVa7VRNFcaVBlXKh4ET25WluIcWD0YcEw&oe=6B0A96A4"
+              ],
+              "parent_publication_time": "2026-11-19T20:06:50.000Z",
+              "share_count": 5
+            }
+          ],
+          "cursor": "Cg8Ob3JnYW5pY19jdXJzb3IJAAACREFRSFRqNWFzcmhwSG1BQ0k1U3ZEcVNwd1k3UjV4ZndEVWpBeU1qb0pZS0lqOV8yMXp1SGVSY2ZxTzBKWFNKMlc4XzBkLVNEZDhNT1RxanFBdGN4WGtLak5NOUs0UmV5aGQ5UUpNLVNmQmdsRWZUNHI0X1Y1Q3p6WWxDYm45U1VfM2FWWW1jNFpBeDBkZkctWEEzN2o4V0liZ09BUnNkRTVZY0Z6aEd0SDZUbmtPdTFXaEpWVDhtbzItdGJZQUt4Xy1aSk12anFnU3JWUUd1SXBYOElfVzhLTkpHMFdneTVlUjVDcnVZMmY3dW9jYXRoM0Q0dVQzUThxcVhoMEVleFlUUGx0aHdVaDR6Y2tuWnRPcVBYdkdLVGNuVHAxMjYwSXJPNlZsUi1nUHlHcHlwQTFPQkE2dTJ3eTlaSHNvSmxmV2YyMThkNlVEc2dTX052OWplT2JiWGN5bFhoUi1DN2R4QnhLdFZzdUcxU1M4ZkRTWUJnUnhCMjdaVDNZWktTcjk5UWZlQXIwZlFPdU81Vmp3UmR2MFg2X3E3YURUOE9FNVdrVDh5ZjZDZTNHdUo0VThiWWphMFh2QnJnelZmZy1pajBTTVdCYTRkVTVUUVQtNktSMnZkRWk3VkxZLW9wMFAxRGdNb3I5UC1RaExUY2RoelF4U25jNlktclp6dXZYb2RhbFZXSnU1Wk5PbHFzc1pzNWFlVEo5OWQ3ZDI5NzdkSTRhVVdlNXdvMnNNUG4xcS14UnlZZTdtNC01WlhBNVJjM3MPCWFkX2N1cnNvcg4PD2dsb2JhbF9wb3NpdGlvbgIADwZvZmZzZXQCAA8QbGFzdF9hZF9wb3NpdGlvbgL/AQ=="
+        },
+        "records": 3,
+        "upstreamStatus": 200
+      }
+    ],
+    "creditsCost": 1
+  }
+}

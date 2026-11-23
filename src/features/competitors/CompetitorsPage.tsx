@@ -26,7 +26,13 @@ import { useClient } from "../../lib/useClient";
 import { type Competitor, useCompetitors } from "../../lib/useCompetitors";
 import { usePullPosts, useSavedPulls } from "../overview/useOverviewData";
 import { usePull } from "../pulls/pull-context";
-import { competitorStatus, linkedInDisplay, PLATFORM_NAME, PLATFORMS } from "./competitor-rules";
+import {
+  competitorStatus,
+  PLATFORM_NAME,
+  PLATFORMS,
+  targetDisplay,
+  targetNoun,
+} from "./competitor-rules";
 import { CompetitorPanel } from "./CompetitorPanel";
 import { removeCompetitor } from "./competitors-api";
 
@@ -36,7 +42,8 @@ const PULL_BUSY = "Wait for the pull to finish";
 
 /**
  * 07 Competitors: the brands 30reach pulls for this client. Add / Edit open the 07b panel
- * (`?add=1`, `?edit=<id>[&focus=tiktok|linkedin]` — the 05g "Fix handle" toast links here). Remove → 07c confirm.
+ * (`?add=1`, `?edit=<id>[&focus=tiktok|linkedin|facebook]` — the 05g "Fix handle" toast links here).
+ * Remove → 07c confirm.
  * Desktop (≥ 1200 px): table as in Figma. Below: cards (2 columns on tablet, 1 on mobile).
  */
 export function CompetitorsPage() {
@@ -146,7 +153,7 @@ export function CompetitorsPage() {
         <span className="text-muted">
           —
           <span className="sr-only">
-            No {PLATFORM_NAME[p]} {p === "linkedin" ? "page" : "handle"}
+            No {PLATFORM_NAME[p]} {targetNoun(p)}
           </span>
         </span>
       );
@@ -156,8 +163,13 @@ export function CompetitorsPage() {
         className={`inline-flex min-w-0 items-center gap-1.5 font-mono text-small ${bad ? "text-spark" : ""}`}
       >
         <Icon size={14} aria-label={PLATFORM_NAME[p]} className="shrink-0 text-muted" />
-        <span className="truncate" title={p === "linkedin" ? linkedInDisplay(h) : undefined}>
-          {p === "linkedin" ? linkedInDisplay(h).replace("linkedin.com/company/", "") : `@${h}`}
+        <span
+          className="truncate"
+          title={targetNoun(p) === "page" ? targetDisplay(p, h) : undefined}
+        >
+          {targetNoun(p) === "page"
+            ? targetDisplay(p, h).replace(/^(linkedin\.com\/company|facebook\.com)\//, "")
+            : `@${h}`}
         </span>
         {bad && <span className="sr-only">(not found)</span>}
       </span>
@@ -202,7 +214,7 @@ export function CompetitorsPage() {
           <EmptyState
             label="No brands yet"
             title="Add the competitors to follow"
-            text="Each brand needs an Instagram or TikTok handle or a LinkedIn page. 30reach checks it when you save."
+            text="Each brand needs an Instagram or TikTok handle or a LinkedIn or Facebook page. 30reach checks it when you save."
             actions={<Button onClick={() => openPanel({ add: "1" })}>Add competitor</Button>}
           />
         </Card>
@@ -226,6 +238,9 @@ export function CompetitorsPage() {
                     LinkedIn
                   </th>
                   <th scope="col" className="py-4 font-normal">
+                    Facebook
+                  </th>
+                  <th scope="col" className="py-4 pr-4 font-normal">
                     Posts · 30 days
                   </th>
                   <th scope="col" className="py-4 font-normal">
@@ -248,7 +263,8 @@ export function CompetitorsPage() {
                     <td className="max-w-56 py-4 pr-4">{handleCell(c, "instagram")}</td>
                     <td className="max-w-56 py-4 pr-4">{handleCell(c, "tiktok")}</td>
                     <td className="max-w-56 py-4 pr-4">{handleCell(c, "linkedin")}</td>
-                    <td className="py-4 text-body">{posts(c)}</td>
+                    <td className="max-w-56 py-4 pr-4">{handleCell(c, "facebook")}</td>
+                    <td className="py-4 pr-4 text-body">{posts(c)}</td>
                     <td className="py-4">{statusChip(c)}</td>
                     <td className="py-4 pr-6">{actions(c)}</td>
                   </tr>
@@ -337,7 +353,7 @@ function CompetitorsSkeleton() {
     <Skeleton label="Loading competitors">
       <div className="hidden overflow-hidden rounded-card border border-line bg-surface xl:block">
         <div className="flex gap-6 border-b border-line px-6 py-4">
-          {["w-16", "w-20", "w-16", "w-24", "w-14"].map((w, i) => (
+          {["w-16", "w-20", "w-16", "w-20", "w-20", "w-24", "w-14"].map((w, i) => (
             <Bone key={i} className={`h-2.5 ${w} ${i === 0 ? "mr-24" : "mr-10"}`} />
           ))}
         </div>

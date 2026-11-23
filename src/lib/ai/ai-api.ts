@@ -1,7 +1,7 @@
 // Browser side of the AI Edge Functions (Slice 11). Types mirror supabase/functions/*/index.ts
 // (kept in sync by hand). The browser never talks to Groq: it only calls our team-only functions.
 
-import type { Platform } from "../platforms";
+import type { ShownPlatform as Platform } from "../platforms";
 import { callFunction } from "../pulls/api";
 
 /** UI copy from AI_PROMPTS.md › Errors (Blip's voice). Written here, never generated. */

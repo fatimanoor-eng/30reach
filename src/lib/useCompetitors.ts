@@ -10,9 +10,15 @@ export type Competitor = {
   tiktok_handle: string | null;
   /** Canonical company page URL, https://www.linkedin.com/company/<slug>/ (Slice 15a). */
   linkedin_url: string | null;
+  /** Canonical page URL, https://www.facebook.com/<slug> (Slice 16a). */
+  facebook_url: string | null;
   instagram_status: "unchecked" | "ok" | "not_found";
   tiktok_status: "unchecked" | "ok" | "not_found";
   linkedin_status: "unchecked" | "ok" | "not_found";
+  facebook_status: "unchecked" | "ok" | "not_found";
+  /** Facebook followers, read once when the page was saved or changed (AnyAPI), and when. */
+  facebook_followers: number | null;
+  facebook_followers_at: string | null;
 };
 
 /** The client's competitors (brand pills, leaderboard, first-run checklist). Pill order = name. */
@@ -26,7 +32,7 @@ export function useCompetitors() {
       const { data, error } = await supabase
         .from("competitors")
         .select(
-          "id, name, initials, instagram_handle, tiktok_handle, linkedin_url, instagram_status, tiktok_status, linkedin_status",
+          "id, name, initials, instagram_handle, tiktok_handle, linkedin_url, facebook_url, instagram_status, tiktok_status, linkedin_status, facebook_status, facebook_followers, facebook_followers_at",
         )
         .eq("client_id", clientId!)
         .order("name");

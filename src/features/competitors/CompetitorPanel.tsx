@@ -9,30 +9,32 @@ import { CREDITS_QUERY_KEY } from "../../lib/useCredits";
 import type { Competitor } from "../../lib/useCompetitors";
 import { usePull } from "../pulls/pull-context";
 import {
-  CHECK_COST,
+  checkCostNote,
   duplicateOf,
+  foundMessage,
   handlesToCheck,
-  linkedInDisplay,
   MAX_INITIALS,
   parseHandle,
   PLATFORM_NAME,
   PLATFORMS,
   suggestInitials,
+  targetDisplay,
+  targetNoun,
 } from "./competitor-rules";
 import { checkHandle, saveCompetitor, type CompetitorFields } from "./competitors-api";
 
 type Feedback = { tone: FieldTone; message: string };
 type Status = Competitor["instagram_status"];
+/** A check's answer; `followers` only for Facebook (read with the check). */
+type Answer = { status: "ok" | "not_found"; followers: number | null };
 
 const handleKey = (p: Platform) => TARGET_KEY[p];
 const statusKey = (p: Platform) => STATUS_KEY[p];
 const NOT_FOUND = "Not found. Check the spelling or leave it empty.";
-const FOUND = (p: Platform) =>
-  p === "linkedin" ? "Found · public company page" : "Found · public account";
 
-/** What the field shows for a saved value: "@handle", or the LinkedIn page without https://www. */
+/** What the field shows for a saved value: "@handle", or the LinkedIn / Facebook page without https://www. */
 const shownValue = (p: Platform, saved: string | null | undefined) =>
-  !saved ? "" : p === "linkedin" ? linkedInDisplay(saved) : `@${saved}`;
+  !saved ? "" : p === "linkedin" || p === "facebook" ? targetDisplay(p, saved) : `@${saved}`;
 
 /** Feedback for a saved handle when the panel opens (status from the last check or pull). */
 function savedFeedback(c: Competitor | null, p: Platform): Feedback | null {
@@ -40,15 +42,18 @@ function savedFeedback(c: Competitor | null, p: Platform): Feedback | null {
   const s = c[statusKey(p)];
   if (s === "not_found")
     return { tone: "error", message: "Not found in the last pull. Check the spelling." };
-  if (s === "ok") return { tone: "ok", message: FOUND(p) };
+  if (s === "ok")
+    return p === "facebook"
+      ? { tone: "ok", message: foundMessage(p, c.facebook_followers, c.facebook_followers_at) }
+      : { tone: "ok", message: foundMessage(p) };
   return { tone: "default", message: "Not checked yet. The next Refresh checks it." };
 }
 
 /**
- * 07b Add / Edit competitor. Handles (and the LinkedIn company page) are checked on Save (never on
+ * 07b Add / Edit competitor. Handles (and the LinkedIn / Facebook pages) are checked on Save (never on
  * blur), only when new or changed, one at a time through `check-handle` (up to 2 credits if it exists,
- * 0 if not). One that isn't found isn't saved: the field turns red and the panel stays open; everything
- * else saves. At least one of Instagram, TikTok or LinkedIn is required.
+ * Facebook up to 5 because it also reads the followers; 0 if not). One that isn't found isn't saved:
+ * the field turns red and the panel stays open; everything else saves. At least one platform is required.
  */
 export function CompetitorPanel({
   open,
@@ -95,7 +100,7 @@ export function CompetitorPanel({
   const [checking, setChecking] = useState<Platform | null>(null);
   const [saving, setSaving] = useState(false);
   // Answers already paid for in this panel (so "Save" again never re-checks the same handle).
-  const [checked, setChecked] = useState<Record<string, "ok" | "not_found">>({});
+  const [checked, setChecked] = useState<Record<string, Answer>>({});
 
   const shownInitials = initialsEdited ? initials : suggestInitials(name);
   const parsed = Object.fromEntries(PLATFORMS.map((p) => [p, parseHandle(p, inputs[p])])) as Record<
@@ -143,21 +148,23 @@ export function CompetitorPanel({
       } else if (r.kind === "ok") {
         const dup = duplicateOf(competitors, p, r.handle, saved?.id);
         if (dup) {
-          const what = p === "linkedin" ? "page" : "handle";
-          nextFeedback[p] = { tone: "error", message: `${dup.name} already uses this ${what}.` };
+          nextFeedback[p] = {
+            tone: "error",
+            message: `${dup.name} already uses this ${targetNoun(p)}.`,
+          };
           valid = false;
         }
       }
     }
     setFeedback(nextFeedback);
     if (PLATFORMS.every((p) => parsed[p].kind === "empty")) {
-      setFormError("Add at least one handle (Instagram, TikTok or LinkedIn).");
+      setFormError("Add at least one handle (Instagram, TikTok, LinkedIn or Facebook).");
       valid = false;
     }
     if (!valid) return;
 
-    // ── handle / page checks, one at a time (up to 2 credits each if it exists)
-    const results: Partial<Record<Platform, "ok" | "not_found">> = {};
+    // ── handle / page checks, one at a time (up to 2 credits each if it exists, Facebook up to 5)
+    const results: Partial<Record<Platform, Answer>> = {};
     for (const p of handlesToCheck(before, after)) {
       const key = `${p}:${after[p]}`;
       const known = checked[key];
@@ -175,14 +182,17 @@ export function CompetitorPanel({
         void queryClient.invalidateQueries({ queryKey: CREDITS_QUERY_KEY });
         return; // nothing saved; answers so far are remembered for the next Save
       }
-      const answer = r.kind;
+      const answer: Answer = {
+        status: r.kind,
+        followers: r.kind === "ok" ? r.followers : null,
+      };
       setChecked((s) => ({ ...s, [key]: answer }));
-      results[p] = r.kind;
+      results[p] = answer;
       setFeedback((s) => ({
         ...s,
         [p]:
           r.kind === "ok"
-            ? { tone: "ok", message: FOUND(p) }
+            ? { tone: "ok", message: foundMessage(p, answer.followers) }
             : { tone: "error", message: NOT_FOUND },
       }));
     }
@@ -196,12 +206,17 @@ export function CompetitorPanel({
       instagram_handle: null,
       tiktok_handle: null,
       linkedin_url: null,
+      facebook_url: null,
       instagram_status: "unchecked",
       tiktok_status: "unchecked",
       linkedin_status: "unchecked",
+      facebook_status: "unchecked",
+      // Kept while the page stays the same; replaced when a new / changed page is found.
+      facebook_followers: saved?.facebook_followers ?? null,
+      facebook_followers_at: saved?.facebook_followers_at ?? null,
     };
     for (const p of PLATFORMS) {
-      const res = results[p];
+      const res = results[p]?.status;
       let handle: string | null;
       let status: Status;
       if (res === "ok") [handle, status] = [after[p], "ok"];
@@ -212,7 +227,15 @@ export function CompetitorPanel({
       (fields as Record<string, unknown>)[handleKey(p)] = handle;
       (fields as Record<string, unknown>)[statusKey(p)] = handle ? status : "unchecked";
     }
-    const notFound = PLATFORMS.filter((p) => results[p] === "not_found");
+    const fb = results.facebook;
+    if (fb?.status === "ok") {
+      fields.facebook_followers = fb.followers;
+      fields.facebook_followers_at = new Date().toISOString();
+    } else if (!fields.facebook_url) {
+      fields.facebook_followers = null;
+      fields.facebook_followers_at = null;
+    }
+    const notFound = PLATFORMS.filter((p) => results[p]?.status === "not_found");
 
     // A new brand whose only handle / page wasn't found: nothing to save yet.
     if (PLATFORMS.every((p) => !fields[handleKey(p)])) {
@@ -234,7 +257,7 @@ export function CompetitorPanel({
     if (notFound.length) {
       setFormError(
         `Saved ${fields.name} without the ${notFound.map((p) => PLATFORM_NAME[p]).join(" and ")} ${
-          notFound.length === 1 && notFound[0] === "linkedin" ? "page" : "handle"
+          notFound.length === 1 ? targetNoun(notFound[0]) : "handles"
         }.`,
       );
       return; // keep the panel open on the red field
@@ -262,7 +285,9 @@ export function CompetitorPanel({
             ? "@handle or profile link"
             : p === "tiktok"
               ? "@handle (optional)"
-              : "Company page link (optional)"
+              : p === "linkedin"
+                ? "Company page link (optional)"
+                : "Page link (optional)"
         }
         autoCapitalize="none"
         autoCorrect="off"
@@ -275,10 +300,7 @@ export function CompetitorPanel({
     );
   };
 
-  const costNote =
-    toCheck.length === 0
-      ? "No handle to check · no credits"
-      : `Checking costs ${CHECK_COST} credits per handle · up to ${CHECK_COST * toCheck.length} now`;
+  const costNote = checkCostNote(toCheck);
   const label = name.trim() ? `Save ${name.trim()}` : "Save";
 
   return (

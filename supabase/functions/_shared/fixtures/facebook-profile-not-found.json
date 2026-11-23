@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "data": {
+    "alexandria": [
+      {
+        "provider": "anyapi",
+        "capability": "facebook/profile",
+        "creditsCost": 0,
+        "data": {
+          "output": {
+            "found": false,
+            "data": null,
+            "reason": "not_found"
+          },
+          "provider": "AnyAPI"
+        },
+        "records": 0,
+        "upstreamStatus": 200
+      }
+    ],
+    "creditsCost": 0
+  }
+}

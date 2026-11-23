@@ -61,7 +61,7 @@ export function TestPullPage() {
       const { data, error } = await supabase
         .from("competitors")
         .select(
-          "id, name, instagram_handle, tiktok_handle, linkedin_url, instagram_status, tiktok_status, linkedin_status",
+          "id, name, instagram_handle, tiktok_handle, linkedin_url, facebook_url, instagram_status, tiktok_status, linkedin_status, facebook_status",
         )
         .eq("client_id", client.data!.id)
         .order("name");
@@ -194,7 +194,11 @@ export function TestPullPage() {
               onChange={setPlatform}
               options={PLATFORMS.map((p) => ({ value: p, label: PLATFORM_NAME[p] }))}
             />
-            {handle && <Chip>{platform === "linkedin" ? handle : `@${handle}`}</Chip>}
+            {handle && (
+              <Chip>
+                {platform === "linkedin" || platform === "facebook" ? handle : `@${handle}`}
+              </Chip>
+            )}
           </div>
         </Card>
 

@@ -1,13 +1,13 @@
 // pull-start — estimate + live credits check; creates the pull and its tasks (Slice 5, screens 05 / 05f).
 //
-// POST { clientId, platforms?: ("instagram"|"tiktok"|"linkedin")[], preview?: boolean,
+// POST { clientId, platforms?: ("instagram"|"tiktok"|"linkedin"|"facebook")[], preview?: boolean,
 //        test?: { competitorId, platform } }   ← test mode: one brand × one platform, 2-page cap
 //
 // → { status: "preview" | "insufficient" | "started", estimate, credits, lastPullAt, brands, pullId? }
 // → 409 { status: "running", pullId } if a pull is already running for this client.
 //
-// Credits check uses the MAXIMUM possible cost (Σ task page cap × 2; LinkedIn tasks cap at 2 pages),
-// so a pull can't overspend.
+// Credits check uses the MAXIMUM possible cost (Σ task page cap × 2; LinkedIn tasks cap at 2 pages,
+// Facebook keeps the pull's cap of 4), so a pull can't overspend.
 
 import {
   estimate,
@@ -67,7 +67,7 @@ export default {
     // One task per competitor × platform that has a handle.
     let query = admin
       .from("competitors")
-      .select("id, name, instagram_handle, tiktok_handle, linkedin_url")
+      .select("id, name, instagram_handle, tiktok_handle, linkedin_url, facebook_url")
       .eq("client_id", clientId)
       .order("name");
     if (isTest) query = query.eq("id", test.competitorId as string);

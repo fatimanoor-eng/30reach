@@ -25,6 +25,11 @@ const SEED: Row[] = BRANDS.map((b) => ({
   // Slice 15a: one brand with a LinkedIn company page; the rest have none.
   linkedin_url: b.id === "c-hims" ? "https://www.linkedin.com/company/hims-&-hers/" : null,
   linkedin_status: b.id === "c-hims" ? "ok" : "unchecked",
+  // Slice 16a: WeightWatchers has a Facebook page (followers read when it was saved).
+  facebook_url: b.id === "c-ww" ? "https://www.facebook.com/weightwatchers" : null,
+  facebook_status: b.id === "c-ww" ? "ok" : "unchecked",
+  facebook_followers: b.id === "c-ww" ? 2_901_902 : null,
+  facebook_followers_at: b.id === "c-ww" ? "2026-11-10T09:00:00Z" : null,
 }));
 
 /** Returns the check-handle calls made, for "no credits spent" assertions. */
@@ -70,20 +75,23 @@ async function setup(page: Page) {
   await page.route("**/rest/v1/posts**", (r) =>
     r.fulfill(json(posts.filter((p) => rows.some((x) => x.id === p.competitor_id)))),
   );
-  // check-handle: "noomofficial" and the LinkedIn page "nosuchco" don't exist (0 credits), anything
-  // else does (2 credits).
+  // check-handle: "noomofficial", the LinkedIn page "nosuchco" and the Facebook page "nosuchpage" don't
+  // exist (0 credits); anything else does (2 credits; Facebook 5 with the page's followers).
   await page.route("**/functions/v1/check-handle**", (r) => {
     const body = r.request().postDataJSON() as { platform: string; handle: string };
     checks.push(body);
     const missing =
       body.handle === "noomofficial" ||
-      body.handle === "https://www.linkedin.com/company/nosuchco/";
+      body.handle === "https://www.linkedin.com/company/nosuchco/" ||
+      body.handle === "https://www.facebook.com/nosuchpage";
+    const facebook = body.platform === "facebook";
     return r.fulfill(
       json({
         status: missing ? "not_found" : "ok",
         handle: body.handle,
-        creditsUsed: missing ? 0 : 2,
+        creditsUsed: missing ? 0 : facebook ? 5 : 2,
         credits: { remaining: 586, plan: 1000 },
+        followers: !missing && facebook ? 1_234_567 : null,
       }),
     );
   });
@@ -110,6 +118,7 @@ test("07 list: handles, status, posts in the latest pull", async ({ page }, info
   await expect(visible("OK")).toHaveCount(4); // LifeMD has no TikTok: a missing handle doesn't count
   await expect(visible("@ro.co")).toBeVisible();
   await expect(visible("hims-&-hers")).toBeVisible(); // LinkedIn page, shown by its slug
+  await expect(visible("weightwatchers")).toBeVisible(); // Facebook page, shown by its slug
   // Posts in the latest pull: Found has 8 in the fixture (8 − brand index 0).
   await expect(
     page.getByRole("button", { name: "Edit Found" }).filter({ visible: true }),
@@ -201,7 +210,7 @@ test("07b edit: name only costs nothing; free validation", async ({ page }, info
   await add.getByRole("textbox", { name: "Brand name" }).fill("Copycat");
   await add.getByRole("button", { name: "Save Copycat" }).click();
   await expect(add.getByRole("alert")).toHaveText(
-    "Add at least one handle (Instagram, TikTok or LinkedIn).",
+    "Add at least one handle (Instagram, TikTok, LinkedIn or Facebook).",
   );
   await add.getByRole("textbox", { name: "Instagram" }).fill("@HIMS");
   await add.getByRole("textbox", { name: "TikTok" }).fill("no spaces");
@@ -313,6 +322,70 @@ test("Fix page link opens the panel on the LinkedIn field", async ({ page }) => 
   const linkedin = panel.getByRole("textbox", { name: "LinkedIn" });
   await expect(linkedin).toHaveValue("linkedin.com/company/hims-&-hers");
   await expect(linkedin).toBeFocused();
+  await expect(panel.getByText("Not found in the last pull. Check the spelling.")).toBeVisible();
+});
+
+test("07b Facebook: page checked on save (up to 5 credits), followers saved with the date", async ({
+  page,
+}, info) => {
+  const { rows, checks } = await setup(page);
+  await ready(page);
+  await page.getByRole("button", { name: "Add competitor" }).click();
+  const panel = page.getByRole("dialog", { name: "Add competitor" });
+  await panel.getByRole("textbox", { name: "Brand name" }).fill("Noom");
+  const facebook = panel.getByRole("textbox", { name: "Facebook" });
+  await expect(facebook).toHaveAttribute("placeholder", "Page link (optional)");
+
+  // A group link is refused for free; so is another brand's page.
+  await facebook.fill("https://www.facebook.com/groups/noomcoaching");
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  await expect(panel.getByText("Use a Facebook page link (facebook.com/…).")).toBeVisible();
+  await facebook.fill("m.facebook.com/WeightWatchers/posts");
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  await expect(panel.getByText("WeightWatchers already uses this page.")).toBeVisible();
+  expect(checks).toHaveLength(0);
+
+  // The cost line warns before anything is spent.
+  await facebook.fill("facebook.com/nosuchpage");
+  await expect(panel.getByText("Checking costs up to 5 credits")).toBeVisible();
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  await expect(panel.getByText("Not found. Check the spelling or leave it empty.")).toBeVisible();
+
+  // A real page: found with its followers, stored as the canonical URL with today's date.
+  await facebook.fill("https://www.facebook.com/noom/");
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  await expect(page.getByRole("status").getByText("Added Noom")).toBeVisible();
+  expect(checks).toEqual([
+    { platform: "facebook", handle: "https://www.facebook.com/nosuchpage" },
+    { platform: "facebook", handle: "https://www.facebook.com/noom" },
+  ]);
+  expect(rows.find((r) => r.name === "Noom")).toMatchObject({
+    facebook_url: "https://www.facebook.com/noom",
+    facebook_status: "ok",
+    facebook_followers: 1_234_567,
+    facebook_followers_at: NOW.toISOString(),
+  });
+
+  // Reopening shows the followers "as of" the check; an unchanged page is never checked again.
+  await page.getByRole("button", { name: "Edit Noom" }).filter({ visible: true }).click();
+  const edit = page.getByRole("dialog", { name: "Edit Noom" });
+  await expect(edit.getByRole("textbox", { name: "Facebook" })).toHaveValue("facebook.com/noom");
+  await expect(edit.getByText("Found · public page · 1.2M followers as of 17 Nov")).toBeVisible();
+  await expect(edit.getByText("No handle to check · no credits")).toBeVisible();
+  if (isMobile(info.project.name)) await tapTargetsOk(page);
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot("competitor-panel-facebook.png");
+});
+
+test("Fix page link opens the panel on the Facebook field", async ({ page }) => {
+  const { rows } = await setup(page);
+  const ww = rows.find((r) => r.id === "c-ww")!;
+  ww.facebook_status = "not_found";
+  await ready(page, "/competitors?edit=c-ww&focus=facebook");
+  const panel = page.getByRole("dialog", { name: "Edit WeightWatchers" });
+  const facebook = panel.getByRole("textbox", { name: "Facebook" });
+  await expect(facebook).toHaveValue("facebook.com/weightwatchers");
+  await expect(facebook).toBeFocused();
   await expect(panel.getByText("Not found in the last pull. Check the spelling.")).toBeVisible();
 });
 

@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import igPage from "./fixtures/instagram-hims.json";
 import liPage from "./fixtures/linkedin-hims-hers.json";
 import liNotFound from "./fixtures/linkedin-not-found.json";
+import fbPage from "./fixtures/facebook-weightwatchers.json";
+import fbPage2 from "./fixtures/facebook-weightwatchers-p2.json";
+import fbNotFound from "./fixtures/facebook-not-found.json";
+import fbProfile from "./fixtures/facebook-profile-weightwatchers.json";
+import fbProfileNotFound from "./fixtures/facebook-profile-not-found.json";
 import notFound from "./fixtures/instagram-not-found.json";
 import ttPage from "./fixtures/tiktok-hims.json";
 import {
@@ -11,6 +16,12 @@ import {
   encodeLinkedInCursor,
   estimate,
   extractHashtags,
+  FACEBOOK_PAGE_SIZE,
+  facebookFormat,
+  facebookPageLabel,
+  facebookPageUrl,
+  mapFacebookItem,
+  parseFacebookProfile,
   finishStatus,
   browserImage,
   instagramThumbnail,
@@ -475,5 +486,167 @@ describe("estimate — LinkedIn", () => {
     expect(e.perPlatform.instagram).toEqual({ tasks: 0, expected: 0, max: 0 });
     expect(e.expected).toBe(4);
     expect(e.max).toBe(8);
+  });
+});
+
+// ───────────────────────────────────────────── Facebook (16a, Facebook / X spike fixtures)
+const fbPosts = (body: unknown) =>
+  (body as { data: { alexandria: { data: { posts: Record<string, unknown>[] } }[] } }).data
+    .alexandria[0].data.posts;
+
+describe("parsePage — Facebook (ScrapeCreators spike fixture, WeightWatchers)", () => {
+  it("maps the page's 3 posts: reel, link, photo", () => {
+    const r = ok(parsePage("facebook", fbPage, 0));
+    expect(r.creditsCost).toBe(1);
+    expect(r.followers).toBeNull(); // from AnyAPI when the page is saved, not from the posts
+    expect(r.posts.map((p) => p.format)).toEqual(["reel", "article", "image"]);
+    expect(r.posts.every((p) => p.platform === "facebook" && !p.pinned)).toBe(true);
+    const reel = r.posts[0];
+    expect(reel).toMatchObject({
+      external_id: "1200574805834977",
+      url: "https://www.facebook.com/reel/979224541550335/",
+      posted_by: "WeightWatchers",
+      likes: 12, // all reactions
+      comments: 3,
+      shares: 3,
+      views: 2771, // exact video views
+      saves: null,
+      is_paid: false, // is_paid_partnership: null
+      counts_hidden: false,
+    });
+    expect(reel.posted_at).toBe(new Date(1795446193 * 1000).toISOString());
+    expect(reel.thumbnail_source).toMatch(/^https:\/\/scontent/);
+  });
+  it("no views for photos and link posts; link posts use the link card's image", () => {
+    const [, link, photo] = ok(parsePage("facebook", fbPage, 0)).posts;
+    expect(link.views).toBeNull();
+    expect(photo.views).toBeNull();
+    const card = (fbPosts(fbPage)[1].link_attachment as { image_url: string; url: string })
+      .image_url;
+    expect(link.thumbnail_source).toBe(card);
+    expect(link.raw.link_url).toBeTruthy();
+    expect(photo.thumbnail_source).toBe(fbPosts(fbPage)[2].image);
+  });
+  it("page 2 (cursor) continues newest-first with no overlap", () => {
+    const p1 = ok(parsePage("facebook", fbPage, 0));
+    const p2 = ok(parsePage("facebook", fbPage2, 1));
+    expect(p2.posts.map((p) => p.format)).toEqual(["article", "reel", "reel"]);
+    const ids1 = new Set(p1.posts.map((p) => p.external_id));
+    expect(p2.posts.some((p) => ids1.has(p.external_id))).toBe(false);
+    expect(Date.parse(p2.posts[0].posted_at!)).toBeLessThan(Date.parse(p1.posts[2].posted_at!));
+  });
+  it("paging: next cursor on a full page of 3, none on a shorter page or without a cursor", () => {
+    expect(FACEBOOK_PAGE_SIZE).toBe(3);
+    expect(ok(parsePage("facebook", fbPage, 0)).nextCursor).toMatch(/^Cg8O/);
+    const short = clone(fbPage);
+    fbPosts(short).pop();
+    expect(ok(parsePage("facebook", short, 0)).nextCursor).toBeNull();
+    const noCursor = clone(fbPage);
+    delete (noCursor.data.alexandria[0].data as { cursor?: string }).cursor;
+    expect(ok(parsePage("facebook", noCursor, 0)).nextCursor).toBeNull();
+  });
+  it("a missing page is not_found, 0 credits (same as Instagram)", () => {
+    expect(parsePage("facebook", fbNotFound, 0)).toMatchObject({
+      kind: "error",
+      code: "not_found",
+      creditsCost: 0,
+    });
+  });
+  it("paid partnerships are kept as is_paid", () => {
+    const paid = clone(fbPosts(fbPage)[2]);
+    paid.is_paid_partnership = true;
+    expect(mapFacebookItem(paid)?.is_paid).toBe(true);
+  });
+  it("items without an id or link are skipped", () => {
+    expect(mapFacebookItem({ url: "https://www.facebook.com/x/posts/1" })).toBeNull();
+    expect(mapFacebookItem({ id: "1" })).toBeNull();
+  });
+});
+
+describe("facebookFormat", () => {
+  const base = { url: "https://www.facebook.com/x/posts/pfbid1", videoDetails: {}, images: [] };
+  it.each([
+    [{ ...base, url: "https://www.facebook.com/reel/1/" }, "reel"],
+    [{ ...base, videoDetails: { thumbnailUrl: "t" } }, "video"],
+    [{ ...base, images: ["a", "b"] }, "carousel"], // album, shown as "Album"
+    [{ ...base, images: ["a"] }, "image"],
+    [{ ...base, image: "a" }, "image"],
+    [{ ...base, link_attachment: { url: "https://x.com" } }, "article"], // shown as "Link"
+    [base, "text"],
+  ])("%o → %s", (item, format) => {
+    expect(facebookFormat(item)).toBe(format);
+  });
+});
+
+describe("facebookPageUrl (server copy of the Competitors rule)", () => {
+  it("normalises page links and usernames", () => {
+    expect(facebookPageUrl("https://m.facebook.com/WeightWatchers/posts/")).toBe(
+      "https://www.facebook.com/weightwatchers",
+    );
+    expect(facebookPageUrl("@ro.co")).toBe("https://www.facebook.com/ro.co");
+    expect(facebookPageUrl("facebook.com/profile.php?id=100076474051751")).toBe(
+      "https://www.facebook.com/profile.php?id=100076474051751",
+    );
+  });
+  it("refuses groups, posts, people profiles and other sites", () => {
+    for (const bad of [
+      "facebook.com/groups/x",
+      "facebook.com/people/A-B/1000123456",
+      "facebook.com/posts/pfbid0Jm58X4TR",
+      "linkedin.com/company/x",
+      "",
+    ])
+      expect(facebookPageUrl(bad)).toBeNull();
+  });
+  it("label for logs and chips", () => {
+    expect(facebookPageLabel("https://www.facebook.com/weightwatchers")).toBe("weightwatchers");
+    expect(facebookPageLabel("https://www.facebook.com/profile.php?id=123456")).toBe("id 123456");
+  });
+});
+
+describe("parseFacebookProfile (AnyAPI, followers on save)", () => {
+  it("found page → followers, 5 credits", () => {
+    expect(parseFacebookProfile(fbProfile)).toEqual({
+      kind: "ok",
+      followers: 2_901_902,
+      creditsCost: 5,
+    });
+  });
+  it("made-up page → not_found, 0 credits (measured 24 Nov)", () => {
+    expect(parseFacebookProfile(fbProfileNotFound)).toMatchObject({
+      kind: "error",
+      code: "not_found",
+      creditsCost: 0,
+    });
+  });
+  it("a provider error is passed on, never read as not found", () => {
+    const body = {
+      data: { alexandria: [{ error: { code: "upstream_timeout" }, creditsCost: 0 }] },
+    };
+    expect(parseFacebookProfile(body)).toMatchObject({ kind: "error", code: "upstream_timeout" });
+    expect(parseFacebookProfile({})).toMatchObject({ kind: "error", code: "bad_response" });
+  });
+});
+
+describe("estimate — Facebook", () => {
+  it("default 4 credits per Facebook task; max = the pull's 4-page cap × 2 (test: 2 pages)", () => {
+    const tasks = ["a", "b"].map((id) => ({ competitorId: id, platform: "facebook" as const }));
+    const e = estimate(tasks, new Map(), 4);
+    expect(e.perPlatform.facebook).toEqual({ tasks: 2, expected: 8, max: 16 });
+    expect(taskPageCap("facebook", 4)).toBe(4);
+    expect(taskPageCap("facebook", 2)).toBe(2);
+    expect(estimate(tasks, new Map([["a:facebook", 3]]), 4).perPlatform.facebook.expected).toBe(7);
+  });
+  it("stops at the 4-page cap even while posts are still inside the window", () => {
+    const posts = ok(parsePage("facebook", fbPage, 0)).posts;
+    const d = decideNextPage({
+      posts,
+      nextCursor: "c",
+      cutoffMs: 0,
+      pagesDone: 4,
+      pageCap: taskPageCap("facebook", 4),
+      budgetLeft: 100,
+    });
+    expect(d).toEqual({ more: false, reason: "page_cap" });
   });
 });

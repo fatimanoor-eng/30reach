@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "data": {
+    "alexandria": [
+      {
+        "provider": "anyapi",
+        "capability": "facebook/profile",
+        "creditsCost": 5,
+        "data": {
+          "provider": "AnyAPI",
+          "output": {
+            "found": true,
+            "data": {
+              "id": "100076474051751",
+              "name": "WeightWatchers",
+              "url": "https://www.facebook.com/weightwatchers",
+              "category": "Health & wellness website",
+              "followers": 2901902,
+              "likes": 2901902
+            }
+          }
+        },
+        "records": 1,
+        "upstreamStatus": 200
+      }
+    ],
+    "creditsCost": 5
+  }
+}

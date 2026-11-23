@@ -8,10 +8,10 @@ import { Bone, Skeleton, SkeletonCard, SkeletonKpis } from "../../components/Ske
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { useBrandSelection } from "../../lib/brand-selection-context";
 import {
-  type Platform,
   PLATFORM_ICON,
   PLATFORM_NAME as NAME,
-  PLATFORMS,
+  SHOWN_PLATFORMS as PLATFORMS,
+  type ShownPlatform as Platform,
   TARGET_KEY,
 } from "../../lib/platforms";
 import { type Competitor, useCompetitors } from "../../lib/useCompetitors";

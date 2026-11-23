@@ -1,36 +1,48 @@
 // Pure pull-pipeline logic (no Deno APIs) — shared by pull-start / pull-task / pull-finish and
 // tested by Vitest with trimmed Slice 1 spike fixtures (./fixtures). See docs/INTEGRATIONS.md §2a, §3.
 
-export type Platform = "instagram" | "tiktok" | "linkedin";
-export const PLATFORMS: Platform[] = ["instagram", "tiktok", "linkedin"];
+export type Platform = "instagram" | "tiktok" | "linkedin" | "facebook";
+export const PLATFORMS: Platform[] = ["instagram", "tiktok", "linkedin", "facebook"];
 
 /** The competitors column that says where to pull each platform from. */
 export const TARGET_COLUMN = {
   instagram: "instagram_handle",
   tiktok: "tiktok_handle",
   linkedin: "linkedin_url",
+  facebook: "facebook_url",
 } as const satisfies Record<Platform, string>;
 export const STATUS_COLUMN = {
   instagram: "instagram_status",
   tiktok: "tiktok_status",
   linkedin: "linkedin_status",
+  facebook: "facebook_status",
 } as const satisfies Record<Platform, string>;
 
 /**
  * Ceiling per page call. ScrapeCreators (Instagram/TikTok) measured 2 in the Slice 1 spike; HarvestAPI
- * (LinkedIn) measured 1 in the LinkedIn spike but is listed at 2, so 2 stays the safe maximum for both.
+ * (LinkedIn) measured 1 in the LinkedIn spike but is listed at 2; ScrapeCreators Facebook measured 1
+ * (Facebook / X spike). 2 stays the safe maximum for all of them.
  */
 export const CREDITS_PER_PAGE = 2;
 export const PAGE_CAP = 4; // per brand × platform task
 export const TEST_PAGE_CAP = 2;
 /** LinkedIn pages hold up to 50 posts (~a year for Hims & Hers), so 2 pages always cover 30 days. */
 export const LINKEDIN_PAGE_CAP = 2;
+/**
+ * Facebook pages hold only 3 posts (provider limit), so a busy brand needs ~10–12 pages for 30 days.
+ * Facebook keeps the pull's cap (4, test 2): the newest 12 posts at most. The pages say so in 16b.
+ */
+export const FACEBOOK_PAGE_SIZE = 3;
 export const WINDOW_DAYS = 30;
-/** First-pull estimate per task (spikes: IG ~3 pages, TikTok ~1–2 pages, LinkedIn 1 page for 30 days). */
+/**
+ * First-pull estimate per task (spikes: IG ~3 pages, TikTok ~1–2 pages, LinkedIn 1 page for 30 days,
+ * Facebook 4 pages × 1 credit for a brand that posts daily).
+ */
 export const DEFAULT_TASK_CREDITS: Record<Platform, number> = {
   instagram: 6,
   tiktok: 4,
   linkedin: 2,
+  facebook: 4,
 };
 /** Instagram allows up to 3 pinned posts; they sit at the top of page 1 and carry no flag. */
 export const IG_MAX_PINNED = 3;
@@ -364,8 +376,193 @@ export function linkedInNextCursor(page: Obj, elementCount: number): string | nu
   return encodeLinkedInCursor(pageNumber + 1, str(p.paginationToken));
 }
 
+// ───────────────────────────────────────────── Facebook (INTEGRATIONS.md › Facebook / X spike)
+/** First path parts that are never a page: groups, events, single posts, personal profiles, Facebook's own. */
+const FACEBOOK_NOT_A_PAGE = new Set([
+  "groups",
+  "events",
+  "watch",
+  "reel",
+  "reels",
+  "videos",
+  "photo",
+  "photo.php",
+  "photos",
+  "posts",
+  "permalink.php",
+  "story.php",
+  "share",
+  "sharer",
+  "sharer.php",
+  "people",
+  "pages",
+  "marketplace",
+  "gaming",
+  "hashtag",
+  "login",
+  "help",
+  "policies",
+  "settings",
+  "home.php",
+  "search",
+  "stories",
+]);
+/** Facebook page usernames: letters, digits and "." (older vanity names also have "-"). Lowercase. */
+export const FACEBOOK_SLUG = /^[a-z0-9][a-z0-9.-]{1,99}$/;
+
 /**
- * Firecrawl /v2/scrape (alexandria: scrapecreators for Instagram/TikTok, harvestapi for LinkedIn)
+ * Facebook page link → canonical URL, or null if it isn't a page link. Accepts
+ * "https://www.facebook.com/weightwatchers/", "m.facebook.com/weightwatchers/posts", "fb.com/x",
+ * "facebook.com/profile.php?id=123", "@weightwatchers" or just "weightwatchers". Refuses groups, events,
+ * single posts and reels, /people/ profiles and other sites. Canonical form:
+ * https://www.facebook.com/<slug> (or https://www.facebook.com/profile.php?id=<id>), no trailing slash —
+ * the form both providers answered to in the spike. Same rule as the browser (competitor-rules.ts).
+ */
+export function facebookPageUrl(input: string): string | null {
+  const v = input.trim();
+  if (!v) return null;
+  const link = v.match(
+    /^(?:https?:\/\/)?(?:(?:www|m|web|mobile|business)\.)?(?:facebook\.com|fb\.com)(\/[^?#]*)?(\?[^#]*)?/i,
+  );
+  let slug: string;
+  if (link) {
+    const parts = (link[1] ?? "").split("/").filter(Boolean);
+    if (parts.length === 0) return null;
+    const first = parts[0].toLowerCase();
+    if (first === "profile.php") {
+      const id = new URLSearchParams(link[2] ?? "").get("id");
+      return id && /^\d{5,25}$/.test(id) ? `https://www.facebook.com/profile.php?id=${id}` : null;
+    }
+    if (FACEBOOK_NOT_A_PAGE.has(first)) return null;
+    slug = parts[0];
+  } else {
+    if (/[/:?#\s]/.test(v)) return null; // some other link or text
+    slug = v.replace(/^@/, "");
+  }
+  try {
+    slug = decodeURIComponent(slug).toLowerCase();
+  } catch {
+    return null;
+  }
+  return FACEBOOK_SLUG.test(slug) && !FACEBOOK_NOT_A_PAGE.has(slug)
+    ? `https://www.facebook.com/${slug}`
+    : null;
+}
+
+/** "https://www.facebook.com/weightwatchers" → "weightwatchers"; profile.php links → "id 123…". */
+export function facebookPageLabel(url: string): string {
+  const id = url.match(/profile\.php\?id=(\d+)/)?.[1];
+  return id ? `id ${id}` : url.replace(/^https:\/\/www\.facebook\.com\//, "");
+}
+
+/**
+ * Format from the ScrapeCreators item. `videoDetails` is `{}` on posts without a video (spike), so
+ * "non-empty" is the test. Reels: the link has /reel/ (they also carry one image = the cover).
+ * More than one image = an album (shown as "Album"; not seen in the spike). Link cards → "article"
+ * (shown as "Link", like LinkedIn).
+ */
+export function facebookFormat(it: Obj): PostFormat {
+  if (/\/reel\//.test(str(it.url) ?? "") || /\/reel\//.test(str(it.permalink) ?? "")) return "reel";
+  if (nonEmpty(it.videoDetails)) return "video";
+  const images = Array.isArray(it.images) ? it.images.length : 0;
+  if (images > 1) return "carousel";
+  if (images === 1 || str(it.image)) return "image";
+  if (nonEmpty(it.link_attachment)) return "article";
+  return "text";
+}
+
+export function mapFacebookItem(item: unknown): MappedPost | null {
+  const it = obj(item);
+  const id = str(it.id) ?? (num(it.id) !== null ? String(it.id) : null);
+  const url = str(it.url) ?? str(it.permalink);
+  if (!id || !url) return null;
+  const format = facebookFormat(it);
+  const caption = str(it.text);
+  const author = obj(it.author);
+  const link = obj(it.link_attachment);
+  const images = Array.isArray(it.images) ? it.images : [];
+  const reactionTypes = obj(it.reaction_counts);
+  return {
+    platform: "facebook",
+    external_id: id,
+    url,
+    posted_at: isoFromSeconds(it.publishTime) ?? str(it.creation_time),
+    posted_by: str(author.short_name) ?? str(author.name),
+    format,
+    caption,
+    hashtags: extractHashtags(caption),
+    likes: num(it.reactionCount), // all reactions together (like, love, care, haha…)
+    comments: num(it.commentCount),
+    // Exact views on videos and reels only; photos, links and text have none.
+    views: format === "reel" || format === "video" ? num(it.videoViewCount) : null,
+    shares: num(it.share_count),
+    saves: null,
+    counts_hidden: false,
+    is_paid: it.is_paid_partnership === true,
+    is_collab: false,
+    raw: {
+      reactions: Object.fromEntries(
+        Object.entries(reactionTypes).filter(([, v]) => typeof v === "number"),
+      ),
+      image_count: images.length,
+      link_url: str(link.url),
+      link_title: str(link.title),
+      keys: Object.keys(it).sort(),
+    },
+    thumbnail_source:
+      str(it.image) ??
+      str(obj(it.videoDetails).thumbnailUrl) ??
+      (typeof images[0] === "string" ? images[0] : str(obj(images[0]).url)) ??
+      str(link.image_url) ??
+      null,
+    pinned: false,
+  };
+}
+
+/**
+ * Next Facebook page, or null. Pages hold 3 posts; a shorter page means the feed ended (we don't know
+ * whether an empty page is charged, so don't ask for one).
+ */
+export function facebookNextCursor(page: Obj, itemCount: number): string | null {
+  if (itemCount < FACEBOOK_PAGE_SIZE) return null;
+  return str(page.cursor);
+}
+
+export type ProfileResult =
+  | { kind: "ok"; followers: number | null; creditsCost: number }
+  | { kind: "error"; code: string; message: string; creditsCost: number };
+
+/**
+ * AnyAPI facebook/profile (Competitors' Facebook check, Slice 16a) → followers. A page that doesn't
+ * exist comes back as `output: { found: false, reason: "not_found" }`, 0 credits (measured 24 Nov);
+ * a found page costs 5.
+ */
+export function parseFacebookProfile(body: unknown): ProfileResult {
+  const data = obj(obj(body).data);
+  const item = Array.isArray(data.alexandria) ? obj(data.alexandria[0]) : null;
+  const creditsCost = num(item?.creditsCost) ?? num(data.creditsCost) ?? 0;
+  if (!item)
+    return { kind: "error", code: "bad_response", message: "No result in response", creditsCost };
+  if (item.error) {
+    const e = obj(item.error);
+    return {
+      kind: "error",
+      code: str(e.code) ?? "provider_error",
+      message: str(e.message) ?? "Provider error",
+      creditsCost,
+    };
+  }
+  const output = obj(obj(item.data).output);
+  if (output.found !== true) {
+    const reason = str(output.reason) ?? "not_found";
+    return { kind: "error", code: reason, message: `Facebook page: ${reason}`, creditsCost };
+  }
+  const page = obj(output.data);
+  return { kind: "ok", followers: num(page.followers) ?? num(page.likes), creditsCost };
+}
+
+/**
+ * Firecrawl /v2/scrape (alexandria: scrapecreators for Instagram/TikTok/Facebook, harvestapi for LinkedIn)
  * → one page of posts.
  * Errors arrive with HTTP 200 + success:true, inside data.alexandria[0].error — always check.
  * `pageIndex` = how many pages this task fetched before (0 for the first page).
@@ -389,6 +586,17 @@ export function parsePage(platform: Platform, body: unknown, pageIndex: number):
     };
   }
   const page = obj(item.data);
+  if (platform === "facebook") {
+    const list = Array.isArray(page.posts) ? page.posts : [];
+    return {
+      kind: "ok",
+      posts: list.map(mapFacebookItem).filter((p): p is MappedPost => p !== null),
+      nextCursor: facebookNextCursor(page, list.length),
+      creditsCost,
+      // Not in the posts list: saved once from AnyAPI when the page is saved in Competitors.
+      followers: null,
+    };
+  }
   if (platform === "linkedin") {
     const list = Array.isArray(page.elements) ? page.elements : [];
     const pageIds = Array.isArray(obj(page.query).companyIds)

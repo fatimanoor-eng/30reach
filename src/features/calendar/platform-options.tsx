@@ -1,4 +1,4 @@
-import { PLATFORM_ICON, PLATFORMS } from "../../lib/platforms";
+import { PLATFORM_ICON, SHOWN_PLATFORMS as PLATFORMS } from "../../lib/platforms";
 import { FORMAT_NAME, FORMATS, PLATFORM_LABEL, type CardPlatform } from "./calendar-ui";
 import type { ChipOption } from "./SelectChip";
 

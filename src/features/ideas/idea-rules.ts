@@ -1,10 +1,11 @@
 // Pure rules for the idea board (14a / 14b / M09): tabs, search, tags, link labels, ages.
 // No React and no Supabase here, so everything is unit-tested in idea-rules.test.ts.
 import { formatShortDate } from "../../lib/format";
-import type { Platform } from "../../lib/platforms";
+import type { ShownPlatform } from "../../lib/platforms";
 
 export type IdeaKind = "screenshot" | "link" | "note" | "post" | "ai";
-export type IdeaPlatform = Platform;
+/** Facebook joins the idea board in Slice 16c. */
+export type IdeaPlatform = ShownPlatform;
 
 /** Kept on ideas saved from a post, so they keep their context after old pulls are deleted. */
 export type SourceSnapshot = {

@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { Competitor } from "../../lib/useCompetitors";
 import {
+  checkCostNote,
   competitorStatus,
   duplicateOf,
+  facebookDisplay,
+  facebookPageUrl,
+  foundMessage,
   handlesToCheck,
   linkedInDisplay,
   parseHandle,
   suggestInitials,
+  targetDisplay,
 } from "./competitor-rules";
 
 const comp = (o: Partial<Competitor>): Competitor => ({
@@ -16,9 +21,13 @@ const comp = (o: Partial<Competitor>): Competitor => ({
   instagram_handle: "joinfound",
   tiktok_handle: "joinfound",
   linkedin_url: null,
+  facebook_url: null,
   instagram_status: "ok",
   tiktok_status: "ok",
   linkedin_status: "unchecked",
+  facebook_status: "unchecked",
+  facebook_followers: null,
+  facebook_followers_at: null,
   ...o,
 });
 
@@ -82,21 +91,28 @@ describe("parseHandle", () => {
 describe("handlesToCheck", () => {
   it("only new or changed, never empty", () => {
     const li = "https://www.linkedin.com/company/noom/";
-    expect(handlesToCheck({}, { instagram: "noom", tiktok: null, linkedin: null })).toEqual([
-      "instagram",
-    ]);
+    const fb = "https://www.facebook.com/noom";
+    expect(
+      handlesToCheck({}, { instagram: "noom", tiktok: null, linkedin: null, facebook: null }),
+    ).toEqual(["instagram"]);
     expect(
       handlesToCheck(
         { instagram: "noom", tiktok: "noom" },
-        { instagram: "noom", tiktok: "noomofficial", linkedin: li },
+        { instagram: "noom", tiktok: "noomofficial", linkedin: li, facebook: fb },
       ),
-    ).toEqual(["tiktok", "linkedin"]);
+    ).toEqual(["tiktok", "linkedin", "facebook"]);
     expect(
       handlesToCheck(
-        { instagram: "noom", tiktok: "noom", linkedin: li },
-        { instagram: "noom", tiktok: null, linkedin: null },
+        { instagram: "noom", tiktok: "noom", linkedin: li, facebook: fb },
+        { instagram: "noom", tiktok: null, linkedin: null, facebook: null },
       ),
     ).toEqual([]); // removing a handle or page costs nothing
+    expect(
+      handlesToCheck(
+        { instagram: "noom", facebook: fb },
+        { instagram: "noom", tiktok: null, linkedin: null, facebook: fb },
+      ),
+    ).toEqual([]); // an unchanged Facebook page isn't checked again (no 5 credits for followers)
   });
 });
 
@@ -141,5 +157,85 @@ describe("competitorStatus", () => {
   });
   it("Not checked while any present handle is unchecked", () => {
     expect(competitorStatus(comp({ instagram_status: "unchecked" })).label).toBe("Not checked");
+  });
+});
+
+describe("Facebook page field (16a, validated before any credits)", () => {
+  it.each([
+    ["https://www.facebook.com/weightwatchers", "https://www.facebook.com/weightwatchers"],
+    ["https://www.facebook.com/WeightWatchers/", "https://www.facebook.com/weightwatchers"],
+    ["facebook.com/weightwatchers/posts", "https://www.facebook.com/weightwatchers"],
+    ["m.facebook.com/weightwatchers?ref=share", "https://www.facebook.com/weightwatchers"],
+    ["fb.com/ro.co", "https://www.facebook.com/ro.co"],
+    ["@weightwatchers", "https://www.facebook.com/weightwatchers"],
+    ["weightwatchers", "https://www.facebook.com/weightwatchers"],
+    [
+      "https://www.facebook.com/profile.php?id=100076474051751",
+      "https://www.facebook.com/profile.php?id=100076474051751",
+    ],
+  ])("%s → %s", (input, url) => {
+    expect(facebookPageUrl(input)).toBe(url);
+    expect(parseHandle("facebook", input)).toEqual({ kind: "ok", handle: url });
+  });
+  it.each([
+    "https://www.facebook.com/groups/weightwatchers",
+    "https://www.facebook.com/events/123456",
+    "https://www.facebook.com/reel/979224541550335/",
+    "https://www.facebook.com/people/Some-Name/100012345678",
+    "https://www.facebook.com/",
+    "https://www.facebook.com/profile.php",
+    "https://www.instagram.com/weightwatchers",
+    "two words",
+    "x",
+  ])("refuses %s", (input) => {
+    expect(facebookPageUrl(input)).toBeNull();
+    expect(parseHandle("facebook", input)).toEqual({
+      kind: "invalid",
+      message: "Use a Facebook page link (facebook.com/…).",
+    });
+  });
+  it("empty is optional", () => {
+    expect(parseHandle("facebook", "  ")).toEqual({ kind: "empty" });
+  });
+  it("what the field and the table show", () => {
+    expect(facebookDisplay("https://www.facebook.com/weightwatchers")).toBe(
+      "facebook.com/weightwatchers",
+    );
+    expect(targetDisplay("facebook", "https://www.facebook.com/ro.co")).toBe("facebook.com/ro.co");
+    expect(targetDisplay("instagram", "ro.co")).toBe("ro.co");
+  });
+  it("duplicates and status count Facebook too", () => {
+    const url = "https://www.facebook.com/weightwatchers";
+    const list = [comp({ id: "c2", name: "WeightWatchers", facebook_url: url })];
+    expect(duplicateOf(list, "facebook", url)?.name).toBe("WeightWatchers");
+    expect(competitorStatus(comp({ facebook_url: url, facebook_status: "not_found" }))).toEqual({
+      label: "Facebook not found",
+      tone: "danger",
+    });
+    expect(competitorStatus(comp({ facebook_url: url })).label).toBe("Not checked");
+    expect(competitorStatus(comp({ facebook_url: url, facebook_status: "ok" })).label).toBe("OK");
+  });
+});
+
+describe("07b copy: found message and cost line", () => {
+  const now = new Date("2026-11-24T12:00:00");
+  it("found messages per platform; Facebook shows followers and, once saved, the date", () => {
+    expect(foundMessage("instagram")).toBe("Found · public account");
+    expect(foundMessage("linkedin")).toBe("Found · public company page");
+    expect(foundMessage("facebook")).toBe("Found · public page");
+    expect(foundMessage("facebook", 2_901_902)).toBe("Found · public page · 2.9M followers");
+    expect(foundMessage("facebook", 2_901_902, "2026-11-24T10:00:00Z", now)).toBe(
+      "Found · public page · 2.9M followers as of 24 Nov",
+    );
+  });
+  it("cost line: 2 per handle, up to 5 for a Facebook page", () => {
+    expect(checkCostNote([])).toBe("No handle to check · no credits");
+    expect(checkCostNote(["instagram", "linkedin"])).toBe(
+      "Checking costs 2 credits per handle · up to 4 now",
+    );
+    expect(checkCostNote(["facebook"])).toBe("Checking costs up to 5 credits");
+    expect(checkCostNote(["tiktok", "facebook"])).toBe(
+      "Checking costs 2 per handle, 5 for Facebook · up to 7 now",
+    );
   });
 });

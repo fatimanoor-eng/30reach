@@ -1,7 +1,8 @@
 import type { SVGProps } from "react";
 
 /**
- * Instagram + TikTok line icons from Figma (Icon/instagram 6897:11, Icon/tiktok 6897:16), plus LinkedIn.
+ * Instagram + TikTok line icons from Figma (Icon/instagram 6897:11, Icon/tiktok 6897:16), plus LinkedIn
+ * and Facebook.
  * Lucide no longer ships brand logos. Same API shape as Lucide icons: `size`, currentColor, 1.75 stroke.
  */
 type IconProps = Omit<SVGProps<SVGSVGElement>, "viewBox"> & { size?: number | string };
@@ -53,6 +54,20 @@ export function LinkedInIcon(props: IconProps) {
       <path d="M8 7.5V7.6" />
       <path d="M12 16.5V11" />
       <path d="M12 13.5C12 12.1193 13.1193 11 14.5 11C15.8807 11 17 12.1193 17 13.5V16.5" />
+    </svg>
+  );
+}
+
+/**
+ * Facebook line icon (Slice 16a): the "f" in a circle, drawn as lines to match the icons above. The
+ * stem runs to the circle's edge, like the real mark. Not in Figma yet (STATUS.md catch-up list).
+ */
+export function FacebookIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" />
+      <path d="M13 21V10.5C13 9.11929 14.1193 8 15.5 8H16.5" />
+      <path d="M10 13H16" />
     </svg>
   );
 }

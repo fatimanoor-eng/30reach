@@ -7,9 +7,14 @@
 // - Validate every JSON answer by hand (no zod). Anything off-shape → null → the caller retries once.
 // - No emojis in text that becomes idea text, card titles or hooks.
 
-import { parseRetryAfter, type Platform, PLATFORMS } from "./pull-logic.ts";
+import { parseRetryAfter, type Platform as PullPlatform } from "./pull-logic.ts";
 
-export { type Platform, PLATFORMS };
+/**
+ * Platforms Blip reads. A pull can hold Facebook posts from Slice 16a on; Blip adds them in 16c
+ * (ai-server filters them out of the summary until then).
+ */
+export type Platform = Exclude<PullPlatform, "facebook">;
+export const PLATFORMS: Platform[] = ["instagram", "tiktok", "linkedin"];
 
 export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 export const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";

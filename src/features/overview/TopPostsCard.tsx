@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router";
 import { compareColor } from "../../lib/brand-selection";
-import { PLATFORM_NAME, PLATFORMS } from "../../lib/platforms";
+import { PLATFORM_NAME, SHOWN_PLATFORMS as PLATFORMS } from "../../lib/platforms";
 import { useBrandSelection } from "../../lib/brand-selection-context";
 import { PostsCard } from "../posts/PostsCard";
 import { platformHref } from "./filters";

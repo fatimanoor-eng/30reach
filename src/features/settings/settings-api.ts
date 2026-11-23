@@ -3,6 +3,7 @@
 // SQL: supabase/migrations/*_settings.sql. Everything is team-only on the server.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { SHOWN_PLATFORMS } from "../../lib/platforms";
 import { callFunction } from "../../lib/pulls/api";
 import { supabase } from "../../lib/supabase";
 import type { ExportCard, ExportIdea, ExportPost } from "./settings-export";
@@ -221,7 +222,8 @@ export async function fetchLatestPullPosts(clientId: string) {
       "competitor_id, platform, format, posted_at, url, caption, hashtags, likes, comments, views, shares, counts_hidden",
     )
     .eq("pull_id", p.id)
-    .eq("hidden", false);
+    .eq("hidden", false)
+    .in("platform", SHOWN_PLATFORMS); // Facebook joins the export in Slice 16c
   if (postsError) throw postsError;
   return { startedAt: p.started_at, posts: (data ?? []) as ExportPost[] };
 }
