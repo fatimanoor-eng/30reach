@@ -38,7 +38,8 @@ export function parseCheckRequest(body: Record<string, unknown>): CheckRequest |
 }
 
 export type CheckOutcome =
-  | { status: "ok" | "not_found"; creditsUsed: number; followers: number | null }
+  | { status: "ok"; creditsUsed: number; followers: number | null }
+  | { status: "not_found"; creditsUsed: number }
   | { error: string; creditsUsed: number };
 
 /**
