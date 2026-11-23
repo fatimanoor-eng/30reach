@@ -4,6 +4,7 @@ import {
   competitorStatus,
   duplicateOf,
   handlesToCheck,
+  linkedInDisplay,
   parseHandle,
   suggestInitials,
 } from "./competitor-rules";
@@ -14,8 +15,10 @@ const comp = (o: Partial<Competitor>): Competitor => ({
   initials: "Fo",
   instagram_handle: "joinfound",
   tiktok_handle: "joinfound",
+  linkedin_url: null,
   instagram_status: "ok",
   tiktok_status: "ok",
+  linkedin_status: "unchecked",
   ...o,
 });
 
@@ -52,20 +55,48 @@ describe("parseHandle", () => {
     expect(parseHandle("tiktok", "a").kind).toBe("invalid");
     expect(parseHandle("instagram", "x".repeat(31)).kind).toBe("invalid");
   });
+  it("LinkedIn: a company page link or slug → the canonical page URL", () => {
+    const hims = { kind: "ok", handle: "https://www.linkedin.com/company/hims-&-hers/" };
+    expect(parseHandle("linkedin", "https://www.linkedin.com/company/hims-&-hers/posts/")).toEqual(
+      hims,
+    );
+    expect(parseHandle("linkedin", "linkedin.com/company/Hims-%26-Hers")).toEqual(hims);
+    expect(parseHandle("linkedin", "hims-&-hers")).toEqual(hims);
+    expect(parseHandle("linkedin", "")).toEqual({ kind: "empty" });
+  });
+  it("LinkedIn: personal profiles and other links are invalid (never cost credits)", () => {
+    expect(parseHandle("linkedin", "https://www.linkedin.com/in/someone/")).toEqual({
+      kind: "invalid",
+      message: "Use a company page link (linkedin.com/company/…).",
+    });
+    expect(parseHandle("linkedin", "https://hims.com").kind).toBe("invalid");
+    expect(parseHandle("linkedin", "two words").kind).toBe("invalid");
+  });
+  it("LinkedIn: what the field shows for a saved page", () => {
+    expect(linkedInDisplay("https://www.linkedin.com/company/hims-&-hers/")).toBe(
+      "linkedin.com/company/hims-&-hers",
+    );
+  });
 });
 
 describe("handlesToCheck", () => {
   it("only new or changed, never empty", () => {
-    expect(handlesToCheck({}, { instagram: "noom", tiktok: null })).toEqual(["instagram"]);
+    const li = "https://www.linkedin.com/company/noom/";
+    expect(handlesToCheck({}, { instagram: "noom", tiktok: null, linkedin: null })).toEqual([
+      "instagram",
+    ]);
     expect(
       handlesToCheck(
         { instagram: "noom", tiktok: "noom" },
-        { instagram: "noom", tiktok: "noomofficial" },
+        { instagram: "noom", tiktok: "noomofficial", linkedin: li },
       ),
-    ).toEqual(["tiktok"]);
+    ).toEqual(["tiktok", "linkedin"]);
     expect(
-      handlesToCheck({ instagram: "noom", tiktok: "noom" }, { instagram: "noom", tiktok: null }),
-    ).toEqual([]); // removing a handle costs nothing
+      handlesToCheck(
+        { instagram: "noom", tiktok: "noom", linkedin: li },
+        { instagram: "noom", tiktok: null, linkedin: null },
+      ),
+    ).toEqual([]); // removing a handle or page costs nothing
   });
 });
 
@@ -74,6 +105,11 @@ describe("duplicateOf", () => {
     const list = [comp({}), comp({ id: "c2", name: "Ro", instagram_handle: "ro.co" })];
     expect(duplicateOf(list, "instagram", "RO.CO")?.name).toBe("Ro");
     expect(duplicateOf(list, "instagram", "ro.co", "c2")).toBeNull();
+  });
+  it("LinkedIn pages too", () => {
+    const url = "https://www.linkedin.com/company/hims-&-hers/";
+    const list = [comp({ id: "c2", name: "Hims & Hers", linkedin_url: url })];
+    expect(duplicateOf(list, "linkedin", url)?.name).toBe("Hims & Hers");
   });
 });
 
@@ -92,6 +128,16 @@ describe("competitorStatus", () => {
     expect(
       competitorStatus(comp({ tiktok_status: "not_found", instagram_status: "not_found" })).label,
     ).toBe("Not found");
+  });
+  it("LinkedIn counts once a page is set", () => {
+    const url = "https://www.linkedin.com/company/x/";
+    expect(competitorStatus(comp({ linkedin_url: url, linkedin_status: "not_found" }))).toEqual({
+      label: "LinkedIn not found",
+      tone: "danger",
+    });
+    expect(competitorStatus(comp({ linkedin_url: url })).label).toBe("Not checked");
+    expect(competitorStatus(comp({ linkedin_url: url, linkedin_status: "ok" })).label).toBe("OK");
+    expect(competitorStatus(comp({ linkedin_status: "not_found" })).label).toBe("OK"); // no page set
   });
   it("Not checked while any present handle is unchecked", () => {
     expect(competitorStatus(comp({ instagram_status: "unchecked" })).label).toBe("Not checked");

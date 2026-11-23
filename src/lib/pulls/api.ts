@@ -1,11 +1,13 @@
 import { FunctionsHttpError } from "@supabase/supabase-js";
+import type { Platform } from "../platforms";
 import { supabase } from "../supabase";
 
 /** Mirrors supabase/functions/_shared/pull-logic.ts (kept in sync by hand; both are small). */
-export type Platform = "instagram" | "tiktok";
+export type { Platform };
 
 export type Estimate = {
-  perPlatform: Record<Platform, { tasks: number; expected: number; max: number }>;
+  /** Partial: a pull-start deployed before LinkedIn (15a) has no `linkedin` entry. */
+  perPlatform: Partial<Record<Platform, { tasks: number; expected: number; max: number }>>;
   expected: number;
   max: number;
 };

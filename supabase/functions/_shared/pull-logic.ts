@@ -1,19 +1,46 @@
 // Pure pull-pipeline logic (no Deno APIs) — shared by pull-start / pull-task / pull-finish and
 // tested by Vitest with trimmed Slice 1 spike fixtures (./fixtures). See docs/INTEGRATIONS.md §2a, §3.
 
-export type Platform = "instagram" | "tiktok";
-export const PLATFORMS: Platform[] = ["instagram", "tiktok"];
+export type Platform = "instagram" | "tiktok" | "linkedin";
+export const PLATFORMS: Platform[] = ["instagram", "tiktok", "linkedin"];
 
-export const CREDITS_PER_PAGE = 2; // ScrapeCreators via Firecrawl, measured in the spike
+/** The competitors column that says where to pull each platform from. */
+export const TARGET_COLUMN = {
+  instagram: "instagram_handle",
+  tiktok: "tiktok_handle",
+  linkedin: "linkedin_url",
+} as const satisfies Record<Platform, string>;
+export const STATUS_COLUMN = {
+  instagram: "instagram_status",
+  tiktok: "tiktok_status",
+  linkedin: "linkedin_status",
+} as const satisfies Record<Platform, string>;
+
+/**
+ * Ceiling per page call. ScrapeCreators (Instagram/TikTok) measured 2 in the Slice 1 spike; HarvestAPI
+ * (LinkedIn) measured 1 in the LinkedIn spike but is listed at 2, so 2 stays the safe maximum for both.
+ */
+export const CREDITS_PER_PAGE = 2;
 export const PAGE_CAP = 4; // per brand × platform task
 export const TEST_PAGE_CAP = 2;
+/** LinkedIn pages hold up to 50 posts (~a year for Hims & Hers), so 2 pages always cover 30 days. */
+export const LINKEDIN_PAGE_CAP = 2;
 export const WINDOW_DAYS = 30;
-/** First-pull estimate per task (spike: IG ~3 pages, TikTok ~1–2 pages for 30 days). */
-export const DEFAULT_TASK_CREDITS: Record<Platform, number> = { instagram: 6, tiktok: 4 };
+/** First-pull estimate per task (spikes: IG ~3 pages, TikTok ~1–2 pages, LinkedIn 1 page for 30 days). */
+export const DEFAULT_TASK_CREDITS: Record<Platform, number> = {
+  instagram: 6,
+  tiktok: 4,
+  linkedin: 2,
+};
 /** Instagram allows up to 3 pinned posts; they sit at the top of page 1 and carry no flag. */
 export const IG_MAX_PINNED = 3;
 
-export type PostFormat = "reel" | "carousel" | "image" | "video";
+/** Page cap for one task: the pull's cap, lowered for LinkedIn. */
+export const taskPageCap = (platform: Platform, pullPageCap: number) =>
+  platform === "linkedin" ? Math.min(pullPageCap, LINKEDIN_PAGE_CAP) : pullPageCap;
+
+export type PostFormat =
+  "reel" | "carousel" | "image" | "video" | "text" | "document" | "article" | "poll";
 
 /** A post ready for public.posts (minus pull/client/competitor ids). */
 export type MappedPost = {
@@ -205,8 +232,141 @@ export function mapTikTokItem(item: unknown): MappedPost | null {
   };
 }
 
+// ───────────────────────────────────────────── LinkedIn (INTEGRATIONS.md › LinkedIn spike)
 /**
- * Firecrawl /v2/scrape (alexandria, scrapecreators) → one page of posts.
+ * LinkedIn company page → slug, or null if it isn't a company page. Accepts a full URL
+ * ("https://www.linkedin.com/company/hims-&-hers/posts/"), "linkedin.com/company/x", "company/x" or
+ * just the slug. Slugs are lowercase letters, digits, "-", "_", "." and "&" (e.g. "hims-&-hers"), or a
+ * numeric company id. Same rule as the browser (src/features/competitors/competitor-rules.ts).
+ */
+export const LINKEDIN_SLUG = /^[a-z0-9][a-z0-9&._-]{1,99}$/;
+export function linkedInSlug(input: string): string | null {
+  let v = input.trim();
+  if (!v) return null;
+  const link = v.match(
+    /^(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/company\/([^/?#]+)|^company\/([^/?#]+)/i,
+  );
+  if (link) v = link[1] ?? link[2];
+  else if (/[/:]/.test(v)) return null; // some other link (a personal /in/ profile, another site)
+  try {
+    v = decodeURIComponent(v);
+  } catch {
+    return null;
+  }
+  v = v.toLowerCase();
+  return LINKEDIN_SLUG.test(v) ? v : null;
+}
+export const linkedInUrl = (slug: string) => `https://www.linkedin.com/company/${slug}/`;
+
+/** "246,391 followers" / "1.2K followers" / "3M followers" → number. */
+export function parseFollowers(info: unknown): number | null {
+  const m = str(info)?.match(/([\d.,]+)\s*([KkMm])?\s+followers/);
+  if (!m) return null;
+  const base = Number(m[1].replace(/,/g, ""));
+  if (!Number.isFinite(base)) return null;
+  const mult = m[2] ? (m[2].toLowerCase() === "k" ? 1_000 : 1_000_000) : 1;
+  return Math.round(base * mult);
+}
+
+const nonEmpty = (v: unknown) =>
+  Array.isArray(v) ? v.length > 0 : !!v && typeof v === "object" && Object.keys(v).length > 0;
+
+/**
+ * Format from the HarvestAPI item. Documents and polls weren't in the spike's page, so their keys are a
+ * best guess (`document`, `poll`); anything unrecognised falls back to text and `raw.keys` records what
+ * came back, so a real pull can correct this.
+ */
+export function linkedInFormat(it: Obj): PostFormat {
+  if (nonEmpty(it.postVideo)) return "video";
+  if (nonEmpty(it.document)) return "document";
+  if (nonEmpty(it.poll)) return "poll";
+  if (nonEmpty(it.postImages)) return "image"; // one or more images (multi-image is not a carousel)
+  if (nonEmpty(it.article)) return "article";
+  return "text";
+}
+
+/**
+ * The page's own post → MappedPost; null for anything else on the page's feed: posts it reposted
+ * (`repostedBy`) and posts by other authors it collaborated on. `pageIds` = the company id(s) Firecrawl
+ * resolved the page to (`data.query.companyIds`).
+ */
+export function mapLinkedInItem(item: unknown, pageIds: string[]): MappedPost | null {
+  const it = obj(item);
+  const id = str(it.id) ?? str(it.entityId);
+  if (!id || nonEmpty(it.repostedBy)) return null;
+  const author = obj(it.author);
+  if (pageIds.length && !pageIds.includes(String(author.id ?? ""))) return null;
+  const engagement = obj(it.engagement);
+  const format = linkedInFormat(it);
+  const caption = str(it.content);
+  const images = Array.isArray(it.postImages) ? it.postImages : [];
+  const reactions = Array.isArray(engagement.reactions)
+    ? engagement.reactions.map((r) => ({ type: str(obj(r).type), count: num(obj(r).count) }))
+    : [];
+  return {
+    platform: "linkedin",
+    external_id: id,
+    url: str(it.linkedinUrl) ?? `https://www.linkedin.com/feed/update/urn:li:activity:${id}/`,
+    posted_at: str(obj(it.postedAt).date),
+    posted_by: str(author.universalName) ?? str(author.publicIdentifier),
+    format,
+    caption,
+    hashtags: extractHashtags(caption),
+    likes: num(engagement.likes), // all reactions together
+    comments: num(engagement.comments),
+    views: null, // LinkedIn doesn't expose views for company posts
+    shares: num(engagement.shares), // reposts
+    saves: null,
+    counts_hidden: false,
+    is_paid: false,
+    is_collab: false,
+    raw: {
+      reactions,
+      image_count: images.length,
+      is_quote: nonEmpty(it.repost),
+      keys: Object.keys(it).sort(),
+    },
+    thumbnail_source:
+      str(obj(images[0]).url) ??
+      str(obj(it.postVideo).thumbnailUrl) ??
+      str(obj(obj(it.article).image).url) ??
+      null,
+    pinned: false,
+  };
+}
+
+/** HarvestAPI paging: `page` + `paginationToken` packed into one cursor ("2|token"). */
+export function encodeLinkedInCursor(page: number, token: string | null) {
+  return `${page}|${token ?? ""}`;
+}
+export function decodeLinkedInCursor(cursor: string | null): {
+  page: number;
+  token: string | null;
+} {
+  if (!cursor) return { page: 1, token: null };
+  const [page, ...rest] = cursor.split("|");
+  const n = Number(page);
+  return { page: Number.isInteger(n) && n > 1 ? n : 1, token: rest.join("|") || null };
+}
+
+/**
+ * Next LinkedIn page, or null. An empty page still costs a credit (spike), so stop when this page
+ * came back less than full or it was the last page LinkedIn reports.
+ */
+export function linkedInNextCursor(page: Obj, elementCount: number): string | null {
+  const p = obj(page.pagination);
+  const pageNumber = num(p.pageNumber);
+  const pageSize = num(p.pageSize);
+  const totalPages = num(p.totalPages);
+  if (pageNumber === null || pageSize === null) return null;
+  if (elementCount < pageSize) return null;
+  if (totalPages !== null && pageNumber >= totalPages) return null;
+  return encodeLinkedInCursor(pageNumber + 1, str(p.paginationToken));
+}
+
+/**
+ * Firecrawl /v2/scrape (alexandria: scrapecreators for Instagram/TikTok, harvestapi for LinkedIn)
+ * → one page of posts.
  * Errors arrive with HTTP 200 + success:true, inside data.alexandria[0].error — always check.
  * `pageIndex` = how many pages this task fetched before (0 for the first page).
  */
@@ -218,14 +378,35 @@ export function parsePage(platform: Platform, body: unknown, pageIndex: number):
     return { kind: "error", code: "bad_response", message: "No result in response", creditsCost };
   if (item.error) {
     const e = obj(item.error);
+    const code = str(e.code) ?? "provider_error";
     return {
       kind: "error",
-      code: str(e.code) ?? "provider_error",
+      // HarvestAPI answers a company page that doesn't exist with invalid_option (400), not not_found
+      // (LinkedIn spike). We only ever send well-formed company URLs (linkedInSlug), so it means "not found".
+      code: platform === "linkedin" && code === "invalid_option" ? "not_found" : code,
       message: str(e.message) ?? "Provider error",
       creditsCost,
     };
   }
   const page = obj(item.data);
+  if (platform === "linkedin") {
+    const list = Array.isArray(page.elements) ? page.elements : [];
+    const pageIds = Array.isArray(obj(page.query).companyIds)
+      ? (obj(page.query).companyIds as unknown[]).map(String)
+      : [];
+    const posts = list
+      .map((it) => mapLinkedInItem(it, pageIds))
+      .filter((p): p is MappedPost => p !== null);
+    // Followers: on the page's own author block ("246,391 followers").
+    const own = list.find((it) => pageIds.includes(String(obj(obj(it).author).id ?? "")));
+    return {
+      kind: "ok",
+      posts,
+      nextCursor: linkedInNextCursor(page, list.length),
+      creditsCost,
+      followers: parseFollowers(obj(obj(own ?? list[0]).author).info),
+    };
+  }
   if (platform === "instagram") {
     const items = Array.isArray(page.items) ? page.items : [];
     const posts = items
@@ -319,7 +500,7 @@ export const taskKey = (t: TaskKey) => `${t.competitorId}:${t.platform}`;
 export type Estimate = {
   perPlatform: Record<Platform, { tasks: number; expected: number; max: number }>;
   expected: number;
-  /** Hard ceiling: tasks × pageCap × 2. Used for the credits check and the pull's budget. */
+  /** Hard ceiling: Σ task page cap × 2. Used for the credits check and the pull's budget. */
   max: number;
 };
 
@@ -329,12 +510,11 @@ export function estimate(
   lastCredits: Map<string, number>,
   pageCap: number,
 ): Estimate {
-  const perPlatform = {
-    instagram: { tasks: 0, expected: 0, max: 0 },
-    tiktok: { tasks: 0, expected: 0, max: 0 },
-  };
-  const ceiling = pageCap * CREDITS_PER_PAGE;
+  const perPlatform = Object.fromEntries(
+    PLATFORMS.map((p) => [p, { tasks: 0, expected: 0, max: 0 }]),
+  ) as Estimate["perPlatform"];
   for (const t of tasks) {
+    const ceiling = taskPageCap(t.platform, pageCap) * CREDITS_PER_PAGE;
     const p = perPlatform[t.platform];
     p.tasks += 1;
     p.expected += Math.min(
@@ -343,11 +523,8 @@ export function estimate(
     );
     p.max += ceiling;
   }
-  return {
-    perPlatform,
-    expected: perPlatform.instagram.expected + perPlatform.tiktok.expected,
-    max: perPlatform.instagram.max + perPlatform.tiktok.max,
-  };
+  const sum = (k: "expected" | "max") => PLATFORMS.reduce((n, p) => n + perPlatform[p][k], 0);
+  return { perPlatform, expected: sum("expected"), max: sum("max") };
 }
 
 // ───────────────────────────────────────────── finish + cleanup

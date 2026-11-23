@@ -1,7 +1,7 @@
 import type { SVGProps } from "react";
 
 /**
- * Instagram + TikTok line icons from Figma (Icon/instagram 6897:11, Icon/tiktok 6897:16).
+ * Instagram + TikTok line icons from Figma (Icon/instagram 6897:11, Icon/tiktok 6897:16), plus LinkedIn.
  * Lucide no longer ships brand logos. Same API shape as Lucide icons: `size`, currentColor, 1.75 stroke.
  */
 type IconProps = Omit<SVGProps<SVGSVGElement>, "viewBox"> & { size?: number | string };
@@ -37,6 +37,22 @@ export function TikTokIcon(props: IconProps) {
     <svg {...base(props)}>
       <path d="M14 3V14.5C14 15.1922 13.7947 15.8689 13.4101 16.4445C13.0256 17.0201 12.4789 17.4687 11.8394 17.7336C11.1999 17.9985 10.4961 18.0678 9.81718 17.9327C9.13825 17.7977 8.51461 17.4644 8.02513 16.9749C7.53564 16.4854 7.2023 15.8618 7.06725 15.1828C6.9322 14.5039 7.00152 13.8001 7.26642 13.1606C7.53133 12.5211 7.97993 11.9744 8.55551 11.5899C9.13108 11.2053 9.80777 11 10.5 11" />
       <path d="M14 3C14.4 5.6 16.4 7.6 19 8" />
+    </svg>
+  );
+}
+
+/**
+ * LinkedIn line icon (Slice 15a): the rounded "in" box drawn as lines to match the two icons above.
+ * Not in Figma yet — on the Figma catch-up list (STATUS.md).
+ */
+export function LinkedInIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M16 3H8C5.23858 3 3 5.23858 3 8V16C3 18.7614 5.23858 21 8 21H16C18.7614 21 21 18.7614 21 16V8C21 5.23858 18.7614 3 16 3Z" />
+      <path d="M8 11V16.5" />
+      <path d="M8 7.5V7.6" />
+      <path d="M12 16.5V11" />
+      <path d="M12 13.5C12 12.1193 13.1193 11 14.5 11C15.8807 11 17 12.1193 17 13.5V16.5" />
     </svg>
   );
 }

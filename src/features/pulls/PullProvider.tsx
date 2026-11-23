@@ -108,7 +108,7 @@ export function PullProvider({ children }: { children: ReactNode }) {
           pose: "error",
           action: handleProblem
             ? {
-                label: "Fix handle",
+                label: handleProblem.platform === "linkedin" ? "Fix page" : "Fix handle",
                 onClick: () =>
                   navigate(
                     fixTarget

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parsePage } from "../_shared/pull-logic.ts";
 import igPage from "../_shared/fixtures/instagram-hims.json";
+import liPage from "../_shared/fixtures/linkedin-hims-hers.json";
+import liNotFound from "../_shared/fixtures/linkedin-not-found.json";
 import { checkOutcome, parseCheckRequest } from "./logic.ts";
 
 describe("parseCheckRequest", () => {
@@ -20,6 +22,26 @@ describe("parseCheckRequest", () => {
       error: "bad_handle",
     });
     expect(parseCheckRequest({ platform: "instagram" })).toEqual({ error: "bad_handle" });
+  });
+  it("LinkedIn: a company page URL or slug → the canonical URL", () => {
+    expect(
+      parseCheckRequest({
+        platform: "linkedin",
+        handle: "linkedin.com/company/Hims-%26-Hers/posts",
+      }),
+    ).toEqual({ platform: "linkedin", handle: "https://www.linkedin.com/company/hims-&-hers/" });
+    expect(parseCheckRequest({ platform: "linkedin", handle: "noom" })).toEqual({
+      platform: "linkedin",
+      handle: "https://www.linkedin.com/company/noom/",
+    });
+  });
+  it("LinkedIn: personal profiles and malformed input never reach Firecrawl", () => {
+    expect(
+      parseCheckRequest({ platform: "linkedin", handle: "https://www.linkedin.com/in/someone" }),
+    ).toEqual({ error: "bad_handle" });
+    expect(parseCheckRequest({ platform: "linkedin", handle: "two words" })).toEqual({
+      error: "bad_handle",
+    });
   });
 });
 
@@ -45,6 +67,19 @@ describe("checkOutcome", () => {
     expect(checkOutcome(parsePage("instagram", body, 0))).toEqual({
       error: "timeout",
       creditsUsed: 0,
+    });
+  });
+  it("LinkedIn: invalid_option on a well-formed page = not_found (0 credits)", () => {
+    expect(checkOutcome(parsePage("linkedin", liNotFound, 0))).toEqual({
+      status: "not_found",
+      creditsUsed: 0,
+    });
+  });
+  it("LinkedIn: a page of posts = ok, with followers", () => {
+    expect(checkOutcome(parsePage("linkedin", liPage, 0))).toEqual({
+      status: "ok",
+      creditsUsed: 1,
+      followers: 246391,
     });
   });
 });

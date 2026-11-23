@@ -22,6 +22,9 @@ const SEED: Row[] = BRANDS.map((b) => ({
   tiktok_handle: b.id === "c-lifemd" ? null : b.id.replace("c-", ""),
   instagram_status: b.id === "c-hers" ? "unchecked" : "ok",
   tiktok_status: b.id === "c-found" ? "not_found" : b.id === "c-lifemd" ? "unchecked" : "ok",
+  // Slice 15a: one brand with a LinkedIn company page; the rest have none.
+  linkedin_url: b.id === "c-hims" ? "https://www.linkedin.com/company/hims-&-hers/" : null,
+  linkedin_status: b.id === "c-hims" ? "ok" : "unchecked",
 }));
 
 /** Returns the check-handle calls made, for "no credits spent" assertions. */
@@ -67,11 +70,14 @@ async function setup(page: Page) {
   await page.route("**/rest/v1/posts**", (r) =>
     r.fulfill(json(posts.filter((p) => rows.some((x) => x.id === p.competitor_id)))),
   );
-  // check-handle: "noomofficial" doesn't exist (0 credits), anything else does (2 credits).
+  // check-handle: "noomofficial" and the LinkedIn page "nosuchco" don't exist (0 credits), anything
+  // else does (2 credits).
   await page.route("**/functions/v1/check-handle**", (r) => {
     const body = r.request().postDataJSON() as { platform: string; handle: string };
     checks.push(body);
-    const missing = body.handle === "noomofficial";
+    const missing =
+      body.handle === "noomofficial" ||
+      body.handle === "https://www.linkedin.com/company/nosuchco/";
     return r.fulfill(
       json({
         status: missing ? "not_found" : "ok",
@@ -103,6 +109,7 @@ test("07 list: handles, status, posts in the latest pull", async ({ page }, info
   await expect(visible("Not checked")).toHaveCount(1); // Hers (Instagram unchecked)
   await expect(visible("OK")).toHaveCount(4); // LifeMD has no TikTok: a missing handle doesn't count
   await expect(visible("@ro.co")).toBeVisible();
+  await expect(visible("hims-&-hers")).toBeVisible(); // LinkedIn page, shown by its slug
   // Posts in the latest pull: Found has 8 in the fixture (8 − brand index 0).
   await expect(
     page.getByRole("button", { name: "Edit Found" }).filter({ visible: true }),
@@ -193,13 +200,63 @@ test("07b edit: name only costs nothing; free validation", async ({ page }, info
   const add = page.getByRole("dialog", { name: "Add competitor" });
   await add.getByRole("textbox", { name: "Brand name" }).fill("Copycat");
   await add.getByRole("button", { name: "Save Copycat" }).click();
-  await expect(add.getByRole("alert")).toHaveText("Add at least one handle (Instagram or TikTok).");
+  await expect(add.getByRole("alert")).toHaveText(
+    "Add at least one handle (Instagram, TikTok or LinkedIn).",
+  );
   await add.getByRole("textbox", { name: "Instagram" }).fill("@HIMS");
   await add.getByRole("textbox", { name: "TikTok" }).fill("no spaces");
   await add.getByRole("button", { name: "Save Copycat" }).click();
   await expect(add.getByText("Hims Health already uses this handle.")).toBeVisible();
   await expect(add.getByText("Use 2–24 letters, numbers, dots or underscores.")).toBeVisible();
   expect(checks).toHaveLength(0);
+});
+
+test("07b LinkedIn: company page checked on save, free validation first", async ({
+  page,
+}, info) => {
+  const { rows, checks } = await setup(page);
+  await ready(page);
+  await page.getByRole("button", { name: "Add competitor" }).click();
+  const panel = page.getByRole("dialog", { name: "Add competitor" });
+  await panel.getByRole("textbox", { name: "Brand name" }).fill("Noom");
+  const linkedin = panel.getByRole("textbox", { name: "LinkedIn" });
+  await expect(linkedin).toHaveAttribute("placeholder", "Company page link (optional)");
+
+  // A personal profile or another page's link is refused for free.
+  await linkedin.fill("https://www.linkedin.com/in/someone/");
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  await expect(panel.getByText("Use a company page link (linkedin.com/company/…).")).toBeVisible();
+  // The same page as another brand: refused for free too.
+  await linkedin.fill("linkedin.com/company/Hims-%26-Hers");
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  await expect(panel.getByText("Hims already uses this page.")).toBeVisible();
+  expect(checks).toHaveLength(0);
+
+  // A page that doesn't exist: checked (0 credits), not saved, nothing created.
+  await linkedin.fill("https://www.linkedin.com/company/nosuchco/posts/");
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  await expect(panel.getByText("Not found. Check the spelling or leave it empty.")).toBeVisible();
+  await expect(panel.getByRole("alert")).toHaveText(
+    "Nothing saved yet: fix the handle or try another.",
+  );
+  if (isMobile(info.project.name)) await tapTargetsOk(page);
+  await expect(page).toHaveScreenshot("competitor-panel-linkedin.png");
+
+  // A real page, given as a link: stored as the canonical URL.
+  await linkedin.fill("https://www.linkedin.com/company/noom/about/");
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  await expect(page.getByRole("status").getByText("Added Noom")).toBeVisible();
+  expect(checks).toEqual([
+    { platform: "linkedin", handle: "https://www.linkedin.com/company/nosuchco/" },
+    { platform: "linkedin", handle: "https://www.linkedin.com/company/noom/" },
+  ]);
+  expect(rows.find((r) => r.name === "Noom")).toMatchObject({
+    instagram_handle: null,
+    tiktok_handle: null,
+    linkedin_url: "https://www.linkedin.com/company/noom/",
+    linkedin_status: "ok",
+  });
+  await noSidewaysScroll(page);
 });
 
 test("07c remove: confirm, then gone from the dashboards", async ({ page }, info) => {
@@ -245,6 +302,18 @@ test("Fix handle link opens the panel pre-filled", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(panel).toBeHidden();
   await expect(page).toHaveURL(/\/competitors$/);
+});
+
+test("Fix page link opens the panel on the LinkedIn field", async ({ page }) => {
+  const { rows } = await setup(page);
+  const hims = rows.find((r) => r.id === "c-hims")!;
+  hims.linkedin_status = "not_found";
+  await ready(page, "/competitors?edit=c-hims&focus=linkedin");
+  const panel = page.getByRole("dialog", { name: "Edit Hims" });
+  const linkedin = panel.getByRole("textbox", { name: "LinkedIn" });
+  await expect(linkedin).toHaveValue("linkedin.com/company/hims-&-hers");
+  await expect(linkedin).toBeFocused();
+  await expect(panel.getByText("Not found in the last pull. Check the spelling.")).toBeVisible();
 });
 
 /** Names of the CSS animations running on the open <dialog> and its backdrop. */

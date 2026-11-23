@@ -8,7 +8,10 @@ export type CheckResult =
   /** Couldn't get an answer (nothing marked wrong); `message` is shown next to Save. */
   | { kind: "failed"; message: string };
 
-/** `check-handle` Edge Function: 0 credits if the handle doesn't exist, 2 if it does. */
+/**
+ * `check-handle` Edge Function: 0 credits if the handle / LinkedIn page doesn't exist, up to 2 if it
+ * does. For LinkedIn `handle` is the canonical company page URL.
+ */
 export async function checkHandle(platform: Platform, handle: string): Promise<CheckResult> {
   const r = await callFunction<{ status: "ok" | "not_found"; creditsUsed: number }>(
     "check-handle",
@@ -21,19 +24,16 @@ export async function checkHandle(platform: Platform, handle: string): Promise<C
     r.status === 409 || code === "pull_running"
       ? "A pull is running. Save again when it finishes."
       : r.status === 402 || code === "insufficient"
-        ? "Not enough Firecrawl credits left to check a handle (needs 2)."
+        ? `Not enough Firecrawl credits left to check ${platform === "linkedin" ? "a page" : "a handle"} (needs 2).`
         : r.status === 429 || code === "rate_limited"
           ? `Firecrawl asked us to slow down. Try Save again in ${Number.isFinite(retryAfter) && retryAfter > 0 ? Math.ceil(retryAfter) : 30} s.`
           : r.status === 0
             ? "Couldn’t reach the server. Check your connection and try again."
-            : "Couldn’t check the handle right now. Nothing was saved for it; try again.";
+            : `Couldn’t check the ${platform === "linkedin" ? "page" : "handle"} right now. Nothing was saved for it; try again.`;
   return { kind: "failed", message };
 }
 
-export type CompetitorFields = Pick<
-  Competitor,
-  "name" | "initials" | "instagram_handle" | "tiktok_handle" | "instagram_status" | "tiktok_status"
->;
+export type CompetitorFields = Omit<Competitor, "id">;
 
 /** Insert (id = null) or update a competitor; returns its id. RLS: team has full access. */
 export async function saveCompetitor(

@@ -2,7 +2,7 @@
 // Pure functions — tested in metrics.test.ts. Engagement = likes + comments (TikTok views shown, not ranked).
 
 import { formatCompact, plural } from "../../lib/format";
-import type { Platform } from "../../lib/pulls/api";
+import type { ShownPlatform as Platform } from "../../lib/platforms";
 
 export type OverviewPost = {
   id: string;

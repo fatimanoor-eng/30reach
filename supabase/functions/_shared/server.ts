@@ -6,7 +6,7 @@ import {
   FIRECRAWL_CREDIT_USAGE_URL,
   parseCreditUsage,
 } from "../credits/logic.ts";
-import { parseRetryAfter, type Platform } from "./pull-logic.ts";
+import { decodeLinkedInCursor, parseRetryAfter, type Platform } from "./pull-logic.ts";
 
 export { withSupabase } from "npm:@supabase/server@1.9.2";
 export type { SupabaseClient };
@@ -94,25 +94,48 @@ export class FirecrawlRateLimited extends Error {
   }
 }
 
+/** Firecrawl Alexandria provider + capability + options for one page (INTEGRATIONS.md §2a + LinkedIn spike). */
+function pageRequest(platform: Platform, target: string, cursor: string | null) {
+  if (platform === "instagram")
+    return {
+      provider: "scrapecreators",
+      capability: "instagram/user-posts",
+      options: { handle: target, ...(cursor ? { next_max_id: cursor } : {}) },
+    };
+  if (platform === "tiktok")
+    return {
+      provider: "scrapecreators",
+      capability: "tiktok/user-videos",
+      options: {
+        handle: target,
+        sort_by: "latest",
+        region: "US",
+        ...(cursor ? { max_cursor: cursor } : {}),
+      },
+    };
+  // LinkedIn: `target` is the company page URL; the cursor packs page + paginationToken.
+  const { page, token } = decodeLinkedInCursor(cursor);
+  return {
+    provider: "harvestapi",
+    capability: "linkedin/company-posts",
+    options: {
+      company: target,
+      ...(page > 1 ? { page } : {}),
+      ...(token ? { paginationToken: token } : {}),
+    },
+  };
+}
+
 /**
- * ONE page of posts for one handle via Firecrawl → ScrapeCreators (2 credits; 0 if not found).
- * Request shapes from the Slice 1 spike (INTEGRATIONS.md §2a).
+ * ONE page of posts via Firecrawl: ScrapeCreators for Instagram/TikTok (2 credits; 0 if not found),
+ * HarvestAPI for LinkedIn (1–2 credits, also for an empty page; 0 if the page doesn't exist).
+ * `target` = the handle (Instagram/TikTok) or the company page URL (LinkedIn).
  */
-export async function scrapePage(platform: Platform, handle: string, cursor: string | null) {
-  const options =
-    platform === "instagram"
-      ? { handle, ...(cursor ? { next_max_id: cursor } : {}) }
-      : { handle, sort_by: "latest", region: "US", ...(cursor ? { max_cursor: cursor } : {}) };
+export async function scrapePage(platform: Platform, target: string, cursor: string | null) {
   const res = await fetch("https://api.firecrawl.dev/v2/scrape", {
     method: "POST",
     headers: { Authorization: `Bearer ${firecrawlKey()}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      alexandria: {
-        provider: "scrapecreators", // the only provider 30reach uses
-        capability: platform === "instagram" ? "instagram/user-posts" : "tiktok/user-videos",
-        options,
-      },
-    }),
+    body: JSON.stringify({ alexandria: pageRequest(platform, target, cursor) }),
     signal: AbortSignal.timeout(60_000),
   });
   if (res.status === 429) {

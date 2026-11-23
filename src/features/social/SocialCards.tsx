@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router";
 import { Card } from "../../components/Card";
-import type { Platform } from "../../lib/pulls/api";
+import type { ShownPlatform as Platform } from "../../lib/platforms";
 import { formatCompact, plural } from "../../lib/format";
 import type { BrandRef, OverviewPost } from "../overview/metrics";
 import { PostsCard } from "../posts/PostsCard";

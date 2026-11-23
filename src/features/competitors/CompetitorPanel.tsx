@@ -2,10 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "../../components/Button";
 import { Drawer } from "../../components/Drawer";
-import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { type FieldTone, TextField } from "../../components/TextField";
 import { useToast } from "../../components/toast-context";
-import type { Platform } from "../../lib/pulls/api";
+import { type Platform, PLATFORM_ICON, STATUS_KEY, TARGET_KEY } from "../../lib/platforms";
 import { CREDITS_QUERY_KEY } from "../../lib/useCredits";
 import type { Competitor } from "../../lib/useCompetitors";
 import { usePull } from "../pulls/pull-context";
@@ -13,6 +12,7 @@ import {
   CHECK_COST,
   duplicateOf,
   handlesToCheck,
+  linkedInDisplay,
   MAX_INITIALS,
   parseHandle,
   PLATFORM_NAME,
@@ -24,9 +24,15 @@ import { checkHandle, saveCompetitor, type CompetitorFields } from "./competitor
 type Feedback = { tone: FieldTone; message: string };
 type Status = Competitor["instagram_status"];
 
-const handleKey = (p: Platform) => (p === "instagram" ? "instagram_handle" : "tiktok_handle");
-const statusKey = (p: Platform) => (p === "instagram" ? "instagram_status" : "tiktok_status");
+const handleKey = (p: Platform) => TARGET_KEY[p];
+const statusKey = (p: Platform) => STATUS_KEY[p];
 const NOT_FOUND = "Not found. Check the spelling or leave it empty.";
+const FOUND = (p: Platform) =>
+  p === "linkedin" ? "Found · public company page" : "Found · public account";
+
+/** What the field shows for a saved value: "@handle", or the LinkedIn page without https://www. */
+const shownValue = (p: Platform, saved: string | null | undefined) =>
+  !saved ? "" : p === "linkedin" ? linkedInDisplay(saved) : `@${saved}`;
 
 /** Feedback for a saved handle when the panel opens (status from the last check or pull). */
 function savedFeedback(c: Competitor | null, p: Platform): Feedback | null {
@@ -34,15 +40,15 @@ function savedFeedback(c: Competitor | null, p: Platform): Feedback | null {
   const s = c[statusKey(p)];
   if (s === "not_found")
     return { tone: "error", message: "Not found in the last pull. Check the spelling." };
-  if (s === "ok") return { tone: "ok", message: "Found · public account" };
+  if (s === "ok") return { tone: "ok", message: FOUND(p) };
   return { tone: "default", message: "Not checked yet. The next Refresh checks it." };
 }
 
 /**
- * 07b Add / Edit competitor. Handles are checked on Save (never on blur), only when new or changed,
- * one at a time through `check-handle` (2 credits if the handle exists, 0 if not). A handle that isn't
- * found isn't saved: the field turns red and the panel stays open; everything else saves.
- * At least one handle (Instagram or TikTok) is required.
+ * 07b Add / Edit competitor. Handles (and the LinkedIn company page) are checked on Save (never on
+ * blur), only when new or changed, one at a time through `check-handle` (up to 2 credits if it exists,
+ * 0 if not). One that isn't found isn't saved: the field turns red and the panel stays open; everything
+ * else saves. At least one of Instagram, TikTok or LinkedIn is required.
  */
 export function CompetitorPanel({
   open,
@@ -71,14 +77,19 @@ export function CompetitorPanel({
   const [name, setName] = useState(competitor?.name ?? "");
   const [initials, setInitials] = useState(competitor?.initials ?? "");
   const [initialsEdited, setInitialsEdited] = useState(!!competitor);
-  const [inputs, setInputs] = useState<Record<Platform, string>>({
-    instagram: competitor?.instagram_handle ? `@${competitor.instagram_handle}` : "",
-    tiktok: competitor?.tiktok_handle ? `@${competitor.tiktok_handle}` : "",
-  });
-  const [feedback, setFeedback] = useState<Record<Platform, Feedback | null>>({
-    instagram: savedFeedback(competitor, "instagram"),
-    tiktok: savedFeedback(competitor, "tiktok"),
-  });
+  const [inputs, setInputs] = useState<Record<Platform, string>>(
+    () =>
+      Object.fromEntries(
+        PLATFORMS.map((p) => [p, shownValue(p, competitor?.[handleKey(p)])]),
+      ) as Record<Platform, string>,
+  );
+  const [feedback, setFeedback] = useState<Record<Platform, Feedback | null>>(
+    () =>
+      Object.fromEntries(PLATFORMS.map((p) => [p, savedFeedback(competitor, p)])) as Record<
+        Platform,
+        Feedback | null
+      >,
+  );
   const [nameError, setNameError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [checking, setChecking] = useState<Platform | null>(null);
@@ -87,15 +98,16 @@ export function CompetitorPanel({
   const [checked, setChecked] = useState<Record<string, "ok" | "not_found">>({});
 
   const shownInitials = initialsEdited ? initials : suggestInitials(name);
-  const parsed = {
-    instagram: parseHandle("instagram", inputs.instagram),
-    tiktok: parseHandle("tiktok", inputs.tiktok),
-  };
-  const after = {
-    instagram: parsed.instagram.kind === "ok" ? parsed.instagram.handle : null,
-    tiktok: parsed.tiktok.kind === "ok" ? parsed.tiktok.handle : null,
-  };
-  const before = { instagram: saved?.instagram_handle, tiktok: saved?.tiktok_handle };
+  const parsed = Object.fromEntries(PLATFORMS.map((p) => [p, parseHandle(p, inputs[p])])) as Record<
+    Platform,
+    ReturnType<typeof parseHandle>
+  >;
+  const after = Object.fromEntries(
+    PLATFORMS.map((p) => [p, parsed[p].kind === "ok" ? parsed[p].handle : null]),
+  ) as Record<Platform, string | null>;
+  const before = Object.fromEntries(
+    PLATFORMS.map((p) => [p, saved?.[handleKey(p)] ?? null]),
+  ) as Record<Platform, string | null>;
   const toCheck = handlesToCheck(before, after).filter((p) => !checked[`${p}:${after[p]}`]);
   const busy = saving || checking !== null;
   const blockedByPull = pullBusy && toCheck.length > 0;
@@ -131,19 +143,20 @@ export function CompetitorPanel({
       } else if (r.kind === "ok") {
         const dup = duplicateOf(competitors, p, r.handle, saved?.id);
         if (dup) {
-          nextFeedback[p] = { tone: "error", message: `${dup.name} already uses this handle.` };
+          const what = p === "linkedin" ? "page" : "handle";
+          nextFeedback[p] = { tone: "error", message: `${dup.name} already uses this ${what}.` };
           valid = false;
         }
       }
     }
     setFeedback(nextFeedback);
-    if (parsed.instagram.kind === "empty" && parsed.tiktok.kind === "empty") {
-      setFormError("Add at least one handle (Instagram or TikTok).");
+    if (PLATFORMS.every((p) => parsed[p].kind === "empty")) {
+      setFormError("Add at least one handle (Instagram, TikTok or LinkedIn).");
       valid = false;
     }
     if (!valid) return;
 
-    // ── handle checks, one at a time (2 credits each if the handle exists)
+    // ── handle / page checks, one at a time (up to 2 credits each if it exists)
     const results: Partial<Record<Platform, "ok" | "not_found">> = {};
     for (const p of handlesToCheck(before, after)) {
       const key = `${p}:${after[p]}`;
@@ -169,7 +182,7 @@ export function CompetitorPanel({
         ...s,
         [p]:
           r.kind === "ok"
-            ? { tone: "ok", message: "Found · public account" }
+            ? { tone: "ok", message: FOUND(p) }
             : { tone: "error", message: NOT_FOUND },
       }));
     }
@@ -182,8 +195,10 @@ export function CompetitorPanel({
       initials: shownInitials.trim() || suggestInitials(name),
       instagram_handle: null,
       tiktok_handle: null,
+      linkedin_url: null,
       instagram_status: "unchecked",
       tiktok_status: "unchecked",
+      linkedin_status: "unchecked",
     };
     for (const p of PLATFORMS) {
       const res = results[p];
@@ -199,8 +214,8 @@ export function CompetitorPanel({
     }
     const notFound = PLATFORMS.filter((p) => results[p] === "not_found");
 
-    // A new brand whose only handle wasn't found: nothing to save yet.
-    if (!fields.instagram_handle && !fields.tiktok_handle) {
+    // A new brand whose only handle / page wasn't found: nothing to save yet.
+    if (PLATFORMS.every((p) => !fields[handleKey(p)])) {
       if (!saved) {
         setFormError("Nothing saved yet: fix the handle or try another.");
         return;
@@ -218,7 +233,9 @@ export function CompetitorPanel({
     setSaving(false);
     if (notFound.length) {
       setFormError(
-        `Saved ${fields.name} without the ${notFound.map((p) => PLATFORM_NAME[p]).join(" and ")} handle.`,
+        `Saved ${fields.name} without the ${notFound.map((p) => PLATFORM_NAME[p]).join(" and ")} ${
+          notFound.length === 1 && notFound[0] === "linkedin" ? "page" : "handle"
+        }.`,
       );
       return; // keep the panel open on the red field
     }
@@ -231,7 +248,7 @@ export function CompetitorPanel({
   };
 
   const field = (p: Platform) => {
-    const Icon = p === "instagram" ? InstagramIcon : TikTokIcon;
+    const Icon = PLATFORM_ICON[p];
     const fb = feedback[p];
     return (
       <TextField
@@ -240,7 +257,13 @@ export function CompetitorPanel({
         icon={<Icon size={16} />}
         value={inputs[p]}
         onChange={(e) => setInput(p, e.target.value)}
-        placeholder={p === "instagram" ? "@handle or profile link" : "@handle (optional)"}
+        placeholder={
+          p === "instagram"
+            ? "@handle or profile link"
+            : p === "tiktok"
+              ? "@handle (optional)"
+              : "Company page link (optional)"
+        }
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
@@ -329,10 +352,9 @@ export function CompetitorPanel({
             title="Shown on the brand pill. Suggested from the name; edit if you like."
           />
         </div>
-        {field("instagram")}
-        {field("tiktok")}
+        {PLATFORMS.map(field)}
         <p className="text-small text-muted">
-          At least one handle. A handle that isn’t found costs nothing and isn’t saved.
+          At least one handle or page. One that isn’t found costs nothing and isn’t saved.
         </p>
         {/* Enter in a field submits */}
         <button type="submit" hidden />

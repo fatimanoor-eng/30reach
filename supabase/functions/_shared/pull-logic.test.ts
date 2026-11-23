@@ -1,15 +1,24 @@
 import { describe, expect, it } from "vitest";
 import igPage from "./fixtures/instagram-hims.json";
+import liPage from "./fixtures/linkedin-hims-hers.json";
+import liNotFound from "./fixtures/linkedin-not-found.json";
 import notFound from "./fixtures/instagram-not-found.json";
 import ttPage from "./fixtures/tiktok-hims.json";
 import {
   cutoffFor,
   decideNextPage,
+  decodeLinkedInCursor,
+  encodeLinkedInCursor,
   estimate,
   extractHashtags,
   finishStatus,
   browserImage,
   instagramThumbnail,
+  LINKEDIN_PAGE_CAP,
+  linkedInNextCursor,
+  linkedInSlug,
+  linkedInUrl,
+  parseFollowers,
   parseRetryAfter,
   type MappedPost,
   parsePage,
@@ -17,6 +26,7 @@ import {
   postsInWindow,
   type PullRow,
   pullsToDelete,
+  taskPageCap,
   thumbnailPath,
 } from "./pull-logic.ts";
 
@@ -317,5 +327,153 @@ describe("browserImage (TikTok cover lists)", () => {
     expect(browserImage(["https://a/x.jpeg", "https://a/x.webp"])).toBe("https://a/x.webp");
     expect(browserImage(["https://a/x.heic", "https://a/y.heic"])).toBeNull();
     expect(browserImage(null)).toBeNull();
+  });
+});
+
+describe("parsePage — LinkedIn (HarvestAPI spike fixture, Hims & Hers)", () => {
+  // Fixture: 9 items from the spike page — 7 own posts, 1 repost (by the page), 1 collab (author NYSE).
+  const page = ok(parsePage("linkedin", liPage, 0));
+
+  it("keeps only the page's own posts: reposts and collabs are dropped", () => {
+    expect(page.posts).toHaveLength(7);
+    expect(page.posts.every((p) => p.posted_by === "hims-&-hers")).toBe(true);
+    expect(page.posts.map((p) => p.external_id)).not.toContain("7526038675055513601"); // repost
+  });
+
+  it("maps engagement: likes = all reactions, shares = reposts, no views", () => {
+    const first = page.posts[0];
+    expect(first).toMatchObject({
+      platform: "linkedin",
+      external_id: "7529164327652880385",
+      posted_at: "2026-11-19T12:51:00.821Z",
+      format: "article",
+      likes: 64,
+      comments: 2,
+      shares: 2,
+      views: null,
+      saves: null,
+    });
+    expect(first.url).toContain("linkedin.com/posts/hims-%26-hers_");
+    expect(first.raw.reactions).toContainEqual({ type: "LIKE", count: 58 });
+  });
+
+  it("formats: article, text, image (multi-image too), video", () => {
+    expect(page.posts.map((p) => p.format)).toEqual([
+      "article",
+      "text",
+      "text", // a quote of another post is still the page's own (text) post
+      "image", // 2 images → image, not carousel
+      "video",
+      "image",
+      "article",
+    ]);
+    expect(page.posts[2].raw.is_quote).toBe(true);
+  });
+
+  it("thumbnails: first image, video thumbnail or link preview image", () => {
+    const by = (f: string) => page.posts.find((p) => p.format === f)!;
+    expect(by("image").thumbnail_source).toContain("media.licdn.com");
+    expect(by("video").thumbnail_source).toContain("thumbnail");
+    expect(by("article").thumbnail_source).toContain("articleshare");
+    expect(page.posts.find((p) => p.format === "text")!.thumbnail_source).toBeNull();
+  });
+
+  it("followers from the page's author block; one full page = no next page", () => {
+    expect(page.followers).toBe(246391);
+    expect(page.nextCursor).toBeNull(); // 41 of pageSize 50, totalPages 1
+    expect(page.creditsCost).toBe(1);
+  });
+
+  it("a page that doesn't exist (invalid_option, 0 credits) = not_found", () => {
+    expect(parsePage("linkedin", liNotFound, 0)).toMatchObject({
+      kind: "error",
+      code: "not_found",
+      creditsCost: 0,
+    });
+  });
+
+  it("invalid_option stays invalid_option for the other platforms", () => {
+    const body = { data: { alexandria: [{ error: { code: "invalid_option" }, creditsCost: 0 }] } };
+    expect(parsePage("instagram", body, 0)).toMatchObject({ code: "invalid_option" });
+  });
+});
+
+describe("LinkedIn paging (an empty page still costs a credit)", () => {
+  const pg = (pagination: Record<string, unknown>) => ({ pagination });
+  it("stops when the page came back less than full", () => {
+    expect(
+      linkedInNextCursor(
+        pg({ pageNumber: 1, pageSize: 50, totalPages: 3, paginationToken: "t" }),
+        49,
+      ),
+    ).toBeNull();
+  });
+  it("stops on the last page LinkedIn reports", () => {
+    expect(
+      linkedInNextCursor(
+        pg({ pageNumber: 2, pageSize: 50, totalPages: 2, paginationToken: "t" }),
+        50,
+      ),
+    ).toBeNull();
+  });
+  it("a full page with more pages → page 2 + token", () => {
+    const c = linkedInNextCursor(
+      pg({ pageNumber: 1, pageSize: 50, totalPages: 3, paginationToken: "a|b" }),
+      50,
+    );
+    expect(c).toBe(encodeLinkedInCursor(2, "a|b"));
+    expect(decodeLinkedInCursor(c)).toEqual({ page: 2, token: "a|b" });
+  });
+  it("no pagination block → stop", () => {
+    expect(linkedInNextCursor({}, 50)).toBeNull();
+    expect(decodeLinkedInCursor(null)).toEqual({ page: 1, token: null });
+  });
+  it("LinkedIn tasks cap at 2 pages; other platforms keep the pull's cap", () => {
+    expect(taskPageCap("linkedin", 4)).toBe(LINKEDIN_PAGE_CAP);
+    expect(taskPageCap("linkedin", 1)).toBe(1);
+    expect(taskPageCap("instagram", 4)).toBe(4);
+  });
+});
+
+describe("linkedInSlug (company page field, validated before any credits)", () => {
+  it("accepts a URL, a /company/ path or a slug, and lowercases", () => {
+    expect(linkedInSlug("https://www.linkedin.com/company/hims-&-hers/")).toBe("hims-&-hers");
+    expect(linkedInSlug("https://www.linkedin.com/company/hims-%26-hers/posts/?x=1")).toBe(
+      "hims-&-hers",
+    );
+    expect(linkedInSlug("linkedin.com/company/Noom")).toBe("noom");
+    expect(linkedInSlug("uk.linkedin.com/company/noom")).toBe("noom");
+    expect(linkedInSlug("company/ro-health")).toBe("ro-health");
+    expect(linkedInSlug(" 18260923 ")).toBe("18260923");
+  });
+  it("rejects personal profiles, other sites and bad slugs", () => {
+    expect(linkedInSlug("https://www.linkedin.com/in/someone/")).toBeNull();
+    expect(linkedInSlug("https://example.com/company/x")).toBeNull();
+    expect(linkedInSlug("has space")).toBeNull();
+    expect(linkedInSlug("a")).toBeNull();
+    expect(linkedInSlug("")).toBeNull();
+  });
+  it("canonical URL", () => {
+    expect(linkedInUrl("hims-&-hers")).toBe("https://www.linkedin.com/company/hims-&-hers/");
+  });
+});
+
+describe("parseFollowers", () => {
+  it("reads LinkedIn's follower line", () => {
+    expect(parseFollowers("246,391 followers")).toBe(246391);
+    expect(parseFollowers("1.2K followers")).toBe(1200);
+    expect(parseFollowers("3M followers")).toBe(3_000_000);
+    expect(parseFollowers(null)).toBeNull();
+  });
+});
+
+describe("estimate — LinkedIn", () => {
+  it("default 2 credits per LinkedIn task, max 2 pages × 2", () => {
+    const tasks = ["a", "b"].map((id) => ({ competitorId: id, platform: "linkedin" as const }));
+    const e = estimate(tasks, new Map(), 4);
+    expect(e.perPlatform.linkedin).toEqual({ tasks: 2, expected: 4, max: 8 });
+    expect(e.perPlatform.instagram).toEqual({ tasks: 0, expected: 0, max: 0 });
+    expect(e.expected).toBe(4);
+    expect(e.max).toBe(8);
   });
 });

@@ -109,6 +109,32 @@ test("05 / M03 confirm cost", async ({ page }) => {
   await expect(page).toHaveScreenshot("refresh-confirm.png");
 });
 
+test("05 / M03 confirm cost with LinkedIn (Slice 15a)", async ({ page }) => {
+  await setup(page);
+  const p = preview(500);
+  const withLinkedIn = {
+    ...p,
+    estimate: {
+      perPlatform: { ...p.estimate.perPlatform, linkedin: { tasks: 6, expected: 6, max: 24 } },
+      expected: 66,
+      max: 120,
+    },
+  };
+  await page.route("**/functions/v1/pull-start**", (r) => r.fulfill(json(withLinkedIn)));
+  await openRefresh(page);
+
+  const dialog = page.getByRole("dialog", { name: "Refresh competitor data?" });
+  await expect(dialog.getByLabel("LinkedIn")).toBeChecked();
+  await expect(dialog.getByText("~6 credits")).toBeVisible();
+  await expect(dialog.getByText("up to 120 credits")).toBeVisible();
+  await dialog.getByLabel("LinkedIn").uncheck();
+  await expect(dialog.getByText("up to 96 credits")).toBeVisible();
+  await dialog.getByLabel("LinkedIn").check();
+
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot("refresh-confirm-linkedin.png");
+});
+
 test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, info) => {
   test.setTimeout(60_000); // remaining tasks run 2 at a time (paced only after a 429)
   await setup(page);

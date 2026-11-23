@@ -1,18 +1,20 @@
 // pull-start — estimate + live credits check; creates the pull and its tasks (Slice 5, screens 05 / 05f).
 //
-// POST { clientId, platforms?: ("instagram"|"tiktok")[], preview?: boolean,
+// POST { clientId, platforms?: ("instagram"|"tiktok"|"linkedin")[], preview?: boolean,
 //        test?: { competitorId, platform } }   ← test mode: one brand × one platform, 2-page cap
 //
 // → { status: "preview" | "insufficient" | "started", estimate, credits, lastPullAt, brands, pullId? }
 // → 409 { status: "running", pullId } if a pull is already running for this client.
 //
-// Credits check uses the MAXIMUM possible cost (tasks × page cap × 2), so a pull can't overspend.
+// Credits check uses the MAXIMUM possible cost (Σ task page cap × 2; LinkedIn tasks cap at 2 pages),
+// so a pull can't overspend.
 
 import {
   estimate,
   PAGE_CAP,
   type Platform,
   PLATFORMS,
+  TARGET_COLUMN,
   type TaskKey,
   taskKey,
   TEST_PAGE_CAP,
@@ -27,7 +29,7 @@ import {
   withSupabase,
 } from "../_shared/server.ts";
 
-const isPlatform = (v: unknown): v is Platform => v === "instagram" || v === "tiktok";
+const isPlatform = (v: unknown): v is Platform => PLATFORMS.includes(v as Platform);
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
@@ -65,7 +67,7 @@ export default {
     // One task per competitor × platform that has a handle.
     let query = admin
       .from("competitors")
-      .select("id, name, instagram_handle, tiktok_handle")
+      .select("id, name, instagram_handle, tiktok_handle, linkedin_url")
       .eq("client_id", clientId)
       .order("name");
     if (isTest) query = query.eq("id", test.competitorId as string);
@@ -75,7 +77,7 @@ export default {
     const tasks: (TaskKey & { name: string })[] = [];
     for (const platform of platforms) {
       for (const c of competitors ?? []) {
-        if (c[`${platform}_handle`]) tasks.push({ competitorId: c.id, platform, name: c.name });
+        if (c[TARGET_COLUMN[platform]]) tasks.push({ competitorId: c.id, platform, name: c.name });
       }
     }
     if (tasks.length === 0) return json({ error: "no_tasks" }, 400);

@@ -1,14 +1,12 @@
 import { Check } from "lucide-react";
 import { BlipScanning } from "../../components/blip/BlipPoses";
-import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
+import { PLATFORM_ICON, PLATFORMS } from "../../lib/platforms";
 import type { Platform } from "../../lib/pulls/api";
 import type { TaskProgress } from "../../lib/pulls/run-pull";
 import { MQ_TABLET_UP, useMediaQuery } from "../../lib/useMediaQuery";
 import { usePull } from "./pull-context";
 import { mobileProgressLine, PLATFORM_LABEL } from "./pull-text";
-
-const ICON = { instagram: InstagramIcon, tiktok: TikTokIcon };
 
 /**
  * 05b Pulling — in progress (card) / M04 (sheet). Old data stays visible underneath.
@@ -72,9 +70,7 @@ export function PullProgressDialog() {
 
 /** Brand × platform grid: ✓ done · "pulling" · "waiting" · "not found" / "failed" in red. */
 function BrandGrid({ tasks }: { tasks: TaskProgress[] }) {
-  const platforms = (["instagram", "tiktok"] as Platform[]).filter((p) =>
-    tasks.some((t) => t.platform === p),
-  );
+  const platforms = PLATFORMS.filter((p) => tasks.some((t) => t.platform === p));
   const brands = [...new Set(tasks.map((t) => t.brand))];
   if (!tasks.length) return <p className="font-mono text-small text-muted">Warming up…</p>;
 
@@ -116,7 +112,7 @@ function BrandGrid({ tasks }: { tasks: TaskProgress[] }) {
 }
 
 function Cell({ task, platform }: { task?: TaskProgress; platform: Platform }) {
-  const Icon = ICON[platform];
+  const Icon = PLATFORM_ICON[platform];
   if (!task) return <span className="text-muted">—</span>;
   const status =
     task.status === "done" ? (

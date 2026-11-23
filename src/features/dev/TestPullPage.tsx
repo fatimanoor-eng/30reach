@@ -17,6 +17,7 @@ import {
 } from "../../lib/pulls/api";
 import { type PullProgress, PullInterrupted, runPull } from "../../lib/pulls/run-pull";
 import { formatNumber, formatShortDate, plural } from "../../lib/format";
+import { PLATFORM_NAME, PLATFORMS, TARGET_KEY } from "../../lib/platforms";
 import { supabase } from "../../lib/supabase";
 import { CREDITS_QUERY_KEY } from "../../lib/useCredits";
 
@@ -59,7 +60,9 @@ export function TestPullPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("competitors")
-        .select("id, name, instagram_handle, tiktok_handle, instagram_status, tiktok_status")
+        .select(
+          "id, name, instagram_handle, tiktok_handle, linkedin_url, instagram_status, tiktok_status, linkedin_status",
+        )
         .eq("client_id", client.data!.id)
         .order("name");
       if (error) throw error;
@@ -157,7 +160,7 @@ export function TestPullPage() {
   }
 
   const target = competitors.data?.find((c) => c.id === competitorId);
-  const handle = target?.[`${platform}_handle` as const];
+  const handle = target?.[TARGET_KEY[platform]];
   const est = preview.data?.estimate;
   const maxCredits = est?.max ?? 0;
 
@@ -189,12 +192,9 @@ export function TestPullPage() {
               label="Platform"
               value={platform}
               onChange={setPlatform}
-              options={[
-                { value: "instagram", label: "Instagram" },
-                { value: "tiktok", label: "TikTok" },
-              ]}
+              options={PLATFORMS.map((p) => ({ value: p, label: PLATFORM_NAME[p] }))}
             />
-            {handle && <Chip>@{handle}</Chip>}
+            {handle && <Chip>{platform === "linkedin" ? handle : `@${handle}`}</Chip>}
           </div>
         </Card>
 
@@ -292,7 +292,7 @@ export function TestPullPage() {
       <Dialog
         open={confirming}
         onClose={() => setConfirming(false)}
-        title={`Run a test pull for ${target?.name ?? "this brand"} on ${platform === "instagram" ? "Instagram" : "TikTok"}?`}
+        title={`Run a test pull for ${target?.name ?? "this brand"} on ${PLATFORM_NAME[platform]}?`}
         description={`This spends real Firecrawl credits: about ${est?.expected ?? "?"}, at most ${maxCredits}. Posts from the last 30 days are saved as a test pull.`}
         primary={{ label: `Spend up to ${plural(maxCredits, "credit")}`, onClick: start }}
       />

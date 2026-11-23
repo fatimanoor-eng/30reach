@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "data": {
+    "alexandria": [
+      {
+        "provider": "harvestapi",
+        "capability": "linkedin/company-posts",
+        "error": {
+          "code": "invalid_option",
+          "message": "HarvestAPI rejected the input. Check the required fields and allowed values.",
+          "status": 400
+        }
+      }
+    ],
+    "creditsCost": 0
+  }
+}

@@ -1,7 +1,9 @@
-// `check-handle` Edge Function — is this Instagram / TikTok handle real and public? (Slice 8, 07b)
+// `check-handle` Edge Function — is this Instagram / TikTok handle or LinkedIn company page real and
+// public? (Slice 8, 07b; LinkedIn Slice 15a)
 //
-// POST { platform: "instagram" | "tiktok", handle } →
-//   200 { status: "ok" | "not_found", handle, creditsUsed, credits }   (credits = fresh meter or null)
+// POST { platform: "instagram" | "tiktok" | "linkedin", handle } →   (LinkedIn: page URL or slug)
+//   200 { status: "ok" | "not_found", handle, creditsUsed, credits }   (credits = fresh meter or null;
+//       LinkedIn `handle` = the canonical https://www.linkedin.com/company/<slug>/)
 //   400 { error: "bad_platform" | "bad_handle" }
 //   402 { error: "insufficient", remaining }       balance can't cover one check (2 credits)
 //   409 { error: "pull_running" }                   a pull is running (avoid rate-limit clashes)
@@ -11,7 +13,8 @@
 // Who can call it: signed-in team members only (same three locks as `credits`):
 //   verify_jwt = true (config.toml) → withSupabase({ auth: "user" }) → is_team() as the caller.
 // Cost: one first-page posts call. A handle that doesn't exist costs 0 credits, one that exists costs 2
-// (Slice 1 spike). The posts that come back are NOT saved — this only checks. It never writes the
+// (Slice 1 spike); a LinkedIn page costs 1–2, a missing one 0 (HarvestAPI says invalid_option, which
+// parsePage turns into not_found — the page URL was validated first). The posts that come back are NOT saved — this only checks. It never writes the
 // competitor row either: the browser saves the result (team has full access to `competitors` via RLS).
 // The Firecrawl key comes from the FIRECRAWL_API_KEY secret and is never returned or logged.
 

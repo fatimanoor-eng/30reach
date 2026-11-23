@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { BlipError } from "../../components/blip/BlipPoses";
-import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 import { formatNumber, formatShortDate, plural } from "../../lib/format";
+import { PLATFORM_ICON, PLATFORMS } from "../../lib/platforms";
 import { type Platform, pullStart, type PullStartResponse } from "../../lib/pulls/api";
 import { usePull } from "./pull-context";
 import {
@@ -12,11 +12,11 @@ import {
   durationText,
   fittingPlatforms,
   PLATFORM_LABEL,
+  platformEstimate,
   refreshIntro,
   selectionCost,
 } from "./pull-text";
 
-const ICON = { instagram: InstagramIcon, tiktok: TikTokIcon };
 const TITLE = "Refresh competitor data?";
 
 /**
@@ -110,7 +110,7 @@ function ConfirmCost({ preview }: { preview: PullStartResponse }) {
         <fieldset className="divide-y divide-line overflow-hidden rounded-tile border border-line">
           <legend className="sr-only">Platforms to pull</legend>
           {platforms.map((p) => {
-            const Icon = ICON[p];
+            const Icon = PLATFORM_ICON[p];
             return (
               <label key={p} className="flex min-h-12 cursor-pointer items-center gap-3 px-4 py-2">
                 <input
@@ -122,7 +122,7 @@ function ConfirmCost({ preview }: { preview: PullStartResponse }) {
                 <Icon size={18} />
                 <span className="flex-1 text-body">{PLATFORM_LABEL[p]}</span>
                 <span className="font-mono text-small text-muted">
-                  ~{plural(preview.estimate.perPlatform[p].expected, "credit")}
+                  ~{plural(platformEstimate(preview, p).expected, "credit")}
                 </span>
               </label>
             );
@@ -159,7 +159,7 @@ function AlreadyRunning() {
       title="A pull is already running"
       description="Someone started a pull a moment ago. You can follow its progress here."
       // pull-start answers 409 + the running pull's id; the provider then drives and shows it.
-      primary={{ label: "Show progress", onClick: () => void start(["instagram", "tiktok"]) }}
+      primary={{ label: "Show progress", onClick: () => void start(PLATFORMS) }}
     />
   );
 }
@@ -198,7 +198,7 @@ function NotEnoughCredits({ preview }: { preview: PullStartResponse }) {
               checked={choice === p}
               onChange={() => setChoice(p)}
               title={`Pull ${PLATFORM_LABEL[p]} only`}
-              text={`about ${plural(preview.estimate.perPlatform[p].expected, "credit")} · fits what’s left`}
+              text={`about ${plural(platformEstimate(preview, p).expected, "credit")} · fits what’s left`}
             />
           ))}
           <Option

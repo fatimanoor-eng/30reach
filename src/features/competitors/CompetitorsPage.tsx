@@ -10,28 +10,33 @@ import { Chip } from "../../components/Chip";
 import { EmptyState } from "../../components/EmptyState";
 import { LoadError } from "../../components/LoadError";
 import { Bone, Skeleton } from "../../components/Skeleton";
-import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ModalPresence } from "../../components/ModalPresence";
 import { useToast } from "../../components/toast-context";
 import { useBrandSelection } from "../../lib/brand-selection-context";
 import { plural } from "../../lib/format";
-import type { Platform } from "../../lib/pulls/api";
+import {
+  isPlatform,
+  type Platform,
+  PLATFORM_ICON,
+  STATUS_KEY,
+  TARGET_KEY,
+} from "../../lib/platforms";
 import { useClient } from "../../lib/useClient";
 import { type Competitor, useCompetitors } from "../../lib/useCompetitors";
 import { usePullPosts, useSavedPulls } from "../overview/useOverviewData";
 import { usePull } from "../pulls/pull-context";
-import { competitorStatus, PLATFORM_NAME, PLATFORMS } from "./competitor-rules";
+import { competitorStatus, linkedInDisplay, PLATFORM_NAME, PLATFORMS } from "./competitor-rules";
 import { CompetitorPanel } from "./CompetitorPanel";
 import { removeCompetitor } from "./competitors-api";
 
-const handleKey = (p: Platform) => (p === "instagram" ? "instagram_handle" : "tiktok_handle");
-const statusKey = (p: Platform) => (p === "instagram" ? "instagram_status" : "tiktok_status");
+const handleKey = (p: Platform) => TARGET_KEY[p];
+const statusKey = (p: Platform) => STATUS_KEY[p];
 const PULL_BUSY = "Wait for the pull to finish";
 
 /**
  * 07 Competitors: the brands 30reach pulls for this client. Add / Edit open the 07b panel
- * (`?add=1`, `?edit=<id>[&focus=tiktok]` — the 05g "Fix handle" toast links here). Remove → 07c confirm.
+ * (`?add=1`, `?edit=<id>[&focus=tiktok|linkedin]` — the 05g "Fix handle" toast links here). Remove → 07c confirm.
  * Desktop (≥ 1200 px): table as in Figma. Below: cards (2 columns on tablet, 1 on mobile).
  */
 export function CompetitorsPage() {
@@ -55,7 +60,7 @@ export function CompetitorsPage() {
   const adding = params.get("add") === "1";
   const editing = editId ? (list.find((c) => c.id === editId) ?? null) : null;
   const focusParam = params.get("focus");
-  const focus = focusParam === "instagram" || focusParam === "tiktok" ? focusParam : undefined;
+  const focus = isPlatform(focusParam) ? focusParam : undefined;
   const panelOpen = adding || !!editing;
   // The panel being shown, kept while it slides out (the URL is already cleared by then).
   const panelKey = adding ? "new" : (editing?.id ?? null);
@@ -135,11 +140,14 @@ export function CompetitorsPage() {
   // ── pieces (render helpers, not components)
   const handleCell = (c: Competitor, p: Platform) => {
     const h = c[handleKey(p)];
-    const Icon = p === "instagram" ? InstagramIcon : TikTokIcon;
+    const Icon = PLATFORM_ICON[p];
     if (!h)
       return (
         <span className="text-muted">
-          —<span className="sr-only">No {PLATFORM_NAME[p]} handle</span>
+          —
+          <span className="sr-only">
+            No {PLATFORM_NAME[p]} {p === "linkedin" ? "page" : "handle"}
+          </span>
         </span>
       );
     const bad = c[statusKey(p)] === "not_found";
@@ -148,7 +156,9 @@ export function CompetitorsPage() {
         className={`inline-flex min-w-0 items-center gap-1.5 font-mono text-small ${bad ? "text-spark" : ""}`}
       >
         <Icon size={14} aria-label={PLATFORM_NAME[p]} className="shrink-0 text-muted" />
-        <span className="truncate">@{h}</span>
+        <span className="truncate" title={p === "linkedin" ? linkedInDisplay(h) : undefined}>
+          {p === "linkedin" ? linkedInDisplay(h).replace("linkedin.com/company/", "") : `@${h}`}
+        </span>
         {bad && <span className="sr-only">(not found)</span>}
       </span>
     );
@@ -192,7 +202,7 @@ export function CompetitorsPage() {
           <EmptyState
             label="No brands yet"
             title="Add the competitors to follow"
-            text="Each brand needs an Instagram or TikTok handle. 30reach checks it when you save."
+            text="Each brand needs an Instagram or TikTok handle or a LinkedIn page. 30reach checks it when you save."
             actions={<Button onClick={() => openPanel({ add: "1" })}>Add competitor</Button>}
           />
         </Card>
@@ -211,6 +221,9 @@ export function CompetitorsPage() {
                   </th>
                   <th scope="col" className="py-4 font-normal">
                     TikTok
+                  </th>
+                  <th scope="col" className="py-4 font-normal">
+                    LinkedIn
                   </th>
                   <th scope="col" className="py-4 font-normal">
                     Posts · 30 days
@@ -234,6 +247,7 @@ export function CompetitorsPage() {
                     </th>
                     <td className="max-w-56 py-4 pr-4">{handleCell(c, "instagram")}</td>
                     <td className="max-w-56 py-4 pr-4">{handleCell(c, "tiktok")}</td>
+                    <td className="max-w-56 py-4 pr-4">{handleCell(c, "linkedin")}</td>
                     <td className="py-4 text-body">{posts(c)}</td>
                     <td className="py-4">{statusChip(c)}</td>
                     <td className="py-4 pr-6">{actions(c)}</td>
@@ -275,8 +289,8 @@ export function CompetitorsPage() {
         <div className="border-l-3 border-flash pl-4">
           <p className="text-body-sm font-medium">Keep it to 5–8 brands</p>
           <p className="mt-1 text-small text-muted">
-            Each brand adds to every pull’s credit cost. 30reach checks handles on save and flags
-            any it can’t find.
+            Each brand adds to every pull’s credit cost. 30reach checks handles and pages on save
+            and flags any it can’t find.
           </p>
         </div>
       </aside>

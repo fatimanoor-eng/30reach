@@ -1,0 +1,546 @@
+{
+  "success": true,
+  "data": {
+    "creditsCost": 1,
+    "alexandria": [
+      {
+        "provider": "harvestapi",
+        "capability": "linkedin/company-posts",
+        "creditsCost": 1,
+        "upstreamStatus": 200,
+        "data": {
+          "pagination": {
+            "totalElements": 42,
+            "totalPages": 1,
+            "pageNumber": 1,
+            "previousElements": 0,
+            "pageSize": 50,
+            "paginationToken": "1854558170-1795455324209-470d6ebca844ce04360b054e45a918e9"
+          },
+          "query": {
+            "company": "https://www.linkedin.com/company/hims-&-hers/",
+            "companyIds": ["18260923"],
+            "profileIds": [],
+            "authorsCompanyIds": []
+          },
+          "status": 200,
+          "elements": [
+            {
+              "id": "7529164327652880385",
+              "linkedinUrl": "https://www.linkedin.com/posts/hims-%26-hers_hers-launches-free-metabolic-deep-dive-to-activity-7529164327652880385-wfJ5",
+              "content": "For many women trying to lose weight, the standard playbook doesn't work. The reasons why are much deeper than a calorie target or a tracking app. Hormones, metabolism, thyroid function, insulin resistance, nutrient levels, stress, and genetics can all make weight loss harder, an",
+              "author": {
+                "id": "18260923",
+                "universalName": "hims-&-hers",
+                "publicIdentifier": null,
+                "type": "company",
+                "name": "hims & hers",
+                "linkedinUrl": "https://www.linkedin.com/company/hims-&-hers/posts",
+                "info": "246,391 followers"
+              },
+              "postedAt": {
+                "timestamp": 1795092660821,
+                "date": "2026-11-19T12:51:00.821Z",
+                "postedAgoShort": "4d",
+                "postedAgoText": "4 days ago • Visible to anyone on or off LinkedIn"
+              },
+              "header": {
+                "text": null
+              },
+              "engagement": {
+                "id": "7529164327652880385",
+                "likes": 64,
+                "comments": 2,
+                "shares": 2,
+                "reactions": [
+                  {
+                    "type": "LIKE",
+                    "count": 58
+                  },
+                  {
+                    "type": "EMPATHY",
+                    "count": 3
+                  },
+                  {
+                    "type": "PRAISE",
+                    "count": 2
+                  },
+                  {
+                    "type": "APPRECIATION",
+                    "count": 1
+                  }
+                ]
+              },
+              "postImages": [],
+              "article": {
+                "title": "Hers Launches Free Metabolic Deep Dive to Help Show UK Women What’s Holding Back Their Weight Loss",
+                "link": "https://news.hims.com/newsroom/hers-launches-free-metabolic-deep-dive-to-help-show-uk-women-whats-really-holding-back-their-weight-loss",
+                "image": {
+                  "url": "https://media.licdn.com/dms/image/sync/v2/D5627AQH9PwEvs2i5xw/articleshare-shrink_1280_800/B56aHz26k9LAAg-/0/1795092621938?e=1796061600&v=beta&t=pNhdfqbwcCF3M1ZdzKHhiWGWEbOONPHFmx6btoU5m60",
+                  "width": 1280,
+                  "height": 672
+                }
+              }
+            },
+            {
+              "id": "7526038675055513601",
+              "linkedinUrl": "https://www.linkedin.com/posts/jessica-shepherd-md-mba-facog-5ba9ab66_healthstack2026-afrotech-womenshealth-ugcPost-7526035496293236737-fTq2",
+              "content": "Last week at the 2026 HealthStack Conference, I sat down with Dr. Chemen Neal to discuss an incredible opportunity in healthcare: using digital innovation to close the gaps in maternal care. For too long, the traditional model has treated pregnancy as an isolated event, but we ha",
+              "author": {
+                "id": "ACoAAA4Hg54BSiAjU7m_zMPhZPJSLxl2pdaK1E8",
+                "universalName": null,
+                "publicIdentifier": "jessica-shepherd-md-mba-facog-5ba9ab66",
+                "type": "profile",
+                "name": "Jessica Shepherd, MD, MBA, FACOG",
+                "linkedinUrl": "https://www.linkedin.com/in/jessica-shepherd-md-mba-facog-5ba9ab66?miniProfileUrn=urn%3Ali%3Afsd_profile%3AACoAAA4Hg54BSiAjU7m_zMPhZPJSLxl2pdaK1E8",
+                "info": "Chief Medical Officer- @hers, author of Generation M, and Founder of Sanctum Med + Wellness"
+              },
+              "postedAt": {
+                "timestamp": 1794347447170,
+                "date": "2026-11-10T21:50:47.170Z",
+                "postedAgoShort": "1w",
+                "postedAgoText": "1 week ago • Visible to anyone on or off LinkedIn"
+              },
+              "header": {
+                "linkedinUrl": "https://www.linkedin.com/feed/update/urn:li:activity:7526038675055513601?updateEntityUrn=urn%3Ali%3Afsd_update%3A%28urn%3Ali%3Aactivity%3A7526038675055513601%2CCOMPANY_FEED%2CDEBUG_REASON%2CDEFAULT%2Cfalse%29&originTrackingId=2K1jMh9QlUmqlUYQeb6%2Ftg%3D%3D",
+                "imageLink": "https://www.linkedin.com/company/hims-&-hers/?miniCompanyUrn=urn%3Ali%3Afsd_company%3A18260923",
+                "text": "hims & hers reposted this"
+              },
+              "engagement": {
+                "id": "7526035496293236737",
+                "likes": 20,
+                "comments": 2,
+                "shares": 1,
+                "reactions": [
+                  {
+                    "type": "LIKE",
+                    "count": 16
+                  },
+                  {
+                    "type": "PRAISE",
+                    "count": 4
+                  }
+                ]
+              },
+              "postImages": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQHWTHfecElBjQ/feedshare-image-high-res/B56aHHZZ39JgAY-/0/1794346688462?e=1796860800&v=beta&t=6Nh4S6sl6WP_XCT8ke3u8vGBJACX5dYUO8eehcJBzac",
+                  "width": 2048,
+                  "height": 1365
+                },
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQF5NsNH10X7PA/feedshare-image-high-res/B56aHHZZ3vI8AQ-/0/1794346688489?e=1796860800&v=beta&t=X45nBn2sOzlLWSvDxdHZbGOGiN6ucoXRImc-Y9tBMRo",
+                  "width": 2048,
+                  "height": 1365
+                }
+              ],
+              "repostedBy": {
+                "name": "hims & hers",
+                "publicIdentifier": null,
+                "universalName": "hims-&-hers",
+                "linkedinUrl": "https://www.linkedin.com/company/hims-&-hers/?miniCompanyUrn=urn%3Ali%3Afsd_company%3A18260923"
+              },
+              "repostedAt": {
+                "timestamp": 1794347447170,
+                "date": "2026-11-10T21:50:47.170Z"
+              }
+            },
+            {
+              "id": "7521551967932858368",
+              "linkedinUrl": "https://www.linkedin.com/posts/hims-%26-hers_yesterday-the-department-of-health-and-human-activity-7521551967932858368-AP1f",
+              "content": "Yesterday the Department of Health and Human Services moved to allow compounding of six peptides while formal rulemaking is underway, giving people a real alternative to the dangerous gray market so many are already using, often without a clinician involved or knowing what’s actu",
+              "author": {
+                "id": "18260923",
+                "universalName": "hims-&-hers",
+                "publicIdentifier": null,
+                "type": "company",
+                "name": "hims & hers",
+                "linkedinUrl": "https://www.linkedin.com/company/hims-&-hers/posts",
+                "info": "246,391 followers"
+              },
+              "postedAt": {
+                "timestamp": 1793277732833,
+                "date": "2026-10-29T12:42:12.833Z",
+                "postedAgoShort": "3w",
+                "postedAgoText": "3 weeks ago • Visible to anyone on or off LinkedIn"
+              },
+              "header": {
+                "text": null
+              },
+              "engagement": {
+                "id": "7521551967932858368",
+                "likes": 326,
+                "comments": 9,
+                "shares": 5,
+                "reactions": [
+                  {
+                    "type": "LIKE",
+                    "count": 293
+                  },
+                  {
+                    "type": "PRAISE",
+                    "count": 18
+                  },
+                  {
+                    "type": "EMPATHY",
+                    "count": 10
+                  },
+                  {
+                    "type": "APPRECIATION",
+                    "count": 3
+                  },
+                  {
+                    "type": "ENTERTAINMENT",
+                    "count": 1
+                  },
+                  {
+                    "type": "INTEREST",
+                    "count": 1
+                  }
+                ]
+              },
+              "postImages": []
+            },
+            {
+              "id": "7506410607118737408",
+              "linkedinUrl": "https://www.linkedin.com/posts/hims-%26-hers_bridging-the-perimenopause-information-gap-activity-7506410607118737408-0L0J",
+              "content": "“Not knowing isn’t failing.” — Dr. Jessica Shepherd\n\nPerimenopause can look different month to month—and symptoms are often mistaken for stress, aging, or simple exhaustion. You deserve answers and support through every stage of the transition.\n\nLearn more from Dr. Shepherd at th",
+              "author": {
+                "id": "18260923",
+                "universalName": "hims-&-hers",
+                "publicIdentifier": null,
+                "type": "company",
+                "name": "hims & hers",
+                "linkedinUrl": "https://www.linkedin.com/company/hims-&-hers/posts",
+                "info": "246,391 followers"
+              },
+              "postedAt": {
+                "timestamp": 1789667751102,
+                "date": "2026-09-17T17:55:51.102Z",
+                "postedAgoShort": "2mo",
+                "postedAgoText": "2 months ago • Visible to anyone on or off LinkedIn"
+              },
+              "header": {
+                "text": null
+              },
+              "engagement": {
+                "id": "7506410607118737408",
+                "likes": 74,
+                "comments": 3,
+                "shares": 4,
+                "reactions": [
+                  {
+                    "type": "LIKE",
+                    "count": 66
+                  },
+                  {
+                    "type": "EMPATHY",
+                    "count": 4
+                  },
+                  {
+                    "type": "PRAISE",
+                    "count": 3
+                  },
+                  {
+                    "type": "INTEREST",
+                    "count": 1
+                  }
+                ]
+              },
+              "postImages": [],
+              "repost": {
+                "id": "7506115148953128961",
+                "linkedinUrl": "https://www.linkedin.com/posts/jessica-shepherd-md-mba-facog-5ba9ab66_bridging-the-perimenopause-information-gap-activity-7506115148953128961-NjFI",
+                "author": {
+                  "id": "ACoAAA4Hg54BSiAjU7m_zMPhZPJSLxl2pdaK1E8",
+                  "universalName": null,
+                  "publicIdentifier": "jessica-shepherd-md-mba-facog-5ba9ab66",
+                  "type": "profile",
+                  "name": "Jessica Shepherd, MD, MBA, FACOG",
+                  "linkedinUrl": "https://www.linkedin.com/in/jessica-shepherd-md-mba-facog-5ba9ab66?miniProfileUrn=urn%3Ali%3Afsd_profile%3AACoAAA4Hg54BSiAjU7m_zMPhZPJSLxl2pdaK1E8",
+                  "info": "Chief Medical Officer- @hers, author of Generation M, and Founder of Sanctum Med + Wellness"
+                }
+              }
+            },
+            {
+              "id": "7495195759143936000",
+              "linkedinUrl": "https://www.linkedin.com/posts/activity-7495184390948548608-bIgJ",
+              "content": "Helping the world feel great through the power of better health.\nHere's to 5 years of being NYSE-Listed 🔔 (NYSE: HIMS)\n\nhims & hers | Andrew Dudum",
+              "author": {
+                "id": "3828",
+                "universalName": "nyse",
+                "publicIdentifier": null,
+                "type": "company",
+                "name": "NYSE",
+                "linkedinUrl": "https://www.linkedin.com/company/nyse/posts",
+                "info": "440,294 followers"
+              },
+              "postedAt": {
+                "timestamp": 1786993922983,
+                "date": "2026-08-17T19:12:02.983Z",
+                "postedAgoShort": "3mo",
+                "postedAgoText": "3 months ago • Visible to anyone on or off LinkedIn"
+              },
+              "header": {
+                "linkedinUrl": "https://www.linkedin.com/posts/activity-7495195759143936000-WaR7?openCollaboratorList=false",
+                "imageLink": "https://www.linkedin.com/company/hims-&-hers/?miniCompanyUrn=urn%3Ali%3Afsd_company%3A18260923",
+                "text": "hims & hers collaborated on this"
+              },
+              "engagement": {
+                "id": "7495184389685956609",
+                "likes": 0,
+                "comments": 0,
+                "shares": 0,
+                "reactions": []
+              },
+              "postImages": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D4E22AQHCezPKkBcXRw/feedshare-shrink_1280/B4EaAQ.erEHkAU-/0/1786991210284?e=1796860800&v=beta&t=MFXqw27mIUGjVU9GwvrGO4AxHn3K5k2mxes8eA1C5yY",
+                  "width": 1280,
+                  "height": 1919
+                },
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D4E22AQHNJJZVdLOGmA/feedshare-shrink_1280/B4EaAQ.eYaH8AQ-/0/1786991208748?e=1796860800&v=beta&t=QklMWuN5vHWrNJRrYDXni5I0AC0cMr7RcVEoTWcCJDQ",
+                  "width": 1280,
+                  "height": 1918
+                },
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D4E22AQHVNpQpq7UeeQ/feedshare-image-high-res/B4EaAQ.emlJwAY-/0/1786991210713?e=1796860800&v=beta&t=oSkzF3K__BcmQProlHbEwwyMnqrTo_oyeVpM6uvvjeQ",
+                  "width": 2048,
+                  "height": 1536
+                },
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D4E22AQFgjmoLixno8g/feedshare-shrink_1280/B4EaAQ.eWCJ4AM-/0/1786991208451?e=1796860800&v=beta&t=MH_VQc9tBswOVoZ6ygR7vQyfqy2mN-AqLUd3Mfnfs9Y",
+                  "width": 1280,
+                  "height": 1919
+                }
+              ]
+            },
+            {
+              "id": "7495158296316776448",
+              "linkedinUrl": "https://www.linkedin.com/posts/hims-%26-hers_five-years-ago-we-rang-the-nyse-opening-activity-7495158296316776448-W0TC",
+              "content": "🔔 Five years ago, we rang the NYSE Opening Bell for the first time. Today, we’re back — bigger and with a lot more ahead.",
+              "author": {
+                "id": "18260923",
+                "universalName": "hims-&-hers",
+                "publicIdentifier": null,
+                "type": "company",
+                "name": "hims & hers",
+                "linkedinUrl": "https://www.linkedin.com/company/hims-&-hers/posts",
+                "info": "246,391 followers"
+              },
+              "postedAt": {
+                "timestamp": 1786984991149,
+                "date": "2026-08-17T16:43:11.149Z",
+                "postedAgoShort": "3mo",
+                "postedAgoText": "3 months ago • Edited • Visible to anyone on or off LinkedIn"
+              },
+              "header": {
+                "text": null
+              },
+              "engagement": {
+                "id": "7495158295633211393",
+                "likes": 236,
+                "comments": 8,
+                "shares": 5,
+                "reactions": [
+                  {
+                    "type": "LIKE",
+                    "count": 194
+                  },
+                  {
+                    "type": "PRAISE",
+                    "count": 33
+                  },
+                  {
+                    "type": "EMPATHY",
+                    "count": 8
+                  },
+                  {
+                    "type": "APPRECIATION",
+                    "count": 1
+                  }
+                ]
+              },
+              "postImages": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D4E10AQGnLdXW6tiVUA/image-shrink_1280/B4EaAQmwY.K8Ac-/0/1786984991146?e=1796061600&v=beta&t=hkCZvwVh7qMV9ly_HPfxEG4UiUKbcsQJNhhytGni89Y",
+                  "width": 1280,
+                  "height": 853
+                },
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D4E10AQHjL0VDx9-hnA/image-shrink_1280/B4EaAQmwfoK8Ag-/0/1786984991515?e=1796061600&v=beta&t=0exaHWHtKAwDaAtIwxI0uSiLE1STp1o_5RdqP9fTXBA",
+                  "width": 1280,
+                  "height": 853
+                }
+              ]
+            },
+            {
+              "id": "7491123820880179200",
+              "linkedinUrl": "https://www.linkedin.com/posts/hims-%26-hers_healthcare-asks-you-to-carry-your-own-story-activity-7491123820880179200--cvP",
+              "content": "Healthcare asks you to carry your own story. From one form to the next, one visit to the next, you re-explain your history and hope someone connects the dots.\n\nToday we're changing that. Our new doctor-led, AI-native care experience puts customers, their providers, Care Teams, an",
+              "author": {
+                "id": "18260923",
+                "universalName": "hims-&-hers",
+                "publicIdentifier": null,
+                "type": "company",
+                "name": "hims & hers",
+                "linkedinUrl": "https://www.linkedin.com/company/hims-&-hers/posts",
+                "info": "246,391 followers"
+              },
+              "postedAt": {
+                "timestamp": 1786023097248,
+                "date": "2026-08-06T13:31:37.248Z",
+                "postedAgoShort": "3mo",
+                "postedAgoText": "3 months ago • Visible to anyone on or off LinkedIn"
+              },
+              "header": {
+                "text": null
+              },
+              "engagement": {
+                "id": "7491123819923845122",
+                "likes": 106,
+                "comments": 8,
+                "shares": 20,
+                "reactions": [
+                  {
+                    "type": "LIKE",
+                    "count": 78
+                  },
+                  {
+                    "type": "PRAISE",
+                    "count": 17
+                  },
+                  {
+                    "type": "EMPATHY",
+                    "count": 9
+                  },
+                  {
+                    "type": "INTEREST",
+                    "count": 2
+                  }
+                ]
+              },
+              "postImages": [],
+              "postVideo": {
+                "thumbnailUrl": "https://dms.licdn.com/playlist/vid/v2/D4E10AQFc_gtpe__sMA/thumbnail-scale_720_1280/B4EZ_XRXV5I0AA-/0/1786023085341?e=1796061600&v=beta&t=owvwO3PmZaOnSiytZwqAjgOpooQFIZ_ZHN6vcGooFy8",
+                "videoUrl": "https://dms.licdn.com/playlist/vid/dynamic/D4E10AQFc_gtpe__sMA/CeJxzMnGNio8ILi709nR0dNXVcQLzgyLCjD2LndH4TqEwPlC9n0exoyOavAka3wKNH6gLACTiIHk?e=1796061600&v=beta&t=gqEXYWHrtBHz7ywwS6Oy4dzzm3s_6kqD7JGseRr99HY"
+              }
+            },
+            {
+              "id": "7404256077699104768",
+              "linkedinUrl": "https://www.linkedin.com/posts/hims-%26-hers_hiring-activity-7404256077699104768-kGeU",
+              "content": "#HIRING 🚨: We are seeking a curious and experienced Director of Design Engineering to build and lead our Design Engineering function—bridging the gap between the Design organization, manufacturing partners, OEMs, and internal engineering teams. \n\nAs the first member of this new ",
+              "author": {
+                "id": "18260923",
+                "universalName": "hims-&-hers",
+                "publicIdentifier": null,
+                "type": "company",
+                "name": "hims & hers",
+                "linkedinUrl": "https://www.linkedin.com/company/hims-&-hers/posts",
+                "info": "246,391 followers"
+              },
+              "postedAt": {
+                "timestamp": 1765312213349,
+                "date": "2025-12-09T20:30:13.349Z",
+                "postedAgoShort": "11mo",
+                "postedAgoText": "11 months ago • Visible to anyone on or off LinkedIn"
+              },
+              "header": {
+                "text": null
+              },
+              "engagement": {
+                "id": "7404256077699104768",
+                "likes": 102,
+                "comments": 5,
+                "shares": 11,
+                "reactions": [
+                  {
+                    "type": "LIKE",
+                    "count": 92
+                  },
+                  {
+                    "type": "PRAISE",
+                    "count": 4
+                  },
+                  {
+                    "type": "APPRECIATION",
+                    "count": 4
+                  },
+                  {
+                    "type": "EMPATHY",
+                    "count": 2
+                  }
+                ]
+              },
+              "postImages": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D4E10AQEB4dYDjY7fFg/image-shrink_1280/B4EZsEzqclHMAc-/0/1765312211365?e=1796061600&v=beta&t=OGCTy6WYjXpo43E1dtZjOOmW586dNF3Ms8LYqbptMbs",
+                  "width": 1080,
+                  "height": 1080
+                }
+              ]
+            },
+            {
+              "id": "7402345410188763136",
+              "linkedinUrl": "https://www.linkedin.com/posts/hims-%26-hers_hims-hers-continues-major-international-activity-7402345410188763136-u6aY",
+              "content": "Today, we’re serving customers in Canada for the first time. This follows the recent acquisition of Livewell, a trusted Canadian digital health platform focused on weight loss. \n\nBuilding on our strong foundation in the US and Europe, we’re bringing a new era of customer-first, a",
+              "author": {
+                "id": "18260923",
+                "universalName": "hims-&-hers",
+                "publicIdentifier": null,
+                "type": "company",
+                "name": "hims & hers",
+                "linkedinUrl": "https://www.linkedin.com/company/hims-&-hers/posts",
+                "info": "246,391 followers"
+              },
+              "postedAt": {
+                "timestamp": 1764856674716,
+                "date": "2025-12-04T13:57:54.716Z",
+                "postedAgoShort": "11mo",
+                "postedAgoText": "11 months ago • Visible to anyone on or off LinkedIn"
+              },
+              "header": {
+                "text": null
+              },
+              "engagement": {
+                "id": "7402345410188763136",
+                "likes": 517,
+                "comments": 6,
+                "shares": 58,
+                "reactions": [
+                  {
+                    "type": "LIKE",
+                    "count": 398
+                  },
+                  {
+                    "type": "PRAISE",
+                    "count": 97
+                  },
+                  {
+                    "type": "EMPATHY",
+                    "count": 19
+                  },
+                  {
+                    "type": "APPRECIATION",
+                    "count": 3
+                  }
+                ]
+              },
+              "postImages": [],
+              "article": {
+                "title": "Hims & Hers Continues Major International Expansion with Official Entry into Canada",
+                "link": "https://bit.ly/4pbLPHw",
+                "image": {
+                  "url": "https://media.licdn.com/dms/image/sync/v2/D4D27AQFWEhDX3N4tEQ/articleshare-shrink_1280_800/B4DZrpnv_HGsAQ-/0/1764856103230?e=1796061600&v=beta&t=FJIqKB3GPTt6Hk-mT0Y2F0Vh9-NMsADZsmvvkZsUopM",
+                  "width": 1280,
+                  "height": 672
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

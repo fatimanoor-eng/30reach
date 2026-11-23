@@ -3,7 +3,7 @@
 // posts excluded from averages, a format needs ≥ 3 posts, < 10 posts = small sample.
 
 import { formatCompact, plural } from "../../lib/format";
-import type { Platform } from "../../lib/pulls/api";
+import type { ShownPlatform as Platform } from "../../lib/platforms";
 import {
   type BrandRef,
   engagement,

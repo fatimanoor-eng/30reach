@@ -17,6 +17,9 @@ import {
   type Platform,
   postColumns,
   postsInWindow,
+  STATUS_COLUMN,
+  TARGET_COLUMN,
+  taskPageCap,
   thumbnailPath,
 } from "../_shared/pull-logic.ts";
 import {
@@ -89,12 +92,14 @@ export default {
     }
 
     const platform = task.platform as Platform;
+    const pageCap = taskPageCap(platform, pull.page_cap);
     const { data: competitor } = await admin
       .from("competitors")
-      .select("id, instagram_handle, tiktok_handle")
+      .select("id, instagram_handle, tiktok_handle, linkedin_url")
       .eq("id", task.competitor_id)
       .single();
-    const handle: string | null = competitor?.[`${platform}_handle`] ?? null;
+    // Handle (Instagram/TikTok) or company page URL (LinkedIn).
+    const handle: string | null = competitor?.[TARGET_COLUMN[platform]] ?? null;
     if (!handle) {
       const { data } = await release({
         status: "failed",
@@ -111,7 +116,7 @@ export default {
       .eq("pull_id", pull.id);
     const spent = (spentRows ?? []).reduce((sum, r) => sum + (r.credits_used ?? 0), 0);
     const budgetLeft = (pull.credits_budget ?? 0) - spent;
-    if (budgetLeft < CREDITS_PER_PAGE || task.pages >= pull.page_cap) {
+    if (budgetLeft < CREDITS_PER_PAGE || task.pages >= pageCap) {
       const { data } = await release({
         status: "done",
         cursor: null,
@@ -150,7 +155,7 @@ export default {
       if (page.code === "not_found") {
         await admin
           .from("competitors")
-          .update({ [`${platform}_status`]: "not_found" })
+          .update({ [STATUS_COLUMN[platform]]: "not_found" })
           .eq("id", competitor!.id);
       }
       const { data } = await release({
@@ -184,12 +189,12 @@ export default {
       nextCursor: page.nextCursor,
       cutoffMs,
       pagesDone: pages,
-      pageCap: pull.page_cap,
+      pageCap,
       budgetLeft: budgetLeft - page.creditsCost,
     });
     await admin
       .from("competitors")
-      .update({ [`${platform}_status`]: "ok" })
+      .update({ [STATUS_COLUMN[platform]]: "ok" })
       .eq("id", competitor!.id);
 
     const { data } = await release({

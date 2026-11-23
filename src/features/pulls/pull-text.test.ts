@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PullStartResponse } from "../../lib/pulls/api";
 import type { TaskProgress } from "../../lib/pulls/run-pull";
 import {
+  availablePlatforms,
   durationText,
   fittingPlatforms,
   mobileProgressLine,
@@ -12,7 +13,10 @@ import {
   tookLabel,
 } from "./pull-text";
 
-const task = (platform: "instagram" | "tiktok", status: TaskProgress["status"]): TaskProgress => ({
+const task = (
+  platform: TaskProgress["platform"],
+  status: TaskProgress["status"],
+): TaskProgress => ({
   id: Math.random().toString(36),
   brand: "B",
   platform,
@@ -117,5 +121,28 @@ describe("tookLabel (pull-complete toast)", () => {
     expect(tookLabel(170_000)).toBe("in 3 min");
     expect(tookLabel(65 * 60_000)).toBe("in 1 h 5 min");
     expect(tookLabel(120 * 60_000)).toBe("in 2 h");
+  });
+});
+
+describe("LinkedIn (Slice 15a)", () => {
+  it("a missing LinkedIn page is a page, not a handle", () => {
+    expect(problemSentence([{ brand: "Ro", platform: "linkedin", code: "not_found" }])).toBe(
+      "Ro’s LinkedIn page wasn’t found.",
+    );
+  });
+  it("LinkedIn row in the confirm dialog and its cost", () => {
+    const p = preview(500);
+    p.estimate.perPlatform.linkedin = { tasks: 6, expected: 12, max: 24 };
+    expect(availablePlatforms(p)).toEqual(["instagram", "tiktok", "linkedin"]);
+    expect(selectionCost(p, ["linkedin"])).toEqual({ expected: 12, max: 24 });
+  });
+  it("an estimate without a linkedin entry (pull-start not redeployed yet) still works", () => {
+    expect(availablePlatforms(preview(500))).toEqual(["instagram", "tiktok"]);
+    expect(selectionCost(preview(500), ["linkedin"])).toEqual({ expected: 0, max: 0 });
+  });
+  it("progress line includes LinkedIn", () => {
+    expect(mobileProgressLine([task("instagram", "done"), task("linkedin", "queued")])).toBe(
+      "Instagram done · LinkedIn waiting",
+    );
   });
 });

@@ -8,7 +8,7 @@ import { LoadError } from "../../components/LoadError";
 import { Bone, Skeleton, SkeletonCard, SkeletonKpis } from "../../components/Skeleton";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { useBrandSelection } from "../../lib/brand-selection-context";
-import type { Platform } from "../../lib/pulls/api";
+import type { ShownPlatform as Platform } from "../../lib/platforms";
 import { type Competitor, useCompetitors } from "../../lib/useCompetitors";
 import { useOverviewFilters, usePlatformNav } from "../overview/filters";
 import { type BrandRef, filterPosts } from "../overview/metrics";
