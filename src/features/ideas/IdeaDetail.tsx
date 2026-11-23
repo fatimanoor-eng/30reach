@@ -6,7 +6,7 @@ import { Avatar } from "../../components/Avatar";
 import { Button } from "../../components/Button";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Drawer } from "../../components/Drawer";
-import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
+import { PLATFORM_ICON, PLATFORM_NAME } from "../../lib/platforms";
 import { Tooltip } from "../../components/Tooltip";
 import { useToast } from "../../components/toast-context";
 import { useAuth } from "../../lib/auth/auth-context";
@@ -23,6 +23,7 @@ import {
   ideaAge,
   ideaAuthor,
   ideaText,
+  likesWord,
   plannedLabel,
   type Idea,
 } from "./idea-rules";
@@ -152,8 +153,7 @@ export function IdeaDetail({
     });
   }
 
-  const PlatformIcon =
-    idea.platform === "instagram" ? InstagramIcon : idea.platform === "tiktok" ? TikTokIcon : null;
+  const PlatformIcon = idea.platform ? PLATFORM_ICON[idea.platform] : null;
   const kind =
     idea.kind === "post" && snap?.brand
       ? `FROM ${snap.brand.toUpperCase()}`
@@ -165,7 +165,7 @@ export function IdeaDetail({
           size={16}
           role="img"
           aria-hidden={false}
-          aria-label={idea.platform === "instagram" ? "Instagram" : "TikTok"}
+          aria-label={idea.platform ? PLATFORM_NAME[idea.platform] : undefined}
           className="shrink-0 text-ink"
         />
       )}
@@ -275,7 +275,11 @@ export function IdeaDetail({
               <p className="line-clamp-3 text-small">{snap.caption}</p>
             )}
             <p className="flex flex-wrap items-center gap-x-3 text-small text-muted">
-              {snap.likes != null && <span>{formatCompact(snap.likes)} likes</span>}
+              {snap.likes != null && (
+                <span>
+                  {formatCompact(snap.likes)} {likesWord(idea.platform)}
+                </span>
+              )}
               {snap.comments != null && <span>{formatCompact(snap.comments)} comments</span>}
               {snap.url && (
                 <a

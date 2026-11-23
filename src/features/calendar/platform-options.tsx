@@ -1,20 +1,12 @@
-import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
+import { PLATFORM_ICON, PLATFORMS } from "../../lib/platforms";
 import { FORMAT_NAME, FORMATS, PLATFORM_LABEL, type CardPlatform } from "./calendar-ui";
 import type { ChipOption } from "./SelectChip";
 
 /** Platform select chip options (09 card header, 14d Plan it). */
-export const PLATFORM_OPTIONS: ChipOption<CardPlatform>[] = [
-  {
-    value: "instagram",
-    label: PLATFORM_LABEL.instagram,
-    icon: <InstagramIcon size={15} aria-hidden="true" />,
-  },
-  {
-    value: "tiktok",
-    label: PLATFORM_LABEL.tiktok,
-    icon: <TikTokIcon size={15} aria-hidden="true" />,
-  },
-];
+export const PLATFORM_OPTIONS: ChipOption<CardPlatform>[] = PLATFORMS.map((p) => {
+  const Icon = PLATFORM_ICON[p];
+  return { value: p, label: PLATFORM_LABEL[p], icon: <Icon size={15} aria-hidden="true" /> };
+});
 
 /** Format options for a platform (none until a platform is picked). */
 export const formatOptions = (platform: CardPlatform | null): ChipOption<string>[] =>

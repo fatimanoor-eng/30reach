@@ -155,6 +155,7 @@ async function setup(
           likes: 9800,
           comments: 120,
           views: 212000,
+          shares: 31, // Slice 15c: "Shares / reposts" column
           counts_hidden: false,
         },
       ]),
@@ -439,7 +440,7 @@ test("Settings — Export menu: one CSV per option, built in the browser", async
   expect(posts.suggestedFilename()).toBe("30reach-obu-health-posts-2026-11-17.csv");
   const text = readFileSync((await posts.path())!, "utf8");
   expect(text.startsWith("﻿Brand,Platform,Format")).toBe(true);
-  expect(text).toContain("Hims,tiktok,video,2026-11-12T15:00:00Z,9800,120,212000,no,");
+  expect(text).toContain("Hims,tiktok,video,2026-11-12T15:00:00Z,9800,120,212000,31,no,");
   expect(text).toContain(`"'=1+1 is not a formula, it's a caption"`);
 
   // Calendar events: code rules + Nager, this month + 3 (Thanksgiving is in November).

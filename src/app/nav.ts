@@ -37,7 +37,12 @@ export const navSections: { label: string; items: NavItem[] }[] = [
 /** Mobile bottom tabs (Figma M02). `match` = routes that light the tab up. */
 export const mobileTabs: (NavItem & { match: string[] })[] = [
   { to: "/overview", label: "Overview", icon: LayoutGrid, match: ["/overview"] },
-  { to: "/instagram", label: "Social", icon: InstagramIcon, match: ["/instagram", "/tiktok", "/linkedin"] },
+  {
+    to: "/instagram",
+    label: "Social",
+    icon: InstagramIcon,
+    match: ["/instagram", "/tiktok", "/linkedin"],
+  },
   { to: "/calendar", label: "Calendar", icon: Calendar, match: ["/calendar"] },
   { to: "/ideas", label: "Ideas", icon: Lightbulb, match: ["/ideas"] },
   {

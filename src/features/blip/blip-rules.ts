@@ -8,6 +8,7 @@ import {
   type SourcePost,
 } from "../../lib/ai/ai-api";
 import { formatCompact, formatShortDate } from "../../lib/format";
+import { PLATFORM_NAME } from "../../lib/platforms";
 
 export const WHAT_CHANGED = "What changed since the last pull?";
 export const MAX_QUESTION = 500;
@@ -65,20 +66,18 @@ export function greeting(o: {
   return `${hi} I’ve read the ${date} pull, ${posts} from ${brands}. What should we dig into?`;
 }
 
-const PLATFORM: Record<SourcePost["platform"], string> = {
-  instagram: "Instagram",
-  tiktok: "TikTok",
-};
-
-/** "Hims · TikTok · 9 Nov · 212K views" (views when there are any, else likes). */
+/**
+ * "Hims · TikTok · 9 Nov · 212K views" (views when there are any, else likes; LinkedIn: reactions,
+ * "Hims · LinkedIn · 2 Nov · 700 reactions").
+ */
 export function sourceLabel(s: SourcePost): string {
   const metric =
     s.views != null
       ? `${formatCompact(s.views)} views`
       : s.likes != null
-        ? `${formatCompact(s.likes)} likes`
+        ? `${formatCompact(s.likes)} ${s.platform === "linkedin" ? "reactions" : "likes"}`
         : null;
-  return [s.brand, PLATFORM[s.platform], formatShortDate(s.postedAt), metric]
+  return [s.brand, PLATFORM_NAME[s.platform], formatShortDate(s.postedAt), metric]
     .filter(Boolean)
     .join(" · ");
 }
@@ -329,6 +328,11 @@ const DATA_WORDS = new RegExp(
     "ig",
     "tiktok",
     "tik tok",
+    "linkedin",
+    "repost",
+    "reaction",
+    "document",
+    "poll",
     "reel",
     "carousel",
     "image",

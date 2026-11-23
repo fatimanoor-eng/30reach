@@ -1,8 +1,8 @@
 import { CalendarCheck, CalendarDays, Check, ImageIcon, Link2, StickyNote } from "lucide-react";
 import { Link } from "react-router";
 import { Chip } from "../../components/Chip";
-import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { formatCompact, formatShortDate } from "../../lib/format";
+import { PLATFORM_ICON, PLATFORM_NAME } from "../../lib/platforms";
 import { AiTag } from "../calendar/CardTile";
 import { todayIso } from "../calendar/events/dates";
 import {
@@ -14,6 +14,7 @@ import {
   ideaAge,
   ideaAuthor,
   ideaText,
+  likesWord,
   linkLabel,
   plannedLabel,
   type Idea,
@@ -22,27 +23,17 @@ import {
 import { usePlanOnDay } from "./usePlanOnDay";
 
 function PlatformIcon({ platform }: { platform: IdeaPlatform | null }) {
-  if (platform === "instagram")
-    return (
-      <InstagramIcon
-        size={14}
-        aria-label="Instagram"
-        role="img"
-        aria-hidden={false}
-        className="shrink-0"
-      />
-    );
-  if (platform === "tiktok")
-    return (
-      <TikTokIcon
-        size={14}
-        aria-label="TikTok"
-        role="img"
-        aria-hidden={false}
-        className="shrink-0"
-      />
-    );
-  return null;
+  if (!platform) return null;
+  const Icon = PLATFORM_ICON[platform];
+  return (
+    <Icon
+      size={14}
+      aria-label={PLATFORM_NAME[platform]}
+      role="img"
+      aria-hidden={false}
+      className="shrink-0"
+    />
+  );
 }
 
 /** "Planned · Tue 5 Jan" (14b) / "Planned · 5 Jan" (M09). Opens that calendar card. */
@@ -137,7 +128,7 @@ export function IdeaCard({
   const stats =
     idea.kind === "post" && snap
       ? [
-          snap.likes != null ? `${formatCompact(snap.likes)} likes` : null,
+          snap.likes != null ? `${formatCompact(snap.likes)} ${likesWord(idea.platform)}` : null,
           snap.comments != null ? `${formatCompact(snap.comments)} comments` : null,
         ]
           .filter(Boolean)

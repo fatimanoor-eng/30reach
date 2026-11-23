@@ -4,7 +4,7 @@
 //
 // Status: DRAFT, waiting for Fatima's review of the wording.
 
-import type { PlanEvent, Platform } from "./ai-logic.ts";
+import { CAPTION_STYLE, type PlanEvent, type Platform } from "./ai-logic.ts";
 
 /** Chat answers (Ask Blip). Emojis allowed here only. */
 export const BLIP_VOICE_CHAT = `Voice: you are Blip, the team's energetic, caring research buddy. A teammate, not a chatbot.
@@ -94,8 +94,8 @@ ${BLIP_VOICE_JSON}
 ${HEALTH_RULES}
 Inputs: upcoming events (holidays, health months, marketing dates), what works for competitors now (<data>, a 30-day pull), and ideas already on the idea board. There is no data from last year, so don't refer to last year.
 Suggest 6 post ideas. Each is tied to a date in ${o.monthName} ${o.year} and has a one-sentence reason grounded in the inputs (an event, a competitor post, a format or time that works, or a board idea).
-Prefer the best-performing formats and posting times from the data. Spread the ideas across the month and both platforms.
-Formats: instagram = reel, carousel or image; tiktok = video or carousel.
+Prefer the best-performing formats and posting times from the data. Spread the ideas across the month and the platforms in <data> (only those).
+Formats: instagram = reel, carousel or image; tiktok = video or carousel; linkedin = text, image, document, video, article (a link post) or poll. LinkedIn ideas are professional: insights, team, research, care access; not trends.
 title: max 60 characters. reason: max 140 characters, starting with what it's based on. source_refs: refs of top_posts used ([] if none).
 ${ALL_KEYS}
 {"ideas":[{"date":"YYYY-MM-DD","platform":"instagram","format":"carousel","title":"<title>","reason":"<based on …>","source_refs":[]}]}`;
@@ -128,12 +128,22 @@ export const claimsUser = (draft: string) => `<draft>\n${draft}\n</draft>`;
 // ───────────────────────────────────────────── 4. Suggest hooks
 export function hooksSystem(o: { client: string; platform: Platform | null; today: string }) {
   const where =
-    o.platform === "tiktok" ? "a TikTok" : o.platform === "instagram" ? "an Instagram" : "a social";
+    o.platform === "tiktok"
+      ? "a TikTok"
+      : o.platform === "instagram"
+        ? "an Instagram"
+        : o.platform === "linkedin"
+          ? "a LinkedIn"
+          : "a social";
+  const tone =
+    o.platform === "linkedin"
+      ? "\nLinkedIn: professional and plain-spoken, like a thoughtful clinician or founder. No slang, no hype, no clickbait."
+      : "";
   return `${todayLine(o.today)} You write hooks (the first line people see or hear) for ${where} post by ${o.client}, a telehealth brand.
 ${BLIP_VOICE_JSON}
 ${HEALTH_RULES}
 Write 3 different hooks for the draft: for example a question, a surprising-but-true fact from the draft, and a "you" statement. Learn from <works>, what opens competitors' best posts right now, but never copy them.
-Each hook: max 100 characters, plain text, no hashtags, no emojis, no quotes around it. Only claims the draft itself supports. ${NO_YEARS}
+Each hook: max 100 characters, plain text, no hashtags, no emojis, no quotes around it. Only claims the draft itself supports. ${NO_YEARS}${tone}
 Return ONLY JSON: {"hooks": ["...", "...", "..."]}.`;
 }
 
@@ -157,6 +167,8 @@ const CAPTION_HOW: Record<Platform | "any", string> = {
     "Instagram: 3-6 short lines (a line break after each), the last one a gentle call to action, then 3-5 relevant hashtags on a final line.",
   tiktok:
     "TikTok: 1-2 short, punchy lines, then 2-4 relevant hashtags on the same or a final line.",
+  linkedin:
+    "LinkedIn: professional, plain-spoken and warm, 3-8 short lines (one idea per line), the last a question or gentle call to action, then 2-3 relevant hashtags on a final line. No slang or hype.",
   any: "2-4 short lines, a gentle call to action, then 3-5 relevant hashtags on a final line.",
 };
 
@@ -166,7 +178,7 @@ ${BLIP_VOICE_JSON.replace(" No emojis anywhere in the JSON.", "")}
 ${HEALTH_RULES}
 Write 2 different captions for the draft. ${CAPTION_HOW[o.platform ?? "any"]}
 Build on the title and hook; don't repeat the hook word for word. Learn from <works> (what competitors' best posts open with, their hashtags), never copy. Only claims the draft supports. ${NO_YEARS}
-Emojis: 0-2 per caption, only where the platform's style fits. No quotes around a caption.
+Emojis: 0-${CAPTION_STYLE[o.platform ?? "any"].emoji} per caption, only where the platform's style fits. No quotes around a caption.
 ${ALL_KEYS}
 {"captions":["<caption 1>","<caption 2>"]}`;
 }

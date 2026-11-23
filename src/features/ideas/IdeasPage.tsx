@@ -265,7 +265,7 @@ export function IdeasPage() {
       <EmptyState
         label="Idea board"
         title="Nothing saved yet"
-        text="Paste a screenshot, add a link or write a note. Posts you save from Overview, Instagram and TikTok land here too."
+        text="Paste a screenshot, add a link or write a note. Posts you save from Overview, Instagram, TikTok and LinkedIn land here too."
         actions={
           <Button
             className="md:hidden"

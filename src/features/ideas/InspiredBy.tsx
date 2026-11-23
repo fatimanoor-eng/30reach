@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 import { formatCompact, formatShortDate } from "../../lib/format";
-import { ideaAge, ideaAuthor, ideaText, type Idea } from "./idea-rules";
+import { ideaAge, ideaAuthor, ideaText, likesWord, type Idea } from "./idea-rules";
 import { useIdea, useIdeaImages } from "./ideas-api";
 
 /** The two lines under "INSPIRED BY": what it was, then numbers / who and when. */
@@ -12,7 +12,7 @@ function describe(idea: Idea): { title: string; meta: string } {
     return {
       title: [snap.brand, caption ? `“${caption}”` : null].filter(Boolean).join(" · "),
       meta: [
-        snap.likes != null ? `${formatCompact(snap.likes)} likes` : null,
+        snap.likes != null ? `${formatCompact(snap.likes)} ${likesWord(idea.platform)}` : null,
         formatShortDate(snap.date),
       ]
         .filter(Boolean)

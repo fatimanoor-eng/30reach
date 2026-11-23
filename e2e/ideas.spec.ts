@@ -413,6 +413,45 @@ async function pasteText(page: Page, text: string) {
   }, text);
 }
 
+test("ideas — a LinkedIn post idea and a LinkedIn link (Slice 15c)", async ({ page }, info) => {
+  const linkedIn = [
+    idea("li1", "post", {
+      note: "Do our own care report as a document post",
+      platform: "linkedin",
+      format: "document",
+      source_snapshot: {
+        brand: "Hims",
+        date: "2026-11-02T15:00:00Z",
+        caption: "Our 2026 care report: five numbers that surprised our team",
+        likes: 700,
+        comments: 23,
+        format: "document",
+        saved_from: "linkedin",
+      },
+      created_at: daysAgo(1),
+    }),
+    idea("li2", "link", {
+      link_url: "https://www.linkedin.com/feed/update/urn:li:activity:123/",
+      note: "Strong opening line, plain and human",
+      platform: "linkedin",
+      created_at: daysAgo(2),
+    }),
+  ];
+  await setup(page, { seed: linkedIn });
+  await open(page);
+  const reactions = page.getByText("700 reactions · 23 comments").filter({ visible: true });
+  if (isDesktop(page)) {
+    await expect(reactions).toBeVisible();
+    await expect(page.getByText("SAVED FROM LINKEDIN")).toBeVisible();
+    await expect(page.getByText("linkedin.com/feed/…")).toBeVisible();
+    await expect(page.getByRole("img", { name: "LinkedIn" }).first()).toBeVisible();
+  }
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot(`ideas-linkedin-${info.project.name}.png`, {
+    fullPage: true,
+  });
+});
+
 test("ideas — board like Figma 14b / M09", async ({ page }, info) => {
   await setup(page);
   await open(page);

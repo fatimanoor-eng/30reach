@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { aiSourceLabel, aiSuggestion, planOnLabel, suggestedDay } from "./idea-rules";
+import {
+  aiSourceLabel,
+  aiSuggestion,
+  formatLabel,
+  likesWord,
+  planOnLabel,
+  suggestedDay,
+} from "./idea-rules";
 
 describe("AI ideas (Slice 11)", () => {
   it("says where an AI idea came from", () => {
@@ -63,5 +70,33 @@ describe("AI idea suggestion line + one-click plan", () => {
     expect(
       aiSuggestion(idea({ source_snapshot: { suggested_date: "31/12/2026" } }), "2026-11-19"),
     ).toBeNull();
+  });
+});
+
+describe("LinkedIn ideas (Slice 15c)", () => {
+  it("suggestion line says LI and the format's name", () => {
+    expect(
+      aiSuggestion(
+        {
+          kind: "ai",
+          planned_card_id: null,
+          platform: "linkedin",
+          format: "article",
+          source_snapshot: { saved_from: "plan", suggested_date: "2026-12-31" },
+        },
+        "2026-11-19",
+      )?.label,
+    ).toBe("Suggested: Thu 31 Dec · LI Link");
+  });
+  it("names LinkedIn formats and calls likes reactions", () => {
+    expect(["text", "document", "article", "poll"].map(formatLabel)).toEqual([
+      "Text",
+      "Document",
+      "Link",
+      "Poll",
+    ]);
+    expect(likesWord("linkedin")).toBe("reactions");
+    expect(likesWord("instagram")).toBe("likes");
+    expect(likesWord(null)).toBe("likes");
   });
 });

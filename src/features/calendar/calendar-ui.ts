@@ -1,8 +1,9 @@
 // Shared labels and colour classes for the calendar (DESIGN_SYSTEM › Calendar post card, All-day event bar).
+import { PLATFORM_FILL, PLATFORM_NAME, type Platform } from "../../lib/platforms";
 import type { EventKind } from "./events";
 
 export type CardStatus = "idea" | "drafting" | "approved" | "posted";
-export type CardPlatform = "instagram" | "tiktok";
+export type CardPlatform = Platform;
 export type CardOrigin = "manual" | "idea" | "ai";
 
 export type CalendarCard = {
@@ -56,32 +57,39 @@ export const STATUS_PILL: Record<CardStatus, string> = {
 export const PLATFORM_TINT: Record<CardPlatform | "none", string> = {
   instagram: "bg-tint-instagram",
   tiktok: "bg-tint-tiktok",
+  linkedin: "bg-tint-linkedin",
   none: "bg-soft",
 };
 
-/** 3 px bar on the card's left edge: Instagram pop, TikTok breeze, none = line. */
+/** 3 px bar on the card's left edge: Instagram pop, TikTok breeze, LinkedIn blue, none = line. */
 export const PLATFORM_BAR: Record<CardPlatform | "none", string> = {
-  instagram: "bg-pop",
-  tiktok: "bg-breeze",
+  ...PLATFORM_FILL,
   none: "bg-line",
 };
 
-export const PLATFORM_LABEL: Record<CardPlatform, string> = {
-  instagram: "Instagram",
-  tiktok: "TikTok",
+export const PLATFORM_LABEL: Record<CardPlatform, string> = PLATFORM_NAME;
+export const PLATFORM_SHORT: Record<CardPlatform, string> = {
+  instagram: "IG",
+  tiktok: "TT",
+  linkedin: "LI",
 };
-export const PLATFORM_SHORT: Record<CardPlatform, string> = { instagram: "IG", tiktok: "TT" };
 
 /** Formats each platform supports (the same names the pulls use). */
 export const FORMATS: Record<CardPlatform, string[]> = {
   instagram: ["reel", "carousel", "image"],
   tiktok: ["video", "carousel"],
+  // Slice 15c: LinkedIn's formats as the pulls name them ("article" is shown as "Link").
+  linkedin: ["text", "image", "document", "video", "article", "poll"],
 };
 export const FORMAT_NAME: Record<string, string> = {
   reel: "Reel",
   carousel: "Carousel",
   image: "Image",
   video: "Video",
+  text: "Text",
+  document: "Document",
+  article: "Link",
+  poll: "Poll",
 };
 
 /** "IG · REEL" (mono, uppercased by CSS). Missing parts are left out. */

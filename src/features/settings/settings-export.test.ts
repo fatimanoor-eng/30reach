@@ -19,6 +19,7 @@ describe("Settings exports", () => {
           likes: 3400,
           comments: 50,
           views: null,
+          shares: null,
           counts_hidden: false,
         },
         {
@@ -32,7 +33,22 @@ describe("Settings exports", () => {
           likes: 0,
           comments: 0,
           views: 212000,
+          shares: 31,
           counts_hidden: true,
+        },
+        {
+          competitor_id: "c-hims",
+          platform: "linkedin",
+          format: "article",
+          posted_at: "2026-11-01T15:00:00Z",
+          url: "https://www.linkedin.com/feed/update/1/",
+          caption: "Our care report",
+          hashtags: ["digitalhealth"],
+          likes: 700,
+          comments: 23,
+          views: null,
+          shares: 12,
+          counts_hidden: false,
         },
       ],
       [
@@ -41,15 +57,17 @@ describe("Settings exports", () => {
       ],
       "2026-11-17T15:00:00Z",
     );
-    const [head, first, second] = lines(csv);
+    const [head, first, second, third] = lines(csv);
     expect(head).toBe(
-      "Brand,Platform,Format,Posted at (UTC),Likes,Comments,Views,Counts hidden,Caption,Hashtags,Link,Pull from (UTC)",
+      "Brand,Platform,Format,Posted at (UTC),Likes / reactions,Comments,Views,Shares / reposts,Counts hidden,Caption,Hashtags,Link,Pull from (UTC)",
     );
     expect(first).toBe(
-      "Hims,tiktok,video,2026-11-12T15:00:00Z,,,212000,yes,,,https://example.com/2,2026-11-17T15:00:00Z",
+      "Hims,tiktok,video,2026-11-12T15:00:00Z,,,212000,31,yes,,,https://example.com/2,2026-11-17T15:00:00Z",
     );
     expect(second).toContain("Ro,instagram,reel,");
-    expect(second).toContain(',3400,50,,no,"Small swaps, big comfort",#holidays,');
+    expect(second).toContain(',3400,50,,,no,"Small swaps, big comfort",#holidays,');
+    // LinkedIn (Slice 15c): reactions in the likes column, reposts in shares, no views.
+    expect(third).toContain("Hims,linkedin,article,2026-11-01T15:00:00Z,700,23,,12,no,");
   });
 
   it("ideas: Blip for AI ideas, planned date, suggested date, link from the post", () => {

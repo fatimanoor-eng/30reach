@@ -3,7 +3,7 @@ import type { CompareColor } from "../../lib/brand-selection";
 import { formatShortDate } from "../../lib/format";
 import { PLATFORM_FILL, PLATFORM_ICON, PLATFORM_NAME } from "../../lib/platforms";
 import { type OverviewPost, postStats } from "../overview/metrics";
-import { isSaveable, useSaveAsIdea } from "./save-as-idea";
+import { useSaveAsIdea } from "./save-as-idea";
 
 const DOT: Record<CompareColor, string> = { ink: "bg-ink", pop: "bg-pop", blue: "bg-blue" };
 const FORMAT_TAG: Record<string, string> = {
@@ -24,7 +24,7 @@ const FORMAT_TAG: Record<string, string> = {
  * • grid — Social grid (06a/06b): full-width 92 px thumbnail strip on top (as in Figma).
  * Thumbnail = saved copy (signed URL), else a block with the format tag (Overview: platform colour,
  * Social: soft grey, as in the Figma frames). LinkedIn's Blue is dark, so its tag always sits on a
- * white chip. "Save as idea" isn't offered on LinkedIn posts until ideas know LinkedIn (Slice 15c).
+ * white chip.
  */
 export function PostItem({
   post: p,
@@ -96,15 +96,13 @@ export function PostItem({
         <p className="mt-1 line-clamp-2 text-body">{p.caption?.trim() || "No caption"}</p>
         <p className="mt-1 text-small text-muted">{postStats(p)}</p>
         <p className="mt-1.5 flex flex-wrap items-center gap-x-3 text-small">
-          {isSaveable(p) && (
-            <button
-              type="button"
-              onClick={() => saveAsIdea({ post: p, brandName, thumbUrl })}
-              className="min-h-11 text-blue hover:underline md:min-h-6"
-            >
-              Save as idea
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => saveAsIdea({ post: p, brandName, thumbUrl })}
+            className="min-h-11 text-blue hover:underline md:min-h-6"
+          >
+            Save as idea
+          </button>
           <a
             href={p.url}
             target="_blank"

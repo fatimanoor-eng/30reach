@@ -134,6 +134,10 @@ describe("links", () => {
     expect(platformFromUrl("https://www.instagram.com/p/x")).toBe("instagram");
     expect(platformFromUrl("https://vm.tiktok.com/abc")).toBe("tiktok");
     expect(platformFromUrl("https://nottiktok.com/abc")).toBeNull();
+    expect(platformFromUrl("https://www.linkedin.com/feed/update/urn:li:activity:1/")).toBe(
+      "linkedin",
+    );
+    expect(platformFromUrl("https://notlinkedin.com/x")).toBeNull();
     expect(platformFromUrl("https://example.com")).toBeNull();
   });
 });

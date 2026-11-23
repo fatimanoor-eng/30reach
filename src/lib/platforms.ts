@@ -39,10 +39,3 @@ export const PLATFORM_FILL: Record<Platform, string> = {
   tiktok: "bg-breeze",
   linkedin: "bg-blue",
 };
-
-/**
- * Platforms Blip already reads (Ask Blip, hooks, captions, Plan {month}). The dashboards show LinkedIn
- * from Slice 15b; Blip adds it in 15c, so its numbers and prompts stay Instagram + TikTok until then.
- */
-export type BlipPlatform = Exclude<Platform, "linkedin">;
-export const BLIP_PLATFORMS: BlipPlatform[] = ["instagram", "tiktok"];

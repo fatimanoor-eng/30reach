@@ -1,9 +1,10 @@
 // Pure rules for the idea board (14a / 14b / M09): tabs, search, tags, link labels, ages.
 // No React and no Supabase here, so everything is unit-tested in idea-rules.test.ts.
 import { formatShortDate } from "../../lib/format";
+import type { Platform } from "../../lib/platforms";
 
 export type IdeaKind = "screenshot" | "link" | "note" | "post" | "ai";
-export type IdeaPlatform = "instagram" | "tiktok";
+export type IdeaPlatform = Platform;
 
 /** Kept on ideas saved from a post, so they keep their context after old pulls are deleted. */
 export type SourceSnapshot = {
@@ -14,7 +15,7 @@ export type SourceSnapshot = {
   format?: string | null;
   likes?: number | null;
   comments?: number | null;
-  /** Where it was saved from: "overview" | "instagram" | "tiktok" | "ask-blip" | "plan" */
+  /** Where it was saved from: "overview" | "instagram" | "tiktok" | "linkedin" | "ask-blip" | "plan" */
   saved_from?: string;
   /** Plan {month} (AI ideas): the suggested day ("YYYY-MM-DD"); Plan it starts on it. */
   suggested_date?: string;
@@ -49,8 +50,16 @@ const FORMAT_LABEL: Record<string, string> = {
   carousel: "Carousel",
   image: "Image",
   video: "Video",
+  text: "Text",
+  document: "Document",
+  article: "Link",
+  poll: "Poll",
 };
-/** "reel" → "Reel"; unknown formats are shown as stored. */
+/** What a saved post's `likes` are called: LinkedIn saves all reactions there (Slice 15c). */
+export const likesWord = (platform: IdeaPlatform | null) =>
+  platform === "linkedin" ? "reactions" : "likes";
+
+/** "reel" → "Reel", "article" → "Link"; unknown formats are shown as stored. */
 export const formatLabel = (f: string | null | undefined): string | null =>
   f ? (FORMAT_LABEL[f] ?? f) : null;
 
@@ -156,12 +165,13 @@ export function linkLabel(url: string): string {
   }
 }
 
-/** Platform from a link's host (instagram.com / tiktok.com), else null. */
+/** Platform from a link's host (instagram.com / tiktok.com / linkedin.com), else null. */
 export function platformFromUrl(url: string): IdeaPlatform | null {
   try {
     const host = new URL(url).hostname.replace(/^www\./, "");
     if (host === "instagram.com" || host.endsWith(".instagram.com")) return "instagram";
     if (host === "tiktok.com" || host.endsWith(".tiktok.com")) return "tiktok";
+    if (host === "linkedin.com" || host.endsWith(".linkedin.com")) return "linkedin";
   } catch {
     /* not a URL */
   }
@@ -229,7 +239,11 @@ export function suggestedDay(snap: SourceSnapshot | null, today: string): string
   return day && /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= today ? day : null;
 }
 
-const PLATFORM_SHORT: Record<IdeaPlatform, string> = { instagram: "IG", tiktok: "TT" };
+const PLATFORM_SHORT: Record<IdeaPlatform, string> = {
+  instagram: "IG",
+  tiktok: "TT",
+  linkedin: "LI",
+};
 
 /**
  * A Plan {month} idea's suggestion line (14b tiles, 08 idea panel): "Suggested: Thu 31 Dec · TT Video",

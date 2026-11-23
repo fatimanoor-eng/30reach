@@ -7,7 +7,9 @@
 // - Validate every JSON answer by hand (no zod). Anything off-shape → null → the caller retries once.
 // - No emojis in text that becomes idea text, card titles or hooks.
 
-import { parseRetryAfter } from "./pull-logic.ts";
+import { parseRetryAfter, type Platform, PLATFORMS } from "./pull-logic.ts";
+
+export { type Platform, PLATFORMS };
 
 export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 export const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -39,21 +41,32 @@ export const LIMITS = {
   planIdeas: 6,
 } as const;
 
-export type Platform = "instagram" | "tiktok";
-export type Format = "reel" | "carousel" | "image" | "video";
+/** LinkedIn (Slice 15c): text, image (one or more), document, video, article (a link post), poll. */
+export type Format =
+  "reel" | "carousel" | "image" | "video" | "text" | "document" | "article" | "poll";
 
-export const PLATFORMS: Platform[] = ["instagram", "tiktok"];
 export const FORMATS_BY_PLATFORM: Record<Platform, Format[]> = {
   instagram: ["reel", "carousel", "image"],
   tiktok: ["video", "carousel"],
+  linkedin: ["text", "image", "document", "video", "article", "poll"],
 };
+/** Every format any platform has (Plan {month}'s JSON schema enum). */
+export const ALL_FORMATS: Format[] = [...new Set(Object.values(FORMATS_BY_PLATFORM).flat())];
 const FORMAT_LABEL: Record<Format, string> = {
   reel: "Reels",
   carousel: "Carousels",
   image: "Images",
   video: "Videos",
+  text: "Text posts",
+  document: "Documents",
+  article: "Link posts",
+  poll: "Polls",
 };
-const PLATFORM_LABEL: Record<Platform, string> = { instagram: "Instagram", tiktok: "TikTok" };
+const PLATFORM_LABEL: Record<Platform, string> = {
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  linkedin: "LinkedIn",
+};
 
 // ───────────────────────────────────────────── small helpers
 const isObj = (v: unknown): v is Record<string, unknown> =>
@@ -165,6 +178,8 @@ export type SummaryPost = {
   likes: number | null;
   comments: number | null;
   views: number | null;
+  /** LinkedIn reposts (TikTok shares, if any); null for Instagram. */
+  shares: number | null;
   counts_hidden: boolean;
 };
 export type SummaryBrand = { id: string; name: string };
@@ -215,7 +230,7 @@ export type Summary = {
   pull_date: string;
   window_days: 30;
   time_zone: "US Eastern";
-  engagement_means: "likes + comments";
+  engagement_means: typeof ENGAGEMENT_MEANS;
   total_posts: number;
   brands: {
     brand: string;
@@ -225,6 +240,8 @@ export type Summary = {
     avg_likes: number;
     avg_comments: number;
     avg_views: number | null;
+    /** LinkedIn only (left out elsewhere to keep the summary small). */
+    avg_reposts?: number;
     followers: number | null;
     formats: { format: Format; posts: number; avg_engagement: number }[];
     best_slot: string | null;
@@ -240,6 +257,8 @@ export type Summary = {
     likes: number | null;
     comments: number | null;
     views: number | null;
+    /** LinkedIn only. */
+    reposts?: number;
     caption: string;
   }[];
   top_hashtags: { tag: string; posts: number }[];
@@ -250,8 +269,16 @@ export type Summary = {
   not_in_data: string[];
 };
 
+/**
+ * On LinkedIn, `likes` holds all reactions (15c). The rule lives here, in <data>, so Ask Blip's system
+ * prompt stays under its size budget.
+ */
+const ENGAGEMENT_MEANS =
+  "likes + comments; on LinkedIn likes = all reactions (say reactions). Compare brands within one platform";
+
 /** Hard facts the model must not pretend to know. */
 const NOT_IN_DATA = [
+  "LinkedIn views and impressions",
   "anything older than the 30-day window",
   "follower history or growth",
   "the client's own posts",
@@ -269,6 +296,7 @@ function brandStats(posts: SummaryPost[]) {
     avg_comments: round(avg(c.map((p) => p.comments ?? 0))),
     avg_views: views.length ? round(avg(views)) : null,
     avg_engagement: round(avg(c.map(engagement))),
+    avg_shares: round(avg(c.map((p) => p.shares ?? 0))),
   };
 }
 
@@ -327,6 +355,7 @@ export function buildSummary(
       avg_likes: s.avg_likes,
       avg_comments: s.avg_comments,
       avg_views: s.avg_views,
+      ...(platform === "linkedin" && { avg_reposts: s.avg_shares }),
       followers:
         data.followers.find((f) => f.competitor_id === competitorId && f.platform === platform)
           ?.followers ?? null,
@@ -377,7 +406,7 @@ export function buildSummary(
     pull_date: dayMonthYear(data.pull.started_at),
     window_days: 30,
     time_zone: "US Eastern",
-    engagement_means: "likes + comments",
+    engagement_means: ENGAGEMENT_MEANS,
     total_posts: data.posts.length,
     brands,
     top_posts: top.map((p, i) => ({
@@ -390,6 +419,7 @@ export function buildSummary(
       likes: p.likes,
       comments: p.comments,
       views: p.views,
+      ...(p.platform === "linkedin" && { reposts: p.shares ?? 0 }),
       caption: clip(stripEmoji(p.caption ?? ""), captionChars),
     })),
     top_hashtags,
@@ -418,10 +448,14 @@ export function refToId(ref: string, refs: string[]): string | null {
 
 // ───────────────────────────────────────────── post refs (p1…pN) never reach the screen
 
+/** How a format reads in a sentence ("Hims’ link post"); LinkedIn's "text" is just a post. */
+const REF_WORD: Record<string, string> = { text: "post", article: "link post" };
+
 /** "Ro’s reel from 9 Nov", "Hims’ video from 2 Nov", "Found’s post" (what a ref means to a person). */
 export function refLabel(brand: string, format: string | null, postedAt: string | null): string {
   const owner = /s$/i.test(brand) ? `${brand}’` : `${brand}’s`;
-  return `${owner} ${format ?? "post"}${postedAt ? ` from ${dayMonth(postedAt)}` : ""}`;
+  const what = format ? (REF_WORD[format] ?? format) : "post";
+  return `${owner} ${what}${postedAt ? ` from ${dayMonth(postedAt)}` : ""}`;
 }
 
 /** A citation group: "[p3]", "[post:p3, p5]", "(p2)", "(p1 and p4)". Removed: the sources list shows them. */
@@ -700,7 +734,7 @@ export const PLAN_SCHEMA = {
       items: strictObject({
         date: { type: "string" },
         platform: { type: "string", enum: PLATFORMS },
-        format: { type: "string", enum: ["reel", "carousel", "image", "video"] },
+        format: { type: "string", enum: ALL_FORMATS },
         title: { type: "string" },
         reason: { type: "string" },
         source_refs: strArray,
@@ -1046,7 +1080,7 @@ export function hookContext(data: Pick<PullData, "brands" | "posts">, platform: 
   const posts = platform ? data.posts.filter((p) => p.platform === platform) : data.posts;
   const f = bestFormat(posts);
   return {
-    platform: platform ? PLATFORM_LABEL[platform] : "Instagram and TikTok",
+    platform: platform ? PLATFORM_LABEL[platform] : "Instagram, TikTok and LinkedIn",
     best_format: f ? FORMAT_LABEL[f] : null,
     top_openings: posts
       .filter(countable)
@@ -1088,20 +1122,23 @@ export function parseCaptionInput(body: Record<string, unknown>): CaptionInput |
   return { clientId: body.clientId, title, hook, platform, format };
 }
 
-/** Platform style. No platform yet: something in between. */
+/**
+ * Platform style. No platform yet: something in between. LinkedIn (Slice 15c): more professional,
+ * 3–8 short lines, 2–3 hashtags, at most 1 emoji.
+ */
 export const CAPTION_STYLE: Record<
   Platform | "any",
-  { lines: [number, number]; tags: [number, number]; chars: number }
+  { lines: [number, number]; tags: [number, number]; chars: number; emoji: number }
 > = {
-  instagram: { lines: [3, 6], tags: [3, 5], chars: 900 },
-  tiktok: { lines: [1, 2], tags: [2, 4], chars: 300 },
-  any: { lines: [2, 4], tags: [3, 5], chars: 600 },
+  instagram: { lines: [3, 6], tags: [3, 5], chars: 900, emoji: 2 },
+  tiktok: { lines: [1, 2], tags: [2, 4], chars: 300, emoji: 2 },
+  linkedin: { lines: [3, 8], tags: [2, 3], chars: 1300, emoji: 1 },
+  any: { lines: [2, 4], tags: [3, 5], chars: 600, emoji: 2 },
 };
-export const CAPTION_EMOJI = 2;
 const HASHTAG = /#[\p{L}\p{N}_]+/gu;
 
 /**
- * Captions: wrapping quotes removed, ≤ 2 emoji, hashtags moved to one line at the end (at most the
+ * Captions: wrapping quotes removed, ≤ the platform's emoji (2; LinkedIn 1), hashtags moved to one line at the end (at most the
  * platform's maximum, no repeats), no more body lines than the platform allows, within its length,
  * no code red flags, no repeats. The first try needs 2 options; the retry accepts 1.
  */
@@ -1119,7 +1156,7 @@ export function validateCaptions(
     const text = c
       .trim()
       .replace(/^["'“”‘’]+|["'“”‘’]+$/g, "")
-      .replace(EMOJI_SEQ, (m) => (++emoji <= CAPTION_EMOJI ? m : ""));
+      .replace(EMOJI_SEQ, (m) => (++emoji <= style.emoji ? m : ""));
     const tags = [...new Set((text.match(HASHTAG) ?? []).map((t) => t.toLowerCase()))].slice(
       0,
       style.tags[1],

@@ -1,4 +1,5 @@
-import { PLATFORM_BAR, STATUS_LABEL, STATUSES } from "./calendar-ui";
+import { PLATFORMS } from "../../lib/platforms";
+import { PLATFORM_BAR, PLATFORM_LABEL, STATUS_LABEL, STATUSES } from "./calendar-ui";
 import { AiTag, StatusDot } from "./CardTile";
 import { EventToggles } from "./EventToggles";
 import type { EventKind } from "./events";
@@ -20,14 +21,12 @@ export function CalendarLegend({
         aria-label="Legend"
         className="flex flex-wrap items-center gap-x-5 gap-y-2 text-small text-muted"
       >
-        <li className="flex items-center gap-1.5">
-          <span aria-hidden="true" className={`h-3 w-[3px] ${PLATFORM_BAR.instagram}`} />
-          Instagram
-        </li>
-        <li className="flex items-center gap-1.5">
-          <span aria-hidden="true" className={`h-3 w-[3px] ${PLATFORM_BAR.tiktok}`} />
-          TikTok
-        </li>
+        {PLATFORMS.map((p) => (
+          <li key={p} className="flex items-center gap-1.5">
+            <span aria-hidden="true" className={`h-3 w-[3px] ${PLATFORM_BAR[p]}`} />
+            {PLATFORM_LABEL[p]}
+          </li>
+        ))}
         <Sep />
         {STATUSES.map((s) => (
           <li key={s} className="flex items-center gap-1.5">

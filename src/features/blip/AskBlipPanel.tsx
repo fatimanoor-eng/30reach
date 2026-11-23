@@ -1,12 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, ChevronLeft, Send, Square, X } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { BlipError, BlipIdle, BlipThinking } from "../../components/blip/BlipPoses";
 import { useNativeModal } from "../../components/useNativeModal";
 import { AI_COPY, answerText, type BlipChat, type BlipInsight } from "../../lib/ai/ai-api";
 import { useProfile } from "../../lib/auth/useProfile";
-import { BLIP_PLATFORMS } from "../../lib/platforms";
 import { useCompetitors } from "../../lib/useCompetitors";
 import { useClient } from "../../lib/useClient";
 import { formatShortDate } from "../../lib/format";
@@ -58,12 +57,7 @@ export function AskBlipPanel({
   const profile = useProfile();
   const pulls = useSavedPulls();
   const latest = pulls.data?.latest ?? null;
-  const pullPosts = usePullPosts(open ? latest?.id : null);
-  // Blip reads Instagram + TikTok until Slice 15c, so the greeting's counts and the chips match its answers.
-  const blipPosts = useMemo(
-    () => pullPosts.data?.filter((p) => (BLIP_PLATFORMS as string[]).includes(p.platform)),
-    [pullPosts.data],
-  );
+  const blipPosts = usePullPosts(open ? latest?.id : null).data;
   const competitors = useCompetitors();
   const navigate = useNavigate();
 

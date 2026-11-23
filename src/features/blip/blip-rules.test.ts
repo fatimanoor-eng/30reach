@@ -103,6 +103,10 @@ describe("Ask Blip rules", () => {
       "Hims · Instagram · 9 Nov · 3.4K likes",
     );
     expect(sourceLabel(source({ views: null, likes: null, postedAt: null }))).toBe("Hims · TikTok");
+    // Slice 15c: LinkedIn likes are reactions.
+    expect(sourceLabel(source({ platform: "linkedin", views: null, likes: 700 }))).toBe(
+      "Hims · LinkedIn · 9 Nov · 700 reactions",
+    );
   });
 
   it("history = the last 2 answered turns, as short text", () => {
@@ -309,6 +313,8 @@ describe("Ask Blip light mode (no data summary)", () => {
     ["first word of a brand", "and noom?"],
     ["names the client", "is OBU behind?"],
     ["platform", "any good tiktoks?"],
+    ["platform (15c)", "and linkedin?"],
+    ["LinkedIn word (15c)", "most reposts?"],
     ["format", "reels or carousels?"],
     ["metric", "who gets more likes"],
     ["data word", "what's the best day?"],

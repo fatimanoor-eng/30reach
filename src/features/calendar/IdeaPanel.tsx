@@ -2,7 +2,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { CalendarCheck, Plus } from "lucide-react";
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { Link, useNavigate } from "react-router";
-import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
+import { PLATFORM_ICON } from "../../lib/platforms";
 import { formatShortDate } from "../../lib/format";
 import { aiSuggestion, ideaAuthor, ideaText, planOnLabel, type Idea } from "../ideas/idea-rules";
 import { usePlanOnDay } from "../ideas/usePlanOnDay";
@@ -21,8 +21,7 @@ export const IdeaPanelItem = forwardRef<
   HTMLButtonElement,
   { idea: Idea; dragging?: boolean } & ButtonHTMLAttributes<HTMLButtonElement>
 >(function IdeaPanelItem({ idea, dragging = false, className = "", ...props }, ref) {
-  const Icon =
-    idea.platform === "instagram" ? InstagramIcon : idea.platform === "tiktok" ? TikTokIcon : null;
+  const Icon = idea.platform ? PLATFORM_ICON[idea.platform] : null;
   const text = ideaText(idea) || idea.link_url || "Idea";
   const suggestion = aiSuggestion(idea, todayIso());
   return (

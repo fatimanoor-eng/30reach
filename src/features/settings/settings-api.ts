@@ -218,7 +218,7 @@ export async function fetchLatestPullPosts(clientId: string) {
   const { data, error: postsError } = await supabase
     .from("posts")
     .select(
-      "competitor_id, platform, format, posted_at, url, caption, hashtags, likes, comments, views, counts_hidden",
+      "competitor_id, platform, format, posted_at, url, caption, hashtags, likes, comments, views, shares, counts_hidden",
     )
     .eq("pull_id", p.id)
     .eq("hidden", false);

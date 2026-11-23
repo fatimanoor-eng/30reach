@@ -79,6 +79,12 @@ const SEED: Row[] = [
     origin: "ai",
   }),
   card("k9", "2026-12-30", "Resolution season starts", { status: "drafting", origin: "ai" }),
+  // Slice 15c: a LinkedIn card (Blue bar, LinkedIn tint, LinkedIn formats).
+  card("k10", "2026-12-22", "Our 2026 care report: five numbers", {
+    platform: "linkedin",
+    format: "document",
+    status: "drafting",
+  }),
 ];
 
 // 08 idea panel (Figma): three ideas to plan; Blip's is already planned (k6), so it isn't listed.
@@ -572,6 +578,42 @@ test("calendar — a past date gets an amber note unless posted", async ({ page 
   await expect(dialog.getByText("This date is in the past")).toHaveCount(0);
   // Not blocking: Save still works.
   await expect(dialog.getByRole("button", { name: "Save" })).toBeEnabled();
+});
+
+test("calendar — LinkedIn card: Blue bar, LinkedIn tint and formats (Slice 15c)", async ({
+  page,
+}, info) => {
+  await setup(page);
+  await open(page);
+  const tile = page.getByText("Our 2026 care report: five numbers").first();
+  await expect(tile).toBeVisible();
+  await expect(page.getByText(/^LI · Document$/i).first()).toBeVisible();
+  if (isDesktop(page))
+    await expect(page.getByRole("list", { name: "Legend" })).toContainText("LinkedIn");
+
+  await open(page, "/calendar?date=2026-12-24&card=k10");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.locator("div.rounded-panel")).toHaveCSS(
+    "background-color",
+    "rgb(227, 232, 245)", // --color-tint-linkedin
+  );
+  await dialog.getByRole("button", { name: "Format: Document" }).click();
+  const formats = dialog.getByRole("listbox", { name: "Format" });
+  await expect(formats.getByRole("option")).toHaveText([
+    "Text",
+    "Image",
+    "Document",
+    "Video",
+    "Link",
+    "Poll",
+  ]);
+  await page.waitForTimeout(300); // drawer slide-in
+  await expect(page).toHaveScreenshot(`linkedin-card-${info.project.name}.png`);
+  // Switching to Instagram drops a format Instagram doesn't have.
+  await page.keyboard.press("Escape");
+  await dialog.getByRole("button", { name: "Platform: LinkedIn" }).click();
+  await dialog.getByRole("option", { name: "Instagram" }).click();
+  await expect(dialog.getByRole("listbox", { name: "Format" })).toBeVisible();
 });
 
 test("calendar — chip menu, open", async ({ page }, info) => {

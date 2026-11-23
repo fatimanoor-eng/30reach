@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ImageIcon, Link2 } from "lucide-react";
 import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import { Button } from "../../components/Button";
-import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
+import { PLATFORM_ICON, PLATFORM_NAME } from "../../lib/platforms";
 import { useToast } from "../../components/toast-context";
 import { useClient } from "../../lib/useClient";
 import { useCapture, type Draft } from "./capture-context";
@@ -169,11 +169,19 @@ export function DraftCard({ draft, autoFocus }: { draft: Draft; autoFocus: boole
             tags={draft.tags}
             onChange={(tags) => update(draft.key, { tags })}
             leading={
-              platform === "instagram" ? (
-                <InstagramIcon size={14} aria-label="Instagram" role="img" aria-hidden={false} />
-              ) : platform === "tiktok" ? (
-                <TikTokIcon size={14} aria-label="TikTok" role="img" aria-hidden={false} />
-              ) : null
+              platform
+                ? (() => {
+                    const Icon = PLATFORM_ICON[platform];
+                    return (
+                      <Icon
+                        size={14}
+                        aria-label={PLATFORM_NAME[platform]}
+                        role="img"
+                        aria-hidden={false}
+                      />
+                    );
+                  })()
+                : null
             }
           />
         </>

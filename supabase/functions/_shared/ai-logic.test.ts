@@ -89,6 +89,7 @@ function post(o: Partial<SummaryPost> = {}): SummaryPost {
     likes: 100,
     comments: 10,
     views: 1000,
+    shares: null,
     counts_hidden: false,
     ...o,
   };
@@ -1229,7 +1230,7 @@ describe("Suggest caption", () => {
     expect(
       validateCaptions({ captions: ["Lose 10 lbs before New Year #fast", ok] }, "tiktok", 1),
     ).toEqual([shown]);
-    expect(CAPTION_STYLE.tiktok).toEqual({ lines: [1, 2], tags: [2, 4], chars: 300 });
+    expect(CAPTION_STYLE.tiktok).toEqual({ lines: [1, 2], tags: [2, 4], chars: 300, emoji: 2 });
   });
 
   it("needs 2 on the first try (1 on the retry); repeats don't count; wrong shape → null", () => {
@@ -1266,5 +1267,111 @@ describe("Suggest caption", () => {
     expect(
       captionsUser({ title: "T", hook: "H", platform: "tiktok", format: "video", works: {} }),
     ).toContain("Hook: H");
+  });
+});
+
+describe("LinkedIn in Blip (Slice 15c)", () => {
+  const li = (o: Partial<SummaryPost> = {}) =>
+    post({ platform: "linkedin", format: "document", views: null, shares: 8, ...o });
+
+  it("summary: LinkedIn rows carry avg reposts, posts carry reposts; others don't", () => {
+    const { summary } = buildSummary(
+      pullData([li({ likes: 300, shares: 10 }), li({ likes: 100, shares: 4 }), post()]),
+    );
+    const liRow = summary.brands.find((b) => b.platform === "linkedin")!;
+    const ttRow = summary.brands.find((b) => b.platform === "tiktok")!;
+    expect(liRow).toMatchObject({ posts: 2, avg_likes: 200, avg_reposts: 7, avg_views: null });
+    expect(liRow.formats).toEqual([{ format: "document", posts: 2, avg_engagement: 210 }]);
+    expect(ttRow).not.toHaveProperty("avg_reposts");
+    expect(summary.top_posts.find((p) => p.platform === "linkedin")).toHaveProperty("reposts", 10);
+    expect(summary.top_posts.find((p) => p.platform === "tiktok")).not.toHaveProperty("reposts");
+    expect(summary.engagement_means).toMatch(/LinkedIn likes = all reactions/);
+    expect(summary.not_in_data).toContain("LinkedIn views and impressions");
+  });
+
+  it("Plan {month}: LinkedIn formats are valid only on LinkedIn", () => {
+    const ctx = { month: "2027-01", today: "2026-11-18", refs: [], min: 1 };
+    const idea = (platform: string, format: string, title: string) => ({
+      date: "2027-01-12",
+      platform,
+      format,
+      title,
+      reason: "Documents are the best LinkedIn format for Hims this month.",
+      source_refs: [],
+    });
+    const out = validatePlan(
+      {
+        ideas: [
+          idea("linkedin", "document", "Five numbers from our care report"),
+          idea("linkedin", "reel", "Wrong pair"),
+          idea("instagram", "poll", "Also wrong"),
+          idea("linkedin", "article", "Why access to care matters"),
+        ],
+      },
+      ctx,
+    )!;
+    expect(out.map((i) => [i.platform, i.format])).toEqual([
+      ["linkedin", "document"],
+      ["linkedin", "article"],
+    ]);
+    const formatEnum = (
+      PLAN_SCHEMA.schema as unknown as {
+        properties: { ideas: { items: { properties: { format: { enum: string[] } } } } };
+      }
+    ).properties.ideas.items.properties.format.enum;
+    expect(formatEnum).toEqual(expect.arrayContaining(["document", "article", "poll", "text"]));
+    expect(planSystem({ client: "OBU", monthName: "January", year: 2027, today: TODAY })).toMatch(
+      /linkedin = text, image, document, video, article \(a link post\) or poll/,
+    );
+  });
+
+  it("captions: professional style, 3–8 lines, at most 3 hashtags and 1 emoji", () => {
+    expect(CAPTION_STYLE.linkedin).toEqual({ lines: [3, 8], tags: [2, 3], chars: 1300, emoji: 1 });
+    const [c] = validateCaptions(
+      {
+        captions: [
+          "Access to care shouldn’t depend on your zip code. 🩺🙌\nOur clinicians see patients in 12 states.\nHere’s what we learned this year.\nWhat would you add?\n#digitalhealth #telehealth #care #extra",
+        ],
+      },
+      "linkedin",
+      1,
+    )!;
+    expect(c).toBe(
+      "Access to care shouldn’t depend on your zip code. 🩺\nOur clinicians see patients in 12 states.\nHere’s what we learned this year.\nWhat would you add?\n\n#digitalhealth #telehealth #care",
+    );
+    const lines9 = Array.from({ length: 9 }, (_, i) => `Line ${i + 1}.`).join("\n");
+    expect(validateCaptions({ captions: [lines9] }, "linkedin", 1)).toBeNull();
+    const sys = captionsSystem({ client: "OBU", platform: "linkedin", today: TODAY });
+    expect(sys).toMatch(/LinkedIn: professional, plain-spoken and warm, 3-8 short lines/);
+    expect(sys).toMatch(/2-3 relevant hashtags/);
+    expect(sys).toMatch(/Emojis: 0-1 per caption/);
+    expect(captionsSystem({ client: "OBU", platform: "instagram", today: TODAY })).toMatch(
+      /Emojis: 0-2 per caption/,
+    );
+  });
+
+  it("hooks: a LinkedIn hook is professional; context is LinkedIn's own posts", () => {
+    const sys = hooksSystem({ client: "OBU", platform: "linkedin", today: TODAY });
+    expect(sys).toMatch(/for a LinkedIn post/);
+    expect(sys).toMatch(/professional and plain-spoken/);
+    expect(hooksSystem({ client: "OBU", platform: "tiktok", today: TODAY })).not.toMatch(
+      /plain-spoken/,
+    );
+    const ctx = hookContext(
+      pullData([li({ caption: "Our care report is out" }), post({ caption: "TikTok one" })]),
+      "linkedin",
+    );
+    expect(ctx.platform).toBe("LinkedIn");
+    expect(ctx.top_openings.map((o) => o.first_line)).toEqual(["Our care report is out"]);
+    expect(hookContext(pullData([post()]), null).platform).toBe("Instagram, TikTok and LinkedIn");
+    expect(
+      parseHooksInput({ clientId: CLIENT, title: "t", platform: "linkedin", format: "poll" }),
+    ).toMatchObject({ platform: "linkedin", format: "poll" });
+  });
+
+  it("ref labels read naturally for LinkedIn formats", () => {
+    expect(refLabel("Hims", "article", "2026-11-02T15:00:00Z")).toBe("Hims’ link post from 2 Nov");
+    expect(refLabel("Ro", "text", null)).toBe("Ro’s post");
+    expect(refLabel("Ro", "document", null)).toBe("Ro’s document");
   });
 });

@@ -138,6 +138,27 @@ test("Overview counts LinkedIn too (Slice 15b)", async ({ page }, info) => {
   await expect(page).toHaveScreenshot("overview-with-linkedin.png", { fullPage: true });
 });
 
+test("LinkedIn post without a thumbnail: Blue block, tag on a white chip (Slice 15c)", async ({
+  page,
+}, info) => {
+  // Only LinkedIn posts, none with a thumbnail → Top posts shows the Blue fallback blocks.
+  await setup(page, [LATEST], {
+    counts: Object.fromEntries(BRANDS.map((b) => [b.id, 0])),
+    linkedIn: true,
+  });
+  await ready(page);
+  const card = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Top posts", exact: true }) });
+  const block = card.locator("article .bg-blue").filter({ visible: true }).first();
+  await expect(block).toHaveCSS("background-color", "rgb(52, 87, 186)"); // --color-blue
+  const tag = block.locator("span").last();
+  await expect(tag).toHaveCSS("background-color", "rgb(255, 255, 255)"); // white chip
+  await noSidewaysScroll(page);
+  await card.scrollIntoViewIfNeeded();
+  await expect(card).toHaveScreenshot(`linkedin-no-thumbnail-${info.project.name}.png`);
+});
+
 test("stale data (> 7 days) is amber", async ({ page }) => {
   await setup(page, [{ ...LATEST, id: "pull-new", started_at: "2026-11-07T09:00:00Z" }]);
   await ready(page);

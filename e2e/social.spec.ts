@@ -129,7 +129,9 @@ test("06a TikTok — views shown, same layout", async ({ page }, info) => {
   await checks(page, mobile, "social-tiktok.png");
 });
 
-test("LinkedIn page (Slice 15b) — reactions, reposts, same layout", async ({ page }, info) => {
+test("LinkedIn page (Slice 15b/15c) — reactions, reposts, same layout, save as idea", async ({
+  page,
+}, info) => {
   const mobile = info.project.name === "mobile-390";
   await setup(page);
   await ready(page, "/linkedin");
@@ -149,9 +151,19 @@ test("LinkedIn page (Slice 15b) — reactions, reposts, same layout", async ({ p
       .first(),
   ).toBeVisible();
   await expect(page.getByText("#digitalhealth").filter({ visible: true }).first()).toBeVisible();
-  // Ideas learn LinkedIn in 15c: no "Save as idea" on LinkedIn posts yet.
-  await expect(page.getByRole("button", { name: "Save as idea" })).toHaveCount(0);
   await checks(page, mobile, "social-linkedin.png");
+
+  // Slice 15c: LinkedIn posts can be saved as ideas (platform + format filled in from the post).
+  await page
+    .getByRole("button", { name: "Save as idea" })
+    .filter({ visible: true })
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Save to idea board" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("LinkedIn", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("Link", { exact: true })).toBeVisible(); // the top post is a link post
+  await dialog.getByRole("button", { name: "Cancel" }).click();
 });
 
 test("platform switch reaches LinkedIn (mobile Social tab and tablet/desktop)", async ({

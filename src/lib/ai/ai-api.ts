@@ -1,7 +1,7 @@
 // Browser side of the AI Edge Functions (Slice 11). Types mirror supabase/functions/*/index.ts
 // (kept in sync by hand). The browser never talks to Groq: it only calls our team-only functions.
 
-import type { BlipPlatform as Platform } from "../platforms";
+import type { Platform } from "../platforms";
 import { callFunction } from "../pulls/api";
 
 /** UI copy from AI_PROMPTS.md › Errors (Blip's voice). Written here, never generated. */
@@ -144,7 +144,10 @@ export const suggestHooks = (
 ) => call<{ hooks: string[] }>("suggest-hooks", { clientId, ...draft });
 
 // ───────────────────────────── suggest-caption
-/** Two caption options in the platform's style (Instagram: lines + CTA + 3–5 hashtags; TikTok: short). */
+/**
+ * Two caption options in the platform's style (Instagram: lines + CTA + 3–5 hashtags; TikTok: short;
+ * LinkedIn: professional, 3–8 lines + 2–3 hashtags).
+ */
 export const suggestCaption = (
   clientId: string,
   draft: {

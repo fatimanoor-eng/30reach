@@ -17,7 +17,7 @@ const NOTE_MAX = 2000;
 /** Where a post was saved from, for "SAVED FROM OVERVIEW" on the board. */
 function savedFrom(pathname: string): string | undefined {
   const page = pathname.split("/")[1];
-  return ["overview", "instagram", "tiktok"].includes(page) ? page : undefined;
+  return ["overview", "instagram", "tiktok", "linkedin"].includes(page) ? page : undefined;
 }
 
 /**
