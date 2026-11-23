@@ -72,6 +72,52 @@ export function makePosts(
   return posts;
 }
 
+const LI_FORMATS = ["text", "image", "document", "video", "article", "poll"] as const;
+const LI_CAPTIONS = [
+  "We’re hiring clinicians across 12 states. Here’s what the role looks like",
+  "What 10,000 patient conversations taught us about access to care",
+  "Our 2026 care report: five numbers that surprised our team",
+  "Behind the scenes with our pharmacy partners",
+  "Why we publish our outcomes data every quarter",
+];
+
+/**
+ * LinkedIn posts (Slice 15b) as pull-task saves them: likes = reactions, shares = reposts, no views.
+ * Brand i gets 7 − i posts; the first two per brand have a thumbnail when `withThumbs`.
+ */
+export function makeLinkedInPosts(
+  pullId: string,
+  pullStart: Date,
+  opts: { withThumbs?: boolean } = {},
+) {
+  return BRANDS.flatMap((brand, bi) =>
+    Array.from({ length: 7 - bi }, (_, k) => {
+      const daysBack = (k * 4 + bi * 2) % 29;
+      const base = 400 - bi * 50;
+      return {
+        id: `${pullId}-li${bi}-${k}`,
+        competitor_id: brand.id,
+        platform: "linkedin",
+        external_id: `li-${brand.id}-${k}`,
+        url: `https://www.linkedin.com/feed/update/urn:li:activity:${bi}${k}/`,
+        posted_at: new Date(
+          pullStart.getTime() - daysBack * 86_400_000 - ((k * 3) % 9) * 3_600_000,
+        ).toISOString(),
+        format: LI_FORMATS[(k + bi) % LI_FORMATS.length],
+        caption: `${LI_CAPTIONS[(bi + k) % LI_CAPTIONS.length]} #digitalhealth${k % 3 === 0 ? " #telehealth" : ""}`,
+        hashtags: ["digitalhealth", ...(k % 3 === 0 ? ["telehealth"] : [])],
+        likes: Math.round(base * (1 + ((k * 5) % 4) / 3)),
+        comments: Math.round(base / 15),
+        views: null,
+        shares: Math.round(base / 40) + k,
+        counts_hidden: false,
+        thumbnail_path:
+          opts.withThumbs && k < 2 ? `client-1/${pullId}/li-${brand.id}-${k}.jpg` : null,
+      };
+    }),
+  );
+}
+
 /** Tiny solid-colour PNG for stubbed thumbnails. */
 export function solidPng(
   width: number,

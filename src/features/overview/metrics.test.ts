@@ -36,11 +36,12 @@ const post = (o: Partial<OverviewPost>): OverviewPost => ({
   likes: 100,
   comments: 10,
   views: null,
+  shares: null,
   counts_hidden: false,
   thumbnail_path: null,
   ...o,
 });
-const all: Filters = { platform: "both", days: 30, brandIds: [] };
+const all: Filters = { platform: "all", days: 30, brandIds: [] };
 
 describe("filterPosts", () => {
   const posts = [
@@ -48,13 +49,15 @@ describe("filterPosts", () => {
     post({ posted_at: "2026-11-05T12:00:00Z" }), // 12 days before
     post({ posted_at: "2026-10-10T12:00:00Z" }), // outside 30 days
     post({ platform: "tiktok", competitor_id: "ro", posted_at: "2026-11-16T12:00:00Z" }),
+    post({ platform: "linkedin", competitor_id: "hers", posted_at: "2026-11-14T12:00:00Z" }),
   ];
-  it("counts back from the pull time", () => {
-    expect(filterPosts(posts, all, PULL)).toHaveLength(3);
-    expect(filterPosts(posts, { ...all, days: 7 }, PULL)).toHaveLength(2);
+  it("counts back from the pull time; All includes LinkedIn", () => {
+    expect(filterPosts(posts, all, PULL)).toHaveLength(4);
+    expect(filterPosts(posts, { ...all, days: 7 }, PULL)).toHaveLength(3);
   });
   it("filters platform and brands", () => {
     expect(filterPosts(posts, { ...all, platform: "tiktok" }, PULL)).toHaveLength(1);
+    expect(filterPosts(posts, { ...all, platform: "linkedin" }, PULL)).toHaveLength(1);
     expect(filterPosts(posts, { ...all, brandIds: ["ro"] }, PULL)).toHaveLength(1);
   });
 });
@@ -136,7 +139,7 @@ describe("KPIs", () => {
       post({ competitor_id: "hers" }),
     ];
     const [tracked, , activity] = kpis(posts, brands, all);
-    expect(tracked).toMatchObject({ value: "3", caption: "Across 3 brands, both platforms" });
+    expect(tracked).toMatchObject({ value: "3", caption: "Across 3 brands, all platforms" });
     expect(activity).toMatchObject({
       label: "Most active",
       value: "Hims",
@@ -144,7 +147,7 @@ describe("KPIs", () => {
     });
 
     const one = kpis(posts.slice(0, 2), brands, { ...all, days: 7, brandIds: ["hims"] });
-    expect(one[0].caption).toBe("Hims, both platforms");
+    expect(one[0].caption).toBe("Hims, all platforms");
     expect(one[2]).toEqual({
       label: "Posting rate",
       value: "0.3 a day",
@@ -171,6 +174,38 @@ describe("top posts and stats", () => {
       "212K views · 9.8K likes",
     );
     expect(postStats(post({ likes: 1, comments: 1 }))).toBe("1 like · 1 comment");
+    expect(postStats(post({ platform: "linkedin", likes: 1240, comments: 48, shares: 12 }))).toBe(
+      "1.2K\u00a0reactions · 48\u00a0comments · 12\u00a0reposts",
+    );
+    expect(postStats(post({ platform: "linkedin", likes: 1, comments: 0, shares: 1 }))).toBe(
+      "1\u00a0reaction · 0\u00a0comments · 1\u00a0repost",
+    );
+  });
+  it("LinkedIn reposts never change the order", () => {
+    const posts = [
+      post({ id: "a", platform: "linkedin", likes: 100, comments: 0, shares: 5000 }),
+      post({ id: "b", platform: "linkedin", likes: 200, comments: 0, shares: 0 }),
+    ];
+    expect(topPosts(posts, 2).map((p) => p.id)).toEqual(["b", "a"]);
+  });
+});
+
+describe("LinkedIn formats", () => {
+  it('names the new formats; LinkedIn-only images are "Images"', () => {
+    const li = (format: OverviewPost["format"], likes = 100) =>
+      post({ platform: "linkedin", format, likes });
+    const k = bestFormat([
+      ...[1, 2, 3].map(() => li("document", 900)),
+      ...[1, 2, 3].map(() => li("text")),
+    ]);
+    expect([k.value, k.caption]).toEqual(["Documents", "8.3× the engagement of text posts"]);
+    expect(bestFormat([1, 2, 3].map(() => li("image"))).value).toBe("Images");
+    expect(bestFormat([1, 2, 3].map(() => li("article"))).value).toBe("Links");
+    expect(bestFormat([1, 2, 3].map(() => li("poll"))).value).toBe("Polls");
+    // Mixed with Instagram images: the Instagram name stays.
+    expect(
+      bestFormat([li("image"), post({ format: "image" }), post({ format: "image" })]).value,
+    ).toBe("Single images");
   });
 });
 

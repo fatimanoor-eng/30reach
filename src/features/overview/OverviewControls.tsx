@@ -84,8 +84,8 @@ export function DateRangeSelect({ className = "" }: { className?: string }) {
 }
 
 /**
- * Both / Instagram / TikTok — navigation, not a filter: Both = /overview, Instagram = /instagram,
- * TikTok = /tiktok. The current page is selected. Mobile (M02) shortens Instagram to "IG".
+ * All / Instagram / TikTok / LinkedIn — navigation, not a filter: All = /overview, the others their own
+ * page. The current page is selected. Mobile (M02) shortens Instagram to "IG".
  */
 export function PlatformNav({ current }: { current: PlatformPage }) {
   const go = usePlatformNav();
@@ -95,7 +95,7 @@ export function PlatformNav({ current }: { current: PlatformPage }) {
       value={current}
       onChange={(to) => to !== current && go(to)}
       options={[
-        { value: "both", label: "Both" },
+        { value: "all", label: "All" },
         {
           value: "instagram",
           label: (
@@ -106,6 +106,7 @@ export function PlatformNav({ current }: { current: PlatformPage }) {
           ),
         },
         { value: "tiktok", label: "TikTok" },
+        { value: "linkedin", label: "LinkedIn" },
       ]}
     />
   );

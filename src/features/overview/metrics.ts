@@ -1,8 +1,9 @@
 // Overview numbers (Slice 6), computed in the browser from the saved pull (~170 posts).
 // Pure functions — tested in metrics.test.ts. Engagement = likes + comments (TikTok views shown, not ranked).
+// LinkedIn (Slice 15b): `likes` holds all reactions, `shares` the reposts (shown, not ranked), no views.
 
 import { formatCompact, plural } from "../../lib/format";
-import type { ShownPlatform as Platform } from "../../lib/platforms";
+import { PLATFORM_NAME, type Platform } from "../../lib/platforms";
 
 export type OverviewPost = {
   id: string;
@@ -11,18 +12,20 @@ export type OverviewPost = {
   external_id: string;
   url: string;
   posted_at: string | null;
-  format: "reel" | "carousel" | "image" | "video" | null;
+  format: "reel" | "carousel" | "image" | "video" | "text" | "document" | "article" | "poll" | null;
   caption: string | null;
   hashtags: string[] | null;
   likes: number | null;
   comments: number | null;
   views: number | null;
+  /** LinkedIn reposts; null on Instagram / TikTok. */
+  shares: number | null;
   counts_hidden: boolean;
   thumbnail_path: string | null;
 };
 
 export type BrandRef = { id: string; name: string; initials: string };
-export type PlatformFilter = "both" | Platform;
+export type PlatformFilter = "all" | Platform;
 export type Filters = { platform: PlatformFilter; days: 7 | 30; brandIds: readonly string[] };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -41,7 +44,7 @@ export function filterPosts(
   const end = Date.parse(pullStartedAt);
   const start = end - f.days * DAY_MS;
   return posts.filter((p) => {
-    if (f.platform !== "both" && p.platform !== f.platform) return false;
+    if (f.platform !== "all" && p.platform !== f.platform) return false;
     if (f.brandIds.length && !f.brandIds.includes(p.competitor_id)) return false;
     const t = p.posted_at ? Date.parse(p.posted_at) : NaN;
     return t >= start && t <= end;
@@ -100,7 +103,21 @@ export const FORMAT_LABEL: Record<NonNullable<OverviewPost["format"]>, string> =
   carousel: "Carousels",
   image: "Single images",
   video: "Videos",
+  text: "Text posts",
+  document: "Documents",
+  article: "Links",
+  poll: "Polls",
 };
+
+/**
+ * A format's name for a group of posts. LinkedIn counts multi-image posts as "image", so a group of
+ * only LinkedIn posts says "Images" (not "Single images").
+ */
+export function formatName(format: NonNullable<OverviewPost["format"]>, posts: OverviewPost[]) {
+  return format === "image" && posts.length > 0 && posts.every((p) => p.platform === "linkedin")
+    ? "Images"
+    : FORMAT_LABEL[format];
+}
 
 export type Kpi = {
   label: string;
@@ -111,11 +128,7 @@ export type Kpi = {
   mobileSuffix?: string;
 };
 
-const PLATFORM_TEXT: Record<PlatformFilter, string> = {
-  both: "both platforms",
-  instagram: "Instagram",
-  tiktok: "TikTok",
-};
+const PLATFORM_TEXT: Record<PlatformFilter, string> = { all: "all platforms", ...PLATFORM_NAME };
 
 const perDay = (n: number, days: number) => {
   const rate = Math.round((n / days) * 10) / 10;
@@ -133,10 +146,17 @@ export const MIN_FORMAT_POSTS = 3;
 export function bestFormat(posts: OverviewPost[]): Kpi {
   const label = "Best format";
   const groups = new Map<string, number[]>();
-  for (const p of posts.filter(countable)) {
+  const counted = posts.filter(countable);
+  for (const p of counted) {
     if (!p.format) continue;
     groups.set(p.format, [...(groups.get(p.format) ?? []), engagement(p)]);
   }
+  type Format = NonNullable<OverviewPost["format"]>;
+  const nameOf = (f: string) =>
+    formatName(
+      f as Format,
+      counted.filter((p) => p.format === f),
+    );
   const avg = (list: number[]) => list.reduce((a, b) => a + b, 0) / list.length;
   const eligible = [...groups]
     .filter(([, list]) => list.length >= MIN_FORMAT_POSTS)
@@ -145,7 +165,7 @@ export function bestFormat(posts: OverviewPost[]): Kpi {
   if (eligible.length === 0) return { label, value: "—", caption: "Not enough posts yet" };
 
   const best = eligible[0];
-  const name = FORMAT_LABEL[best.format as keyof typeof FORMAT_LABEL];
+  const name = nameOf(best.format);
   const ratio = (a: number, b: number) => Math.round((a / b) * 10) / 10;
 
   if (eligible.length >= 2) {
@@ -154,7 +174,7 @@ export function bestFormat(posts: OverviewPost[]): Kpi {
       return {
         label,
         value: name,
-        caption: `${ratio(best.avg, worst.avg)}× the engagement of ${FORMAT_LABEL[worst.format as keyof typeof FORMAT_LABEL].toLowerCase()}`,
+        caption: `${ratio(best.avg, worst.avg)}× the engagement of ${nameOf(worst.format).toLowerCase()}`,
       };
     }
   }
@@ -284,14 +304,21 @@ export function topPosts(posts: OverviewPost[], n = 3): OverviewPost[] {
     .slice(0, n);
 }
 
-/** "18.4K likes · 1.1K comments" (Instagram) / "212K views · 9.8K likes" (TikTok). */
+/**
+ * "18.4K likes · 1.1K comments" (Instagram) / "212K views · 9.8K likes" (TikTok) /
+ * "1.2K reactions · 48 comments · 12 reposts" (LinkedIn).
+ */
 export function postStats(p: OverviewPost): string {
+  // LinkedIn's three parts wrap on cards: keep each number with its word ("12\u00a0reposts").
+  const gap = p.platform === "linkedin" ? "\u00a0" : " ";
   const part = (n: number | null, word: string) =>
-    n === null ? null : `${formatCompact(n)} ${n === 1 ? word : `${word}s`}`;
+    n === null ? null : `${formatCompact(n)}${gap}${n === 1 ? word : `${word}s`}`;
   const parts =
     p.platform === "tiktok"
       ? [part(p.views, "view"), part(p.likes, "like")]
-      : [p.counts_hidden ? "likes hidden" : part(p.likes, "like"), part(p.comments, "comment")];
+      : p.platform === "linkedin"
+        ? [part(p.likes, "reaction"), part(p.comments, "comment"), part(p.shares, "repost")]
+        : [p.counts_hidden ? "likes hidden" : part(p.likes, "like"), part(p.comments, "comment")];
   return parts.filter(Boolean).join(" · ");
 }
 

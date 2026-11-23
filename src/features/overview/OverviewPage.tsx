@@ -65,8 +65,8 @@ function Dashboard({
   const previousPosts = usePullPosts(previous?.id);
 
   const brands: BrandRef[] = competitors.map(({ id, name, initials }) => ({ id, name, initials }));
-  // Overview always covers both platforms; Instagram / TikTok have their own pages.
-  const f: Filters = { platform: "both", days, brandIds: selected };
+  // Overview always covers all platforms; Instagram / TikTok / LinkedIn have their own pages.
+  const f: Filters = { platform: "all", days, brandIds: selected };
   const inScope = selected.length ? brands.filter((b) => selected.includes(b.id)) : brands;
 
   const header = (
@@ -86,7 +86,7 @@ function Dashboard({
       />
       <LastPulled startedAt={latest.started_at} className="-mt-3 mb-4 flex md:hidden" />
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <PlatformNav current="both" />
+        <PlatformNav current="all" />
         <DateRangeSelect className="md:hidden" />
       </div>
       <BrandPills brands={brands} />

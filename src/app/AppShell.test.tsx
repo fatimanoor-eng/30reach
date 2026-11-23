@@ -28,6 +28,7 @@ describe("App shell", () => {
   it.each<[string, string | RegExp]>([
     ["/instagram", /^Social\s*Instagram$/],
     ["/tiktok", /^Social\s*TikTok$/],
+    ["/linkedin", /^Social\s*LinkedIn$/],
     ["/competitors", "Competitors"],
     // The calendar's title is the month on screen ("November" on phones, "November 2026" from 768 px).
     [

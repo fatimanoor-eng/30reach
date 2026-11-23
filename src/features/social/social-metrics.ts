@@ -1,13 +1,14 @@
 // Social pages (Slice 7: 06a / 06b / 06c, M05 / M06). Pure functions, tested in social-metrics.test.ts.
 // Reuses Overview's rules: engagement = likes + comments (TikTok views shown, never ranked), hidden-count
 // posts excluded from averages, a format needs ≥ 3 posts, < 10 posts = small sample.
+// LinkedIn (Slice 15b): likes = reactions, reposts shown in the caption (never ranked), no views.
 
 import { formatCompact, plural } from "../../lib/format";
-import type { ShownPlatform as Platform } from "../../lib/platforms";
+import type { Platform } from "../../lib/platforms";
 import {
   type BrandRef,
   engagement,
-  FORMAT_LABEL,
+  formatName,
   type Kpi,
   leaderboard,
   MIN_FORMAT_POSTS,
@@ -19,7 +20,16 @@ const countable = (p: OverviewPost) => !p.counts_hidden;
 const avg = (list: number[]) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : 0);
 
 type Format = NonNullable<OverviewPost["format"]>;
-export const FORMAT_ORDER: Format[] = ["reel", "carousel", "image", "video"];
+export const FORMAT_ORDER: Format[] = [
+  "reel",
+  "carousel",
+  "image",
+  "video",
+  "text",
+  "document",
+  "article",
+  "poll",
+];
 
 // ───────────────────────────────────────────── formats
 export type FormatStat = {
@@ -44,7 +54,7 @@ export function formatStats(posts: OverviewPost[]): FormatStat[] {
     const views = list.map((p) => p.views).filter((v): v is number => v !== null);
     return {
       format,
-      label: FORMAT_LABEL[format],
+      label: formatName(format, list),
       avg: avg(list.map(engagement)),
       avgViews: views.length ? avg(views) : null,
       n: list.length,
@@ -146,7 +156,7 @@ export const cellLabel = (c: Pick<HeatCell, "day" | "part">) => `${DAY_LONG[c.da
 // ───────────────────────────────────────────── KPI strip (06a / 06b)
 /**
  * Posts · Avg engagement · Best format · Best time. One brand → "#2 of 6 brands" (rank among all brands
- * on this platform, same date range). TikTok → views in the caption.
+ * on this platform, same date range). TikTok → views in the caption, LinkedIn → reposts.
  */
 export function socialKpis(args: {
   posts: OverviewPost[];
@@ -171,7 +181,8 @@ export function socialKpis(args: {
       : `${plural(brands.length, "brand")} · ${days} days`,
   };
 
-  let engCaption = "likes + comments / post";
+  let engCaption =
+    platform === "linkedin" ? "reactions + comments / post" : "likes + comments / post";
   if (single) {
     const rows = leaderboard(allBrandPosts, brands).filter((r) => r.posts > 0);
     const rank = rows.find((r) => r.brand.id === selected[0])?.rank;
@@ -179,6 +190,9 @@ export function socialKpis(args: {
   }
   if (platform === "tiktok" && views.length)
     engCaption += ` · ${formatCompact(avg(views))} avg views`;
+  const reposts = counted.map((p) => p.shares).filter((v): v is number => v !== null);
+  if (platform === "linkedin" && reposts.length)
+    engCaption += ` · ${formatCompact(avg(reposts))} avg reposts`;
   const engKpi: Kpi = {
     label: "Avg engagement",
     value: counted.length ? formatCompact(avgEng) : "—",
@@ -265,7 +279,10 @@ export function formatsByBrand(posts: OverviewPost[], brands: BrandRef[]): Forma
   );
   return used.map((format) => ({
     format,
-    label: FORMAT_LABEL[format],
+    label: formatName(
+      format,
+      posts.filter((p) => p.format === format),
+    ),
     values: brands.map((b) => {
       const s = perBrand.get(b.id)!.find((x) => x.format === format);
       return { brandId: b.id, avg: s?.avg ?? 0, n: s?.n ?? 0, eligible: s?.eligible ?? false };

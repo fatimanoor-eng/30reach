@@ -31,8 +31,18 @@ export const STATUS_KEY = {
 export const isPlatform = (v: unknown): v is Platform => PLATFORMS.includes(v as Platform);
 
 /**
- * Platforms the dashboards (Overview, Social pages) and Blip already show. A pull can save LinkedIn
- * posts from Slice 15a on; they stay out of these screens until 15b (pages) and 15c (Blip) add them.
+ * Thumbnail fallback block (no saved thumbnail) and other platform fills: Instagram Pop, TikTok Breeze,
+ * LinkedIn B30 Blue (Slice 15). Blue is dark: put ink text on a surface chip on top of it, never on it.
  */
-export type ShownPlatform = Exclude<Platform, "linkedin">;
-export const SHOWN_PLATFORMS: ShownPlatform[] = ["instagram", "tiktok"];
+export const PLATFORM_FILL: Record<Platform, string> = {
+  instagram: "bg-pop",
+  tiktok: "bg-breeze",
+  linkedin: "bg-blue",
+};
+
+/**
+ * Platforms Blip already reads (Ask Blip, hooks, captions, Plan {month}). The dashboards show LinkedIn
+ * from Slice 15b; Blip adds it in 15c, so its numbers and prompts stay Instagram + TikTok until then.
+ */
+export type BlipPlatform = Exclude<Platform, "linkedin">;
+export const BLIP_PLATFORMS: BlipPlatform[] = ["instagram", "tiktok"];

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
-import { BRANDS, makePosts, NOW, solidPng } from "./overview-fixtures";
+import { BRANDS, makeLinkedInPosts, makePosts, NOW, solidPng } from "./overview-fixtures";
 
 /*
  * Slice 7 Social pages (06a / 06b / 06c, M05 / M06) with fixed fake data — nothing reaches Supabase
@@ -20,7 +20,17 @@ async function setup(page: Page, pulls: (typeof LATEST)[] = [LATEST]) {
   await stubSupabase(page);
   await signInAs(page);
   await page.route("**/rest/v1/competitors**", (r) =>
-    r.fulfill(json(BRANDS.map((b) => ({ ...b, instagram_handle: "x", tiktok_handle: "x" })))),
+    r.fulfill(
+      json(
+        BRANDS.map((b) => ({
+          ...b,
+          instagram_handle: "x",
+          tiktok_handle: "x",
+          // Found has no LinkedIn page (the "no LinkedIn page" empty state).
+          linkedin_url: b.id === "c-found" ? null : `https://www.linkedin.com/company/${b.id}/`,
+        })),
+      ),
+    ),
   );
   await page.route("**/rest/v1/pulls**", (r) =>
     r.fulfill(json(r.request().url().includes("status=eq.running") ? null : pulls)),
@@ -32,7 +42,11 @@ async function setup(page: Page, pulls: (typeof LATEST)[] = [LATEST]) {
     extraTag: "menopause",
     counts: Object.fromEntries(BRANDS.map((b, i) => [b.id, 12 - i])),
   });
-  await page.route("**/rest/v1/posts**", (r) => r.fulfill(json(posts)));
+  // LinkedIn posts ride along: the Instagram / TikTok pages must ignore them (Slice 15b).
+  const linkedIn = makeLinkedInPosts(LATEST.id, new Date(LATEST.started_at), {
+    withThumbs: true,
+  }).filter((p) => p.competitor_id !== "c-found");
+  await page.route("**/rest/v1/posts**", (r) => r.fulfill(json([...posts, ...linkedIn])));
   await page.route("**/storage/v1/object/sign/post-thumbs**", async (r) => {
     if (r.request().method() === "POST") {
       const { paths } = r.request().postDataJSON() as { paths: string[] };
@@ -113,6 +127,61 @@ test("06a TikTok — views shown, same layout", async ({ page }, info) => {
   await expect(page.getByRole("heading", { name: "Top posts on TikTok" })).toBeVisible();
   await expect(page.getByText(/views/).filter({ visible: true }).first()).toBeVisible();
   await checks(page, mobile, "social-tiktok.png");
+});
+
+test("LinkedIn page (Slice 15b) — reactions, reposts, same layout", async ({ page }, info) => {
+  const mobile = info.project.name === "mobile-390";
+  await setup(page);
+  await ready(page, "/linkedin");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveAccessibleName(
+    mobile ? /Social/ : /LinkedIn/,
+  );
+  await expect(page.getByRole("heading", { name: "Top posts on LinkedIn" })).toBeVisible();
+  // KPI captions are hidden on phones (M05).
+  if (!mobile)
+    await expect(
+      page.getByText(/reactions \+ comments \/ post · \d+ avg reposts/).filter({ visible: true }),
+    ).toBeVisible();
+  await expect(
+    page
+      .getByText(/reactions · \d+\scomments · \d+\sreposts/)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  await expect(page.getByText("#digitalhealth").filter({ visible: true }).first()).toBeVisible();
+  // Ideas learn LinkedIn in 15c: no "Save as idea" on LinkedIn posts yet.
+  await expect(page.getByRole("button", { name: "Save as idea" })).toHaveCount(0);
+  await checks(page, mobile, "social-linkedin.png");
+});
+
+test("platform switch reaches LinkedIn (mobile Social tab and tablet/desktop)", async ({
+  page,
+}, info) => {
+  const mobile = info.project.name === "mobile-390";
+  await setup(page);
+  await ready(page, "/instagram?days=7");
+  await page
+    .getByRole("radio", { name: /LinkedIn/ })
+    .filter({ visible: true })
+    .click();
+  await expect(page).toHaveURL(/\/linkedin\?days=7$/);
+  await expect(page.getByRole("heading", { name: "Top posts on LinkedIn" })).toBeVisible();
+  if (mobile) {
+    await expect(page.getByRole("link", { name: "Social" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  } else {
+    await page.getByRole("radio", { name: "All" }).click();
+    await expect(page).toHaveURL(/\/overview\?days=7$/);
+  }
+});
+
+test("LinkedIn: a brand without a page says so", async ({ page }) => {
+  await setup(page);
+  await ready(page, "/linkedin");
+  await pill(page, "Found").click();
+  await expect(page.getByText("Found has no LinkedIn page")).toBeVisible();
 });
 
 test("06b one brand", async ({ page }, info) => {

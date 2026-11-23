@@ -30,6 +30,7 @@ const post = (o: Partial<OverviewPost>): OverviewPost => ({
   likes: 100,
   comments: 0,
   views: null,
+  shares: null,
   counts_hidden: false,
   thumbnail_path: null,
   ...o,
@@ -153,6 +154,26 @@ describe("socialKpis", () => {
       days: 30,
     });
     expect(k[1].caption).toBe("likes + comments / post · 30K avg views");
+  });
+  it("LinkedIn says reactions and adds avg reposts", () => {
+    const li = [
+      post({ platform: "linkedin", format: "image", likes: 300, comments: 20, shares: 6 }),
+      post({ platform: "linkedin", format: "image", likes: 100, comments: 0, shares: 2 }),
+      post({ platform: "linkedin", format: "image", likes: 200, comments: 10, shares: null }),
+    ];
+    const k = socialKpis({
+      posts: li,
+      allBrandPosts: li,
+      brands,
+      selected: [],
+      platform: "linkedin",
+      days: 30,
+    });
+    expect(k[1]).toMatchObject({
+      value: "210",
+      caption: "reactions + comments / post · 4 avg reposts",
+    });
+    expect(k[2].value).toBe("Images");
   });
 });
 

@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router";
 import { Card } from "../../components/Card";
-import type { ShownPlatform as Platform } from "../../lib/platforms";
+import { type Platform, PLATFORM_NAME } from "../../lib/platforms";
 import { formatCompact, plural } from "../../lib/format";
 import type { BrandRef, OverviewPost } from "../overview/metrics";
 import { PostsCard } from "../posts/PostsCard";
@@ -12,11 +12,9 @@ import {
   type TagCount,
 } from "./social-metrics";
 
-const PLATFORM_NAME: Record<Platform, string> = { instagram: "Instagram", tiktok: "TikTok" };
-
 /**
  * Top posts (06a / 06b / M05): 4 columns desktop, 2 tablet, 8 sideways cards on mobile, ranked by
- * likes + comments (TikTok shows views, never ranked by them). "See all" expands in place to every
+ * likes + comments (TikTok shows views, LinkedIn reposts; never ranked by them). "See all" expands in place to every
  * post in the current filters (Top / Newest). Soft grey block when there's no thumbnail.
  */
 export function SocialTopPosts({
@@ -48,7 +46,9 @@ export function SocialTopPosts({
       info={
         platform === "tiktok"
           ? "Ranked by likes + comments. Views are shown but don’t change the order."
-          : "Ranked by likes + comments."
+          : platform === "linkedin"
+            ? "Ranked by reactions + comments. Reposts are shown but don’t change the order."
+            : "Ranked by likes + comments."
       }
       posts={posts}
       brands={brands}
@@ -69,7 +69,7 @@ export function FormatsCard({ stats, platform }: { stats: FormatStat[]; platform
   return (
     <Card
       title="Formats"
-      info="Avg likes + comments per post, by format. A format needs at least 3 posts to count as best."
+      info={`Avg ${platform === "linkedin" ? "reactions" : "likes"} + comments per post, by format. A format needs at least 3 posts to count as best.`}
     >
       {stats.length === 0 ? (
         <p className="text-body-sm text-muted">No formats to compare yet.</p>

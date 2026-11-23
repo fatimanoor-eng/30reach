@@ -1,11 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, ChevronLeft, Send, Square, X } from "lucide-react";
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { type FormEvent, type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { BlipError, BlipIdle, BlipThinking } from "../../components/blip/BlipPoses";
 import { useNativeModal } from "../../components/useNativeModal";
 import { AI_COPY, answerText, type BlipChat, type BlipInsight } from "../../lib/ai/ai-api";
 import { useProfile } from "../../lib/auth/useProfile";
+import { BLIP_PLATFORMS } from "../../lib/platforms";
 import { useCompetitors } from "../../lib/useCompetitors";
 import { useClient } from "../../lib/useClient";
 import { formatShortDate } from "../../lib/format";
@@ -57,7 +58,12 @@ export function AskBlipPanel({
   const profile = useProfile();
   const pulls = useSavedPulls();
   const latest = pulls.data?.latest ?? null;
-  const posts = usePullPosts(open ? latest?.id : null);
+  const pullPosts = usePullPosts(open ? latest?.id : null);
+  // Blip reads Instagram + TikTok until Slice 15c, so the greeting's counts and the chips match its answers.
+  const blipPosts = useMemo(
+    () => pullPosts.data?.filter((p) => (BLIP_PLATFORMS as string[]).includes(p.platform)),
+    [pullPosts.data],
+  );
   const competitors = useCompetitors();
   const navigate = useNavigate();
 
@@ -139,7 +145,7 @@ export function AskBlipPanel({
     ask(draft);
   }
 
-  const chips = suggestions(clientName, topBrand(posts.data ?? [], competitors.data ?? []));
+  const chips = suggestions(clientName, topBrand(blipPosts ?? [], competitors.data ?? []));
   const pullDate = latest ? (formatShortDate(latest.started_at) ?? "").toUpperCase() : null;
 
   return (
@@ -204,14 +210,14 @@ export function AskBlipPanel({
               <Notice pose="idle" text={AI_COPY.noPull} />
             ) : (
               latest &&
-              posts.data && (
+              blipPosts && (
                 <BlipSays>
                   <p className="text-body-sm">
                     {greeting({
                       firstName,
                       pullStartedAt: latest.started_at,
-                      posts: posts.data.length,
-                      brands: new Set(posts.data.map((p) => p.competitor_id)).size,
+                      posts: blipPosts.length,
+                      brands: new Set(blipPosts.map((p) => p.competitor_id)).size,
                     })}
                   </p>
                 </BlipSays>

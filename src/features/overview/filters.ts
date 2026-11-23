@@ -1,10 +1,12 @@
 import { useLocation, useNavigate, useSearchParams } from "react-router";
+import type { Platform } from "../../lib/platforms";
 import type { Filters } from "./metrics";
 
 /**
  * Date range lives in the URL (?days=7) so a view can be shared and survives a reload. Brand pills stay
- * in the shared selection context (Overview ↔ Instagram ↔ TikTok). Only 7 and 30 days: pulls cover 30
- * days (90 is shown disabled). Platform is not a filter: it's the page (/overview, /instagram, /tiktok).
+ * in the shared selection context (Overview ↔ Instagram ↔ TikTok ↔ LinkedIn). Only 7 and 30 days: pulls
+ * cover 30 days (90 is shown disabled). Platform is not a filter: it's the page (/overview = All,
+ * /instagram, /tiktok, /linkedin).
  */
 export function useOverviewFilters() {
   const [params, setParams] = useSearchParams();
@@ -25,15 +27,16 @@ export function useOverviewFilters() {
   };
 }
 
-export type PlatformPage = "both" | "instagram" | "tiktok";
+export type PlatformPage = "all" | Platform;
 const PATH: Record<PlatformPage, string> = {
-  both: "/overview",
+  all: "/overview",
   instagram: "/instagram",
   tiktok: "/tiktok",
+  linkedin: "/linkedin",
 };
 
 /**
- * Both / Instagram / TikTok switch = navigation. Keeps the date range (query string); the brand
+ * All / Instagram / TikTok / LinkedIn switch = navigation. Keeps the date range (query string); the brand
  * selection lives in context, so it carries over on its own.
  */
 export function usePlatformNav() {

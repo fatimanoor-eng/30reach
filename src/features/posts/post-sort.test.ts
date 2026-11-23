@@ -20,6 +20,7 @@ const post = (
   likes,
   comments: 0,
   views: null,
+  shares: null,
   counts_hidden,
   thumbnail_path: null,
 });

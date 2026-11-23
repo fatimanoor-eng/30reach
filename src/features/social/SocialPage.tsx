@@ -1,14 +1,19 @@
 import { PageHeader } from "../../app/PageHeader";
 import { BrandPills } from "../../components/BrandPills";
 import { Card } from "../../components/Card";
-import { InstagramIcon, TikTokIcon } from "../../components/icons/BrandIcons";
 import { EmptyState } from "../../components/EmptyState";
 import { KpiTile } from "../../components/KpiTile";
 import { LoadError } from "../../components/LoadError";
 import { Bone, Skeleton, SkeletonCard, SkeletonKpis } from "../../components/Skeleton";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { useBrandSelection } from "../../lib/brand-selection-context";
-import type { ShownPlatform as Platform } from "../../lib/platforms";
+import {
+  type Platform,
+  PLATFORM_ICON,
+  PLATFORM_NAME as NAME,
+  PLATFORMS,
+  TARGET_KEY,
+} from "../../lib/platforms";
 import { type Competitor, useCompetitors } from "../../lib/useCompetitors";
 import { useOverviewFilters, usePlatformNav } from "../overview/filters";
 import { type BrandRef, filterPosts } from "../overview/metrics";
@@ -32,13 +37,12 @@ import {
   topHashtags,
 } from "./social-metrics";
 
-const NAME: Record<Platform, string> = { instagram: "Instagram", tiktok: "TikTok" };
-
 /**
- * Instagram and TikTok pages (06a all brands · 06b one brand · 06c compare 2–3; M05 / M06).
- * Same layout for both; TikTok shows views (likes + comments still rank). Reads the last saved pull
- * only — never fetches from Firecrawl. Date range from the URL, brand pills shared with Overview.
- * Mobile: one "Social" tab with an Instagram ↔ TikTok switch.
+ * Instagram, TikTok and LinkedIn pages (06a all brands · 06b one brand · 06c compare 2–3; M05 / M06).
+ * Same layout for all three; TikTok shows views, LinkedIn reposts (likes / reactions + comments still
+ * rank). LinkedIn has no Figma frame: it reuses these (Slice 15b). Reads the last saved pull only —
+ * never fetches from Firecrawl. Date range from the URL, brand pills shared with Overview.
+ * Mobile: one "Social" tab with an Instagram | TikTok | LinkedIn switch.
  */
 export function SocialPage({ platform }: { platform: Platform }) {
   const saved = useSavedPulls();
@@ -79,7 +83,7 @@ export function SocialPage({ platform }: { platform: Platform }) {
         }
       />
       <PlatformSwitch platform={platform} />
-      {/* Tablet/desktop: same Both / Instagram / TikTok switch as Overview (Both → /overview). */}
+      {/* Tablet/desktop: same All / Instagram / TikTok / LinkedIn switch as Overview (All → /overview). */}
       <div className="mb-4 hidden md:flex">
         <PlatformNav current={platform} />
       </div>
@@ -142,7 +146,10 @@ export function SocialPage({ platform }: { platform: Platform }) {
   );
 }
 
-/** Instagram | TikTok, full width, mobile only (M05) — the Social tab. Keeps date range and brands. */
+/**
+ * Instagram | TikTok | LinkedIn, full width, mobile only (M05) — the Social tab. Keeps date range and
+ * brands. Icon + name; at 390 px three segments still fit (LinkedIn added in Slice 15b).
+ */
 function PlatformSwitch({ platform }: { platform: Platform }) {
   const go = usePlatformNav();
   return (
@@ -152,24 +159,17 @@ function PlatformSwitch({ platform }: { platform: Platform }) {
         fullWidth
         value={platform}
         onChange={(p) => p !== platform && go(p)}
-        options={[
-          {
-            value: "instagram",
+        options={PLATFORMS.map((p) => {
+          const Icon = PLATFORM_ICON[p];
+          return {
+            value: p,
             label: (
               <>
-                <InstagramIcon size={16} aria-hidden="true" /> Instagram
+                <Icon size={16} aria-hidden="true" /> {NAME[p]}
               </>
             ),
-          },
-          {
-            value: "tiktok",
-            label: (
-              <>
-                <TikTokIcon size={16} aria-hidden="true" /> TikTok
-              </>
-            ),
-          },
-        ]}
+          };
+        })}
       />
     </div>
   );
@@ -213,8 +213,7 @@ function SocialBody({
     ? allBrandPosts.filter((p) => selected.includes(p.competitor_id))
     : allBrandPosts;
 
-  const hasHandle = (c: Competitor) =>
-    platform === "tiktok" ? !!c.tiktok_handle : !!c.instagram_handle;
+  const hasHandle = (c: Competitor) => !!c[TARGET_KEY[platform]];
   const missingHandle =
     chosen.length === 1 && competitors.some((c) => c.id === chosen[0].id && !hasHandle(c));
 
@@ -225,15 +224,15 @@ function SocialBody({
           label="Nothing here"
           title={
             missingHandle
-              ? `${chosen[0].name} has no ${NAME[platform]} handle`
+              ? `${chosen[0].name} has no ${NAME[platform]} ${platform === "linkedin" ? "page" : "handle"}`
               : `No ${NAME[platform]} posts in the last ${days} days`
           }
           text={
             missingHandle
               ? "Add one on Competitors; it’s pulled on the next Refresh."
               : days === 7
-                ? "Try 30 days, the other platform, or All brands."
-                : "Try the other platform or All brands."
+                ? "Try 30 days, another platform, or All brands."
+                : "Try another platform or All brands."
           }
         />
       </Card>

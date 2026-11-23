@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
-import { BRANDS, makePosts, NOW, solidPng } from "./overview-fixtures";
+import { BRANDS, makeLinkedInPosts, makePosts, NOW, solidPng } from "./overview-fixtures";
 
 /*
  * Slice 6 Overview with fixed fake data — nothing reaches Supabase or Firecrawl.
@@ -19,7 +19,12 @@ const PREVIOUS = { id: "pull-old", started_at: "2026-11-06T10:00:00Z", status: "
 async function setup(
   page: Page,
   pulls: (typeof LATEST)[],
-  opts: { boost?: Record<string, number>; counts?: Record<string, number> } = {},
+  opts: {
+    boost?: Record<string, number>;
+    counts?: Record<string, number>;
+    /** Add LinkedIn posts to the latest pull (Slice 15b). */
+    linkedIn?: boolean;
+  } = {},
 ) {
   await page.clock.setFixedTime(NOW);
   await stubSupabase(page);
@@ -35,7 +40,9 @@ async function setup(
       withThumbs: true,
       extraTag: "menopause", // only in the latest pull → "new tag #menopause"
       counts: opts.counts,
-    }),
+    }).concat(
+      opts.linkedIn ? (makeLinkedInPosts(LATEST.id, new Date(LATEST.started_at)) as never[]) : [],
+    ),
     [PREVIOUS.id]: makePosts(PREVIOUS.id, new Date(PREVIOUS.started_at), {
       prefix: "old-",
       boost: { "c-hers": 1.4 },
@@ -114,6 +121,23 @@ test("04 overview + 05e what's new", async ({ page }, info) => {
   await expect(page).toHaveScreenshot("overview.png", { fullPage: true });
 });
 
+test("Overview counts LinkedIn too (Slice 15b)", async ({ page }, info) => {
+  await setup(page, [LATEST], { linkedIn: true });
+  await ready(page);
+  // 33 Instagram/TikTok + 27 LinkedIn posts in the fixture; all within 30 days of the pull.
+  const both = makePosts(LATEST.id, new Date(LATEST.started_at)).length;
+  const li = makeLinkedInPosts(LATEST.id, new Date(LATEST.started_at)).length;
+  await expect(
+    page.getByText(String(both + li), { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
+  if (info.project.name !== "mobile-390")
+    await expect(page.getByText("Across 6 brands, all platforms")).toBeVisible();
+  await expect(page.getByRole("radio", { name: "LinkedIn" })).toBeVisible();
+  await noSidewaysScroll(page);
+  if (info.project.name === "mobile-390") await tapTargetsOk(page);
+  await expect(page).toHaveScreenshot("overview-with-linkedin.png", { fullPage: true });
+});
+
 test("stale data (> 7 days) is amber", async ({ page }) => {
   await setup(page, [{ ...LATEST, id: "pull-new", started_at: "2026-11-07T09:00:00Z" }]);
   await ready(page);
@@ -135,7 +159,7 @@ test("compare mode (2 brands) and one brand", async ({ page }, info) => {
   await expect(page.getByText("Most active", { exact: true })).toBeVisible();
   if (info.project.name !== "mobile-390") {
     // Captions are hidden on mobile (M02).
-    await expect(page.getByText("Across 2 brands, both platforms")).toBeVisible();
+    await expect(page.getByText("Across 2 brands, all platforms")).toBeVisible();
   }
   await expect(page).toHaveScreenshot("overview-compare.png", { fullPage: true });
 });
@@ -169,7 +193,7 @@ test("platform switch navigates and keeps brands + date range", async ({ page },
   await page.getByRole("group", { name: "Brands" }).getByRole("button", { name: "Hims" }).click();
   await page.getByRole("radio", { name: "TikTok" }).click();
   await expect(page).toHaveURL(/\/tiktok\?days=7$/);
-  // Mobile: the Social tab's Instagram | TikTok switch; tablet/desktop: Both / Instagram / TikTok.
+  // Mobile: the Social tab's Instagram | TikTok | LinkedIn switch; tablet/desktop: All / … / LinkedIn.
   await expect(
     page.getByRole("radio", { name: "TikTok", checked: true }).filter({ visible: true }),
   ).toBeVisible();
@@ -180,9 +204,9 @@ test("platform switch navigates and keeps brands + date range", async ({ page },
     await page.getByRole("radio", { name: "Instagram" }).click();
     await expect(page).toHaveURL(/\/instagram\?days=7$/);
   } else {
-    await page.getByRole("radio", { name: "Both" }).click();
+    await page.getByRole("radio", { name: "All" }).click();
     await expect(page).toHaveURL(/\/overview\?days=7$/);
-    await expect(page.getByRole("radio", { name: "Both", checked: true })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "All", checked: true })).toBeVisible();
   }
 });
 
@@ -197,14 +221,17 @@ test("Top posts links open the platform page with all posts expanded", async ({ 
   await expect(card.getByRole("button", { name: /See all|Show less/ })).toHaveCount(0);
   const ig = card.getByRole("link", { name: "All Instagram posts" }).filter({ visible: true });
   const tt = card.getByRole("link", { name: "All TikTok posts" }).filter({ visible: true });
+  const li = card.getByRole("link", { name: "All LinkedIn posts" }).filter({ visible: true });
   await expect(ig).toHaveCount(1);
   await expect(tt).toHaveCount(1);
+  await expect(li).toHaveCount(1);
   if (mobile) {
     // Stacked under the sideways cards.
     const cards = await card.locator("article").filter({ visible: true }).last().boundingBox();
     const [a, b] = [await ig.boundingBox(), await tt.boundingBox()];
     expect(a!.y).toBeGreaterThan(cards!.y + cards!.height - 1);
     expect(b!.y).toBeGreaterThan(a!.y);
+    expect((await li.boundingBox())!.y).toBeGreaterThan(b!.y);
     await tapTargetsOk(page);
   }
   await noSidewaysScroll(page);
