@@ -15,6 +15,8 @@ import {
   MAX_TAGS,
   normaliseUrl,
   platformFromUrl,
+  formatLabel,
+  likesWord,
   plannedLabel,
   tabCounts,
   tileColumns,
@@ -294,5 +296,24 @@ describe("Select mode (delete many)", () => {
       "1 wasn’t deleted: only the person who added an idea, or an admin, can delete it.",
     );
     expect(UNDO_MS).toBe(10_000);
+  });
+});
+
+describe("Facebook on the idea board (Slice 16c)", () => {
+  it("facebook.com / fb.com / fb.watch links get the Facebook platform", () => {
+    expect(platformFromUrl("https://www.facebook.com/weightwatchers/posts/pfbid0J")).toBe(
+      "facebook",
+    );
+    expect(platformFromUrl("https://m.facebook.com/reel/979224541550335/")).toBe("facebook");
+    expect(platformFromUrl("https://fb.com/ro.co")).toBe("facebook");
+    expect(platformFromUrl("https://fb.watch/abc123/")).toBe("facebook");
+    expect(platformFromUrl("https://notfacebook.com/x")).toBeNull();
+  });
+  it("reactions, and albums are named Album on Facebook only", () => {
+    expect(likesWord("facebook")).toBe("reactions");
+    expect(likesWord("instagram")).toBe("likes");
+    expect(formatLabel("carousel", "facebook")).toBe("Album");
+    expect(formatLabel("carousel", "instagram")).toBe("Carousel");
+    expect(formatLabel("article", "facebook")).toBe("Link");
   });
 });

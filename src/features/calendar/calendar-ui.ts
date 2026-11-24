@@ -1,10 +1,9 @@
 // Shared labels and colour classes for the calendar (DESIGN_SYSTEM › Calendar post card, All-day event bar).
-import { PLATFORM_FILL, PLATFORM_NAME, type ShownPlatform } from "../../lib/platforms";
+import { type Platform, PLATFORM_FILL, PLATFORM_NAME } from "../../lib/platforms";
 import type { EventKind } from "./events";
 
 export type CardStatus = "idea" | "drafting" | "approved" | "posted";
-/** Facebook joins the calendar in Slice 16c. */
-export type CardPlatform = ShownPlatform;
+export type CardPlatform = Platform;
 export type CardOrigin = "manual" | "idea" | "ai";
 
 export type CalendarCard = {
@@ -59,10 +58,11 @@ export const PLATFORM_TINT: Record<CardPlatform | "none", string> = {
   instagram: "bg-tint-instagram",
   tiktok: "bg-tint-tiktok",
   linkedin: "bg-tint-linkedin",
+  facebook: "bg-tint-facebook",
   none: "bg-soft",
 };
 
-/** 3 px bar on the card's left edge: Instagram pop, TikTok breeze, LinkedIn blue, none = line. */
+/** 3 px bar on the card's left edge: Instagram pop, TikTok breeze, LinkedIn blue, Facebook fresh, none = line. */
 export const PLATFORM_BAR: Record<CardPlatform | "none", string> = {
   ...PLATFORM_FILL,
   none: "bg-line",
@@ -73,6 +73,7 @@ export const PLATFORM_SHORT: Record<CardPlatform, string> = {
   instagram: "IG",
   tiktok: "TT",
   linkedin: "LI",
+  facebook: "FB",
 };
 
 /** Formats each platform supports (the same names the pulls use). */
@@ -81,6 +82,8 @@ export const FORMATS: Record<CardPlatform, string[]> = {
   tiktok: ["video", "carousel"],
   // Slice 15c: LinkedIn's formats as the pulls name them ("article" is shown as "Link").
   linkedin: ["text", "image", "document", "video", "article", "poll"],
+  // Slice 16c: Facebook ("carousel" is shown as "Album", "article" as "Link").
+  facebook: ["reel", "video", "image", "carousel", "article", "text"],
 };
 export const FORMAT_NAME: Record<string, string> = {
   reel: "Reel",
@@ -93,11 +96,17 @@ export const FORMAT_NAME: Record<string, string> = {
   poll: "Poll",
 };
 
-/** "IG · REEL" (mono, uppercased by CSS). Missing parts are left out. */
+/** A format's name on a platform: Facebook's multi-image posts are albums ("Album"). */
+export function formatName(platform: CardPlatform | null | undefined, format: string): string {
+  if (platform === "facebook" && format === "carousel") return "Album";
+  return FORMAT_NAME[format] ?? format;
+}
+
+/** "IG · REEL" / "FB · ALBUM" (mono, uppercased by CSS). Missing parts are left out. */
 export function cardMeta(card: Pick<CalendarCard, "platform" | "format">): string {
   const parts = [
     card.platform ? PLATFORM_SHORT[card.platform] : null,
-    card.format ? (FORMAT_NAME[card.format] ?? card.format) : null,
+    card.format ? formatName(card.platform, card.format) : null,
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : "No platform";
 }

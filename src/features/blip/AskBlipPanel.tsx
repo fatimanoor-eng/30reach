@@ -11,7 +11,6 @@ import { useClient } from "../../lib/useClient";
 import { formatShortDate } from "../../lib/format";
 import { useMediaQuery } from "../../lib/useMediaQuery";
 import { createIdea } from "../ideas/ideas-api";
-import { isShownPlatform } from "../../lib/platforms";
 import { usePullPosts, useSavedPulls } from "../overview/useOverviewData";
 import {
   BREATHER_TEXT,
@@ -58,10 +57,7 @@ export function AskBlipPanel({
   const profile = useProfile();
   const pulls = useSavedPulls();
   const latest = pulls.data?.latest ?? null;
-  // Only what Blip reads: Facebook joins Blip in Slice 16c.
-  const blipPosts = usePullPosts(open ? latest?.id : null).data?.filter((p) =>
-    isShownPlatform(p.platform),
-  );
+  const blipPosts = usePullPosts(open ? latest?.id : null).data;
   const competitors = useCompetitors();
   const navigate = useNavigate();
 

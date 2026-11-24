@@ -150,3 +150,45 @@ describe("Settings exports", () => {
     expect(eventsWindow("2027-12-01").to).toBe("2028-03-31");
   });
 });
+
+describe("posts CSV with Facebook (Slice 16c)", () => {
+  it("reactions in likes, shares in shares, views only on video posts", () => {
+    const csv = postsCsv(
+      [
+        {
+          competitor_id: "c-ww",
+          platform: "facebook",
+          format: "reel",
+          posted_at: "2026-11-15T15:00:00Z",
+          url: "https://www.facebook.com/reel/1/",
+          caption: "Bagel, upgraded",
+          hashtags: [],
+          likes: 12,
+          comments: 3,
+          views: 2771,
+          shares: 3,
+          counts_hidden: false,
+        },
+        {
+          competitor_id: "c-ww",
+          platform: "facebook",
+          format: "carousel",
+          posted_at: "2026-11-14T15:00:00Z",
+          url: "https://www.facebook.com/weightwatchers/posts/pfbid1",
+          caption: "Five swaps",
+          hashtags: [],
+          likes: 59,
+          comments: 11,
+          views: null,
+          shares: 11,
+          counts_hidden: false,
+        },
+      ],
+      [{ id: "c-ww", name: "WeightWatchers" }],
+      "2026-11-17T15:00:00Z",
+    );
+    const [, reel, album] = csv.trim().split(/\r?\n/);
+    expect(reel).toContain("WeightWatchers,facebook,reel,2026-11-15T15:00:00Z,12,3,2771,3,no,");
+    expect(album).toContain("WeightWatchers,facebook,carousel,2026-11-14T15:00:00Z,59,11,,11,no,");
+  });
+});

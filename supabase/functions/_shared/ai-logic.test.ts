@@ -1285,7 +1285,7 @@ describe("LinkedIn in Blip (Slice 15c)", () => {
     expect(ttRow).not.toHaveProperty("avg_reposts");
     expect(summary.top_posts.find((p) => p.platform === "linkedin")).toHaveProperty("reposts", 10);
     expect(summary.top_posts.find((p) => p.platform === "tiktok")).not.toHaveProperty("reposts");
-    expect(summary.engagement_means).toMatch(/LinkedIn likes = all reactions/);
+    expect(summary.engagement_means).toMatch(/LinkedIn and Facebook likes = all reactions/);
     expect(summary.not_in_data).toContain("LinkedIn views and impressions");
   });
 
@@ -1363,7 +1363,9 @@ describe("LinkedIn in Blip (Slice 15c)", () => {
     );
     expect(ctx.platform).toBe("LinkedIn");
     expect(ctx.top_openings.map((o) => o.first_line)).toEqual(["Our care report is out"]);
-    expect(hookContext(pullData([post()]), null).platform).toBe("Instagram, TikTok and LinkedIn");
+    expect(hookContext(pullData([post()]), null).platform).toBe(
+      "Instagram, TikTok, LinkedIn and Facebook",
+    );
     expect(
       parseHooksInput({ clientId: CLIENT, title: "t", platform: "linkedin", format: "poll" }),
     ).toMatchObject({ platform: "linkedin", format: "poll" });
@@ -1373,5 +1375,99 @@ describe("LinkedIn in Blip (Slice 15c)", () => {
     expect(refLabel("Hims", "article", "2026-11-02T15:00:00Z")).toBe("Hims’ link post from 2 Nov");
     expect(refLabel("Ro", "text", null)).toBe("Ro’s post");
     expect(refLabel("Ro", "document", null)).toBe("Ro’s document");
+  });
+});
+
+describe("Facebook in Blip (Slice 16c)", () => {
+  const fb = (o: Partial<SummaryPost> = {}) =>
+    post({ platform: "facebook", format: "reel", views: 3000, shares: 6, ...o });
+
+  it("summary: Facebook rows carry avg shares, posts carry shares; reactions; the 12-post cap is a limit", () => {
+    const { summary } = buildSummary(
+      pullData([fb({ likes: 40, shares: 10 }), fb({ likes: 20, shares: 2 }), post()]),
+    );
+    const fbRow = summary.brands.find((b) => b.platform === "facebook")!;
+    const ttRow = summary.brands.find((b) => b.platform === "tiktok")!;
+    expect(fbRow).toMatchObject({ posts: 2, avg_likes: 30, avg_shares: 6 });
+    expect(fbRow).not.toHaveProperty("avg_reposts");
+    expect(ttRow).not.toHaveProperty("avg_shares");
+    expect(summary.top_posts.find((p) => p.platform === "facebook")).toHaveProperty("shares", 10);
+    expect(summary.top_posts.find((p) => p.platform === "tiktok")).not.toHaveProperty("shares");
+    expect(summary.engagement_means).toMatch(/Facebook carousel is an album/);
+    expect(summary.not_in_data).toEqual(
+      expect.arrayContaining([
+        "Facebook views on photo, link and text posts",
+        "Facebook posts beyond each brand's latest 12",
+      ]),
+    );
+  });
+
+  it("Plan {month}: Facebook formats are valid only on Facebook", () => {
+    const ctx = { month: "2027-01", today: "2026-11-18", refs: [], min: 1 };
+    const idea = (platform: string, format: string, title: string) => ({
+      date: "2027-01-12",
+      platform,
+      format,
+      title,
+      reason: "Albums do well for WeightWatchers on Facebook this month.",
+      source_refs: [],
+    });
+    const out = validatePlan(
+      {
+        ideas: [
+          idea("facebook", "carousel", "Five easy swaps, one album"),
+          idea("facebook", "poll", "Wrong pair"),
+          idea("facebook", "article", "Our new recipe page"),
+        ],
+      },
+      ctx,
+    )!;
+    expect(out.map((i) => [i.platform, i.format])).toEqual([
+      ["facebook", "carousel"],
+      ["facebook", "article"],
+    ]);
+    expect(planSystem({ client: "OBU", monthName: "January", year: 2027, today: TODAY })).toMatch(
+      /facebook = reel, video, image, carousel \(an album\), article \(a link post\) or text/,
+    );
+  });
+
+  it("captions: conversational, at most 4 lines, 0–2 hashtags, ≤ 500 characters", () => {
+    expect(CAPTION_STYLE.facebook).toEqual({ lines: [1, 4], tags: [0, 2], chars: 500, emoji: 2 });
+    const [c] = validateCaptions(
+      {
+        captions: [
+          "Sunday prep, but make it easy. 🥗\nWhat’s your go-to lunch this week?\n#mealprep #lunch #extra",
+        ],
+      },
+      "facebook",
+      1,
+    )!;
+    expect(c).toBe(
+      "Sunday prep, but make it easy. 🥗\nWhat’s your go-to lunch this week?\n\n#mealprep #lunch",
+    );
+    expect(
+      validateCaptions({ captions: ["No tags at all, and that’s fine."] }, "facebook", 1),
+    ).toEqual(["No tags at all, and that’s fine."]);
+    const lines5 = Array.from({ length: 5 }, (_, i) => `Line ${i + 1}.`).join("\n");
+    expect(validateCaptions({ captions: [lines5] }, "facebook", 1)).toBeNull();
+    expect(validateCaptions({ captions: ["x".repeat(501)] }, "facebook", 1)).toBeNull();
+    const sys = captionsSystem({ client: "OBU", platform: "facebook", today: TODAY });
+    expect(sys).toMatch(/Facebook: warm and conversational, 1-3 short paragraphs/);
+    expect(sys).toMatch(/0-2 hashtags at most/);
+  });
+
+  it("hooks: Facebook tone; context is Facebook's own posts", () => {
+    const sys = hooksSystem({ client: "OBU", platform: "facebook", today: TODAY });
+    expect(sys).toMatch(/for a Facebook post/);
+    expect(sys).toMatch(/before "See more"/);
+    const ctx = hookContext(
+      pullData([fb({ caption: "Your morning bagel, upgraded" }), post({ caption: "TikTok one" })]),
+      "facebook",
+    );
+    expect(ctx.platform).toBe("Facebook");
+    expect(ctx.top_openings.map((o) => o.first_line)).toEqual(["Your morning bagel, upgraded"]);
+    expect(
+      parseCaptionInput({ clientId: CLIENT, title: "t", platform: "facebook", format: "carousel" }),
+    ).toMatchObject({ platform: "facebook", format: "carousel" });
   });
 });

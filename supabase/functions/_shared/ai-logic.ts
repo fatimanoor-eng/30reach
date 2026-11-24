@@ -7,14 +7,9 @@
 // - Validate every JSON answer by hand (no zod). Anything off-shape → null → the caller retries once.
 // - No emojis in text that becomes idea text, card titles or hooks.
 
-import { parseRetryAfter, type Platform as PullPlatform } from "./pull-logic.ts";
+import { parseRetryAfter, type Platform, PLATFORMS } from "./pull-logic.ts";
 
-/**
- * Platforms Blip reads. A pull can hold Facebook posts from Slice 16a on; Blip adds them in 16c
- * (ai-server filters them out of the summary until then).
- */
-export type Platform = Exclude<PullPlatform, "facebook">;
-export const PLATFORMS: Platform[] = ["instagram", "tiktok", "linkedin"];
+export { type Platform, PLATFORMS };
 
 export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 export const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -46,7 +41,10 @@ export const LIMITS = {
   planIdeas: 6,
 } as const;
 
-/** LinkedIn (Slice 15c): text, image (one or more), document, video, article (a link post), poll. */
+/**
+ * LinkedIn (Slice 15c): text, image (one or more), document, video, article (a link post), poll.
+ * Facebook (Slice 16c): reel, video, image, carousel (an album), article (a link post), text.
+ */
 export type Format =
   "reel" | "carousel" | "image" | "video" | "text" | "document" | "article" | "poll";
 
@@ -54,6 +52,7 @@ export const FORMATS_BY_PLATFORM: Record<Platform, Format[]> = {
   instagram: ["reel", "carousel", "image"],
   tiktok: ["video", "carousel"],
   linkedin: ["text", "image", "document", "video", "article", "poll"],
+  facebook: ["reel", "video", "image", "carousel", "article", "text"],
 };
 /** Every format any platform has (Plan {month}'s JSON schema enum). */
 export const ALL_FORMATS: Format[] = [...new Set(Object.values(FORMATS_BY_PLATFORM).flat())];
@@ -71,6 +70,7 @@ const PLATFORM_LABEL: Record<Platform, string> = {
   instagram: "Instagram",
   tiktok: "TikTok",
   linkedin: "LinkedIn",
+  facebook: "Facebook",
 };
 
 // ───────────────────────────────────────────── small helpers
@@ -183,7 +183,7 @@ export type SummaryPost = {
   likes: number | null;
   comments: number | null;
   views: number | null;
-  /** LinkedIn reposts (TikTok shares, if any); null for Instagram. */
+  /** LinkedIn reposts, Facebook / TikTok shares; null for Instagram. */
   shares: number | null;
   counts_hidden: boolean;
 };
@@ -247,6 +247,8 @@ export type Summary = {
     avg_views: number | null;
     /** LinkedIn only (left out elsewhere to keep the summary small). */
     avg_reposts?: number;
+    /** Facebook only. */
+    avg_shares?: number;
     followers: number | null;
     formats: { format: Format; posts: number; avg_engagement: number }[];
     best_slot: string | null;
@@ -264,6 +266,8 @@ export type Summary = {
     views: number | null;
     /** LinkedIn only. */
     reposts?: number;
+    /** Facebook only. */
+    shares?: number;
     caption: string;
   }[];
   top_hashtags: { tag: string; posts: number }[];
@@ -275,15 +279,17 @@ export type Summary = {
 };
 
 /**
- * On LinkedIn, `likes` holds all reactions (15c). The rule lives here, in <data>, so Ask Blip's system
- * prompt stays under its size budget.
+ * On LinkedIn and Facebook, `likes` holds all reactions (15c / 16c); a Facebook "carousel" is an album.
+ * The rule lives here, in <data>, so Ask Blip's system prompt stays under its size budget.
  */
 const ENGAGEMENT_MEANS =
-  "likes + comments; on LinkedIn likes = all reactions (say reactions). Compare brands within one platform";
+  "likes + comments; on LinkedIn and Facebook likes = all reactions (say reactions); a Facebook carousel is an album. Compare brands within one platform";
 
 /** Hard facts the model must not pretend to know. */
 const NOT_IN_DATA = [
   "LinkedIn views and impressions",
+  "Facebook views on photo, link and text posts",
+  "Facebook posts beyond each brand's latest 12",
   "anything older than the 30-day window",
   "follower history or growth",
   "the client's own posts",
@@ -361,6 +367,7 @@ export function buildSummary(
       avg_comments: s.avg_comments,
       avg_views: s.avg_views,
       ...(platform === "linkedin" && { avg_reposts: s.avg_shares }),
+      ...(platform === "facebook" && { avg_shares: s.avg_shares }),
       followers:
         data.followers.find((f) => f.competitor_id === competitorId && f.platform === platform)
           ?.followers ?? null,
@@ -425,6 +432,7 @@ export function buildSummary(
       comments: p.comments,
       views: p.views,
       ...(p.platform === "linkedin" && { reposts: p.shares ?? 0 }),
+      ...(p.platform === "facebook" && { shares: p.shares ?? 0 }),
       caption: clip(stripEmoji(p.caption ?? ""), captionChars),
     })),
     top_hashtags,
@@ -1085,7 +1093,7 @@ export function hookContext(data: Pick<PullData, "brands" | "posts">, platform: 
   const posts = platform ? data.posts.filter((p) => p.platform === platform) : data.posts;
   const f = bestFormat(posts);
   return {
-    platform: platform ? PLATFORM_LABEL[platform] : "Instagram, TikTok and LinkedIn",
+    platform: platform ? PLATFORM_LABEL[platform] : "Instagram, TikTok, LinkedIn and Facebook",
     best_format: f ? FORMAT_LABEL[f] : null,
     top_openings: posts
       .filter(countable)
@@ -1129,7 +1137,8 @@ export function parseCaptionInput(body: Record<string, unknown>): CaptionInput |
 
 /**
  * Platform style. No platform yet: something in between. LinkedIn (Slice 15c): more professional,
- * 3–8 short lines, 2–3 hashtags, at most 1 emoji.
+ * 3–8 short lines, 2–3 hashtags, at most 1 emoji. Facebook (Slice 16c): conversational, 1–4 short lines
+ * (short paragraphs), 0–2 hashtags, ≤ 500 characters, at most 2 emoji.
  */
 export const CAPTION_STYLE: Record<
   Platform | "any",
@@ -1138,6 +1147,7 @@ export const CAPTION_STYLE: Record<
   instagram: { lines: [3, 6], tags: [3, 5], chars: 900, emoji: 2 },
   tiktok: { lines: [1, 2], tags: [2, 4], chars: 300, emoji: 2 },
   linkedin: { lines: [3, 8], tags: [2, 3], chars: 1300, emoji: 1 },
+  facebook: { lines: [1, 4], tags: [0, 2], chars: 500, emoji: 2 },
   any: { lines: [2, 4], tags: [3, 5], chars: 600, emoji: 2 },
 };
 const HASHTAG = /#[\p{L}\p{N}_]+/gu;

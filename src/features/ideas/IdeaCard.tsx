@@ -123,7 +123,7 @@ export function IdeaCard({
   const snap = idea.source_snapshot;
   const isNote = idea.kind === "note";
   const picture = hasPicture(idea);
-  const format = formatLabel(idea.format ?? snap?.format);
+  const format = formatLabel(idea.format ?? snap?.format, idea.platform);
   const brand = snap?.brand?.toUpperCase();
   const stats =
     idea.kind === "post" && snap
@@ -204,7 +204,7 @@ export function IdeaCard({
           href={idea.link_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="relative z-10 -my-3 flex min-h-11 min-w-0 items-center gap-2 self-start text-muted hover:text-ink md:my-0 md:min-h-0"
+          className="relative z-10 -my-3 flex min-h-11 max-w-full min-w-0 items-center gap-2 self-start text-muted hover:text-ink md:my-0 md:min-h-0"
         >
           <Link2 size={16} aria-hidden="true" className="shrink-0" />
           <span className="truncate font-mono text-small">{linkLabel(idea.link_url)}</span>

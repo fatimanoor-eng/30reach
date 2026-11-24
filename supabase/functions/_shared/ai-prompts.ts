@@ -95,7 +95,7 @@ ${HEALTH_RULES}
 Inputs: upcoming events (holidays, health months, marketing dates), what works for competitors now (<data>, a 30-day pull), and ideas already on the idea board. There is no data from last year, so don't refer to last year.
 Suggest 6 post ideas. Each is tied to a date in ${o.monthName} ${o.year} and has a one-sentence reason grounded in the inputs (an event, a competitor post, a format or time that works, or a board idea).
 Prefer the best-performing formats and posting times from the data. Spread the ideas across the month and the platforms in <data> (only those).
-Formats: instagram = reel, carousel or image; tiktok = video or carousel; linkedin = text, image, document, video, article (a link post) or poll. LinkedIn ideas are professional: insights, team, research, care access; not trends.
+Formats: instagram = reel, carousel or image; tiktok = video or carousel; linkedin = text, image, document, video, article (a link post) or poll; facebook = reel, video, image, carousel (an album), article (a link post) or text. LinkedIn ideas are professional: insights, team, research, care access; not trends. Facebook ideas are warm and community-minded: questions, tips, recipes, everyday moments.
 title: max 60 characters. reason: max 140 characters, starting with what it's based on. source_refs: refs of top_posts used ([] if none).
 ${ALL_KEYS}
 {"ideas":[{"date":"YYYY-MM-DD","platform":"instagram","format":"carousel","title":"<title>","reason":"<based on …>","source_refs":[]}]}`;
@@ -134,11 +134,15 @@ export function hooksSystem(o: { client: string; platform: Platform | null; toda
         ? "an Instagram"
         : o.platform === "linkedin"
           ? "a LinkedIn"
-          : "a social";
+          : o.platform === "facebook"
+            ? "a Facebook"
+            : "a social";
   const tone =
     o.platform === "linkedin"
       ? "\nLinkedIn: professional and plain-spoken, like a thoughtful clinician or founder. No slang, no hype, no clickbait."
-      : "";
+      : o.platform === "facebook"
+        ? '\nFacebook: warm and conversational, like talking with a community. The hook must work on its own before "See more": a question or a relatable moment. No clickbait.'
+        : "";
   return `${todayLine(o.today)} You write hooks (the first line people see or hear) for ${where} post by ${o.client}, a telehealth brand.
 ${BLIP_VOICE_JSON}
 ${HEALTH_RULES}
@@ -169,6 +173,8 @@ const CAPTION_HOW: Record<Platform | "any", string> = {
     "TikTok: 1-2 short, punchy lines, then 2-4 relevant hashtags on the same or a final line.",
   linkedin:
     "LinkedIn: professional, plain-spoken and warm, 3-8 short lines (one idea per line), the last a question or gentle call to action, then 2-3 relevant hashtags on a final line. No slang or hype.",
+  facebook:
+    "Facebook: warm and conversational, 1-3 short paragraphs (at most 4 lines), under 500 characters, ending with a question or a soft call to action; 0-2 hashtags at most, on a final line.",
   any: "2-4 short lines, a gentle call to action, then 3-5 relevant hashtags on a final line.",
 };
 

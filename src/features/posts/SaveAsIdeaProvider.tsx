@@ -17,7 +17,9 @@ const NOTE_MAX = 2000;
 /** Where a post was saved from, for "SAVED FROM OVERVIEW" on the board. */
 function savedFrom(pathname: string): string | undefined {
   const page = pathname.split("/")[1];
-  return ["overview", "instagram", "tiktok", "linkedin"].includes(page) ? page : undefined;
+  return ["overview", "instagram", "tiktok", "linkedin", "facebook"].includes(page)
+    ? page
+    : undefined;
 }
 
 /**
@@ -91,7 +93,7 @@ export function SaveAsIdeaProvider({ children }: { children: ReactNode }) {
 
   const post = target?.post;
   const meta = post
-    ? [target.brandName, formatLabel(post.format), formatShortDate(post.posted_at)]
+    ? [target.brandName, formatLabel(post.format, post.platform), formatShortDate(post.posted_at)]
         .filter(Boolean)
         .join(" · ")
     : "";
@@ -151,7 +153,7 @@ export function SaveAsIdeaProvider({ children }: { children: ReactNode }) {
               leading={
                 <>
                   <Chip tone="ink">{PLATFORM_LABEL[post.platform]}</Chip>
-                  {post.format && <Chip tone="ink">{formatLabel(post.format)}</Chip>}
+                  {post.format && <Chip tone="ink">{formatLabel(post.format, post.platform)}</Chip>}
                 </>
               }
             />

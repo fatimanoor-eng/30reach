@@ -30,7 +30,7 @@ export type ExportPost = {
   likes: number | null;
   comments: number | null;
   views: number | null;
-  /** TikTok shares / LinkedIn reposts (Slice 15c); null for Instagram. */
+  /** TikTok / Facebook shares, LinkedIn reposts (15c / 16c); null for Instagram. */
   shares: number | null;
   counts_hidden: boolean;
 };
@@ -48,7 +48,7 @@ export function postsCsv(
     { label: "Format", value: (p) => p.format },
     { label: "Posted at (UTC)", value: (p) => p.posted_at },
     // Hidden counts (the brand turned them off) are blank, not 0.
-    // LinkedIn saves all reactions as likes.
+    // LinkedIn and Facebook save all reactions as likes. Formats stay as stored (Facebook albums = "carousel").
     { label: "Likes / reactions", value: (p) => (p.counts_hidden ? null : p.likes) },
     { label: "Comments", value: (p) => (p.counts_hidden ? null : p.comments) },
     { label: "Views", value: (p) => p.views },

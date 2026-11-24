@@ -89,7 +89,7 @@ describe("LinkedIn ideas (Slice 15c)", () => {
     ).toBe("Suggested: Thu 31 Dec · LI Link");
   });
   it("names LinkedIn formats and calls likes reactions", () => {
-    expect(["text", "document", "article", "poll"].map(formatLabel)).toEqual([
+    expect(["text", "document", "article", "poll"].map((f) => formatLabel(f))).toEqual([
       "Text",
       "Document",
       "Link",

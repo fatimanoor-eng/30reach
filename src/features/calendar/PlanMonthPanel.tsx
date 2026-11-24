@@ -9,7 +9,7 @@ import { useToast } from "../../components/toast-context";
 import { AI_COPY, AiError, planMonth, type PlanSuggestion } from "../../lib/ai/ai-api";
 import { createIdea, planIdea } from "../ideas/ideas-api";
 import { plannedLabel } from "../ideas/idea-rules";
-import { FORMAT_NAME, PLATFORM_BAR, PLATFORM_SHORT } from "./calendar-ui";
+import { formatName, PLATFORM_BAR, PLATFORM_SHORT } from "./calendar-ui";
 import { shortDay } from "./format";
 import {
   factChips,
@@ -312,7 +312,7 @@ function Suggestion({
   checked: boolean;
   onToggle: () => void;
 }) {
-  const meta = [shortDay(s.date), PLATFORM_SHORT[s.platform], FORMAT_NAME[s.format] ?? s.format]
+  const meta = [shortDay(s.date), PLATFORM_SHORT[s.platform], formatName(s.platform, s.format)]
     .join("  ·  ")
     .toUpperCase();
   return (

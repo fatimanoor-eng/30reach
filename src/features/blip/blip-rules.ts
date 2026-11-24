@@ -67,15 +67,15 @@ export function greeting(o: {
 }
 
 /**
- * "Hims · TikTok · 9 Nov · 212K views" (views when there are any, else likes; LinkedIn: reactions,
- * "Hims · LinkedIn · 2 Nov · 700 reactions").
+ * "Hims · TikTok · 9 Nov · 212K views" (views when there are any, else likes; LinkedIn / Facebook:
+ * reactions, "Hims · LinkedIn · 2 Nov · 700 reactions").
  */
 export function sourceLabel(s: SourcePost): string {
   const metric =
     s.views != null
       ? `${formatCompact(s.views)} views`
       : s.likes != null
-        ? `${formatCompact(s.likes)} ${s.platform === "linkedin" ? "reactions" : "likes"}`
+        ? `${formatCompact(s.likes)} ${s.platform === "linkedin" || s.platform === "facebook" ? "reactions" : "likes"}`
         : null;
   return [s.brand, PLATFORM_NAME[s.platform], formatShortDate(s.postedAt), metric]
     .filter(Boolean)
@@ -329,6 +329,9 @@ const DATA_WORDS = new RegExp(
     "tiktok",
     "tik tok",
     "linkedin",
+    "facebook",
+    "fb",
+    "album",
     "repost",
     "reaction",
     "document",

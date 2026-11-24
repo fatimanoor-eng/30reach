@@ -1,11 +1,10 @@
 // Pure rules for the idea board (14a / 14b / M09): tabs, search, tags, link labels, ages.
 // No React and no Supabase here, so everything is unit-tested in idea-rules.test.ts.
 import { formatShortDate } from "../../lib/format";
-import type { ShownPlatform } from "../../lib/platforms";
+import type { Platform } from "../../lib/platforms";
 
 export type IdeaKind = "screenshot" | "link" | "note" | "post" | "ai";
-/** Facebook joins the idea board in Slice 16c. */
-export type IdeaPlatform = ShownPlatform;
+export type IdeaPlatform = Platform;
 
 /** Kept on ideas saved from a post, so they keep their context after old pulls are deleted. */
 export type SourceSnapshot = {
@@ -56,13 +55,19 @@ const FORMAT_LABEL: Record<string, string> = {
   article: "Link",
   poll: "Poll",
 };
-/** What a saved post's `likes` are called: LinkedIn saves all reactions there (Slice 15c). */
+/** What a saved post's `likes` are called: LinkedIn and Facebook save all reactions there (15c / 16c). */
 export const likesWord = (platform: IdeaPlatform | null) =>
-  platform === "linkedin" ? "reactions" : "likes";
+  platform === "linkedin" || platform === "facebook" ? "reactions" : "likes";
 
-/** "reel" → "Reel", "article" → "Link"; unknown formats are shown as stored. */
-export const formatLabel = (f: string | null | undefined): string | null =>
-  f ? (FORMAT_LABEL[f] ?? f) : null;
+/**
+ * "reel" → "Reel", "article" → "Link"; on Facebook "carousel" → "Album". Unknown formats are shown as
+ * stored.
+ */
+export const formatLabel = (
+  f: string | null | undefined,
+  platform?: IdeaPlatform | null,
+): string | null =>
+  f ? (platform === "facebook" && f === "carousel" ? "Album" : (FORMAT_LABEL[f] ?? f)) : null;
 
 // ───────────────────────────── tabs + search
 
@@ -166,13 +171,15 @@ export function linkLabel(url: string): string {
   }
 }
 
-/** Platform from a link's host (instagram.com / tiktok.com / linkedin.com), else null. */
+/** Platform from a link's host (instagram.com / tiktok.com / linkedin.com / facebook.com / fb.com), else null. */
 export function platformFromUrl(url: string): IdeaPlatform | null {
   try {
     const host = new URL(url).hostname.replace(/^www\./, "");
     if (host === "instagram.com" || host.endsWith(".instagram.com")) return "instagram";
     if (host === "tiktok.com" || host.endsWith(".tiktok.com")) return "tiktok";
     if (host === "linkedin.com" || host.endsWith(".linkedin.com")) return "linkedin";
+    if (["facebook.com", "fb.com", "fb.watch"].includes(host) || host.endsWith(".facebook.com"))
+      return "facebook";
   } catch {
     /* not a URL */
   }
@@ -244,6 +251,7 @@ const PLATFORM_SHORT: Record<IdeaPlatform, string> = {
   instagram: "IG",
   tiktok: "TT",
   linkedin: "LI",
+  facebook: "FB",
 };
 
 /**
@@ -258,7 +266,10 @@ export function aiSuggestion(
   const date = idea.source_snapshot?.suggested_date;
   if (idea.kind !== "ai" || idea.planned_card_id || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
     return null;
-  const what = [idea.platform && PLATFORM_SHORT[idea.platform], formatLabel(idea.format)]
+  const what = [
+    idea.platform && PLATFORM_SHORT[idea.platform],
+    formatLabel(idea.format, idea.platform),
+  ]
     .filter(Boolean)
     .join(" ");
   const passed = date < today;

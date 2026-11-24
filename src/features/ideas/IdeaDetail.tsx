@@ -267,7 +267,7 @@ export function IdeaDetail({
         {idea.kind === "post" && snap && (
           <div className="flex flex-col gap-1 rounded-control bg-bg px-3 py-2.5">
             <p className="mono-label text-muted">
-              {[snap.brand, formatLabel(snap.format), formatShortDate(snap.date)]
+              {[snap.brand, formatLabel(snap.format, idea.platform), formatShortDate(snap.date)]
                 .filter(Boolean)
                 .join(" · ")}
             </p>

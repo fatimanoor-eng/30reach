@@ -107,6 +107,13 @@ describe("Ask Blip rules", () => {
     expect(sourceLabel(source({ platform: "linkedin", views: null, likes: 700 }))).toBe(
       "Hims · LinkedIn · 9 Nov · 700 reactions",
     );
+    // Slice 16c: Facebook likes are reactions too; reels / videos show views.
+    expect(sourceLabel(source({ platform: "facebook", views: null, likes: 59 }))).toBe(
+      "Hims · Facebook · 9 Nov · 59 reactions",
+    );
+    expect(sourceLabel(source({ platform: "facebook", views: 2771, likes: 12 }))).toBe(
+      "Hims · Facebook · 9 Nov · 2.8K views",
+    );
   });
 
   it("history = the last 2 answered turns, as short text", () => {
@@ -315,6 +322,9 @@ describe("Ask Blip light mode (no data summary)", () => {
     ["platform", "any good tiktoks?"],
     ["platform (15c)", "and linkedin?"],
     ["LinkedIn word (15c)", "most reposts?"],
+    ["platform (16c)", "what about facebook"],
+    ["platform short (16c)", "and fb?"],
+    ["Facebook word (16c)", "do albums work?"],
     ["format", "reels or carousels?"],
     ["metric", "who gets more likes"],
     ["data word", "what's the best day?"],

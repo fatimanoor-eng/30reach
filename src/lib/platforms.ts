@@ -74,12 +74,3 @@ export const PLATFORM_FILL: Record<Platform, string> = {
   linkedin: "bg-blue",
   facebook: "bg-fresh",
 };
-
-/**
- * Platforms the calendar, ideas, the posts export and Blip already know. Facebook has its page and the
- * dashboards from Slice 16b; it joins these in 16c ("Save as idea" is hidden on Facebook posts until then).
- */
-export type ShownPlatform = Exclude<Platform, "facebook">;
-export const SHOWN_PLATFORMS: ShownPlatform[] = ["instagram", "tiktok", "linkedin"];
-export const isShownPlatform = (v: unknown): v is ShownPlatform =>
-  SHOWN_PLATFORMS.includes(v as ShownPlatform);
