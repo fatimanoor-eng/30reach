@@ -10,7 +10,7 @@ import { expect, type Page } from "@playwright/test";
  *  Going there directly skips the last-client redirect (covered in clients.spec.ts). Other paths
  *  (sign-in, welcome, /c/…) are left as they are. */
 export function appUrl(path: string, slug = "obu-health"): string {
-  return /^\/(overview|instagram|tiktok|linkedin|facebook|competitors|calendar|ideas|settings|more|dev)\b/.test(
+  return /^\/(overview|instagram|tiktok|linkedin|facebook|competitors|calendar|ideas|settings|client-settings|more|dev)\b/.test(
     path,
   )
     ? `/c/${slug}${path}`
@@ -91,16 +91,11 @@ export async function stubSupabase(
     body: JSON.stringify(body),
   });
   await stubClients(page, [OBU]);
-  // Every platform on for the client (Slice 17b; client_platforms decides what's tracked).
+  // OBU's platforms (Slice 17b: client_platforms decides what's tracked; 17c shows them in settings).
   await page.route("**/rest/v1/client_platforms**", (route) =>
-    route.fulfill(
-      ok(
-        ["instagram", "tiktok", "linkedin", "facebook"].map((platform) => ({
-          platform,
-          state: "on",
-        })),
-      ),
-    ),
+    route.request().method() === "GET"
+      ? route.fulfill(ok(OBU_PLATFORMS))
+      : route.fulfill({ status: 201, body: "" }),
   );
   await page.route("**/rest/v1/rpc/set_last_client", (route) =>
     route.fulfill({ status: 204, body: "" }),
@@ -187,6 +182,19 @@ export type TestClient = {
   brand_color: string | null;
   is_demo: boolean;
   archived_at: string | null;
+  /** Slice 17c (Client settings) — optional in specs, filled in by stubClients. */
+  archived_by?: string | null;
+  logo_path?: string | null;
+  website?: string | null;
+  description?: string | null;
+  industry?: string | null;
+  audience?: string | null;
+  country?: string;
+  language?: string;
+  regulated?: string[];
+  audience_is_kids?: boolean;
+  health_months?: boolean;
+  content_rules?: unknown[];
 };
 export const OBU: TestClient = {
   id: "client-1",
@@ -196,21 +204,93 @@ export const OBU: TestClient = {
   brand_color: null,
   is_demo: false,
   archived_at: null,
+  website: "https://www.obuhealth.com",
+  description:
+    "Prescription weight loss, GLP-1, NAD+ and peptide treatments online, with US board-certified doctors.",
+  industry: "Telehealth · weight loss and wellness",
+  regulated: ["health", "medical claims", "weight loss", "pharma"],
+  health_months: true,
+  content_rules: [
+    {
+      id: "obu-1",
+      source: "blip",
+      rule: "No before / after photos or guaranteed weight loss",
+      why: "Weight-loss results must be typical and backed up.",
+      quote: "Clinically backed GLP-1 for appetite control and sustainable weight loss.",
+    },
+    {
+      id: "obu-2",
+      source: "blip",
+      rule: "Don’t imply treatment without a doctor’s review",
+      why: "Prescriptions follow a licensed provider’s assessment.",
+      quote: "US board-certified doctors",
+    },
+  ],
 };
 
+const DETAIL_DEFAULTS = {
+  archived_by: null,
+  logo_path: null,
+  website: null,
+  description: null,
+  industry: null,
+  audience: null,
+  country: "US",
+  language: "en",
+  regulated: [],
+  audience_is_kids: false,
+  health_months: false,
+  content_rules: [],
+};
+
+/** OBU's platforms as the 17a migration left them (website links always on; LinkedIn / Facebook team). */
+export const OBU_PLATFORMS = [
+  ["instagram", "website", "obuhealth"],
+  ["tiktok", "website", "obuhealth"],
+  ["linkedin", "team", null],
+  ["facebook", "team", null],
+  ["x", "website", "obuhealth"],
+  ["pinterest", "website", null],
+  ["youtube", "website", "obuhealth"],
+].map(([platform, source, handle]) => ({
+  platform,
+  state: "on",
+  source,
+  account_handle: handle,
+  account_url: platform === "pinterest" ? "https://www.pinterest.com/obuhealth" : null,
+}));
+
 /**
- * The clients table (Slice 17b): the list for the switcher / redirects, or one client by `slug=eq.…`
- * (the client in the URL; unknown slug → empty). The last registered route wins, so specs can call it
- * again with more clients.
+ * The clients table (Slice 17b): the list for the switcher / redirects, or one client by `slug=eq.…` /
+ * `id=eq.…` (unknown → empty). `.single()` reads (Accept: vnd.pgrst.object) get the object itself.
+ * Writes (PATCH / POST) answer 204 / the row; specs that check them register their own route. The last
+ * registered route wins, so specs can call it again with more clients.
  */
 export async function stubClients(page: Page, clients: TestClient[]) {
+  const full = clients.map((c) => ({ ...DETAIL_DEFAULTS, ...c }));
   await page.route("**/rest/v1/clients**", (route) => {
-    const slug = new URL(route.request().url()).searchParams.get("slug");
-    const list = slug ? clients.filter((c) => `eq.${c.slug}` === slug) : clients;
+    const req = route.request();
+    if (req.method() !== "GET" && req.method() !== "HEAD") {
+      return route.fulfill({ status: 204, body: "" });
+    }
+    const params = new URL(req.url()).searchParams;
+    const slug = params.get("slug");
+    const id = params.get("id");
+    const list = full.filter(
+      (c) => (!slug || `eq.${c.slug}` === slug) && (!id || `eq.${c.id}` === id),
+    );
+    const single = (req.headers()["accept"] ?? "").includes("vnd.pgrst.object");
+    if (single && list.length !== 1) {
+      return route.fulfill({
+        status: 406,
+        contentType: "application/json",
+        body: JSON.stringify({ code: "PGRST116", message: "not one row" }),
+      });
+    }
     return route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(list),
+      body: JSON.stringify(single ? list[0] : list),
     });
   });
 }

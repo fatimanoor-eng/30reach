@@ -130,17 +130,22 @@ test("the switcher at each size (15a / M13)", async ({ page }, info) => {
   await expect(menu).toBeVisible();
 
   // Current first (✓), then A–Z; archived left out; DEMO tag; last pull meta.
-  const rows = menu.getByRole("link").filter({ hasNotText: "settings" });
+  const rows = menu.getByRole("list", { name: "Clients" }).getByRole("link");
   await expect(rows).toHaveText([
     /OBU Health\s*(Pulled today|Today)/,
     /All The Best Co\s*2 days ago/,
     /Demo Wellness Co\s*Demo/,
   ]);
   await expect(rows.first()).toHaveAttribute("aria-current", "true");
-  await expect(menu.getByText("Aardvark Labs")).toHaveCount(0);
+  await expect(menu.getByText("Aardvark Labs")).toBeHidden(); // archived: under Archived (1), closed
+  await expect(menu.getByRole("button", { name: /Archived\s*1/ })).toBeVisible();
+  await expect(menu.getByRole("link", { name: "Add client" })).toHaveAttribute(
+    "href",
+    "/add-client",
+  );
   await expect(menu.getByRole("link", { name: "OBU Health settings" })).toHaveAttribute(
     "href",
-    "/c/obu-health/settings",
+    "/c/obu-health/client-settings",
   );
 
   await noSidewaysScroll(page);

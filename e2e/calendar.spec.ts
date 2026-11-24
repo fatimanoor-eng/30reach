@@ -908,6 +908,8 @@ test("calendar — Back with unsaved edits asks first (React Router blocker)", a
 test("calendar — unsaved edits come back after a reload: Restore or Discard", async ({
   page,
 }, info) => {
+  // Seven page loads (three reloads): under a full parallel run that can pass 30 s.
+  test.slow();
   await setup(page);
   await open(page, "/calendar?date=2026-12-04&card=k2");
   const caption = page.getByRole("dialog").getByRole("textbox", { name: "Caption" });
