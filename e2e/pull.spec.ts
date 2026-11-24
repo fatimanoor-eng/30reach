@@ -168,6 +168,28 @@ test("05 / M03 confirm cost with all four platforms (Slice 16a Facebook)", async
   await expect(page).toHaveScreenshot("refresh-confirm-facebook.png");
 });
 
+test("one pull at a time across clients: Refresh says who is pulling (Slice 17a)", async ({
+  page,
+}, info) => {
+  await setup(page);
+  await page.route("**/functions/v1/pull-start**", (r) =>
+    r.fulfill({
+      status: 409,
+      contentType: "application/json",
+      body: JSON.stringify({ status: "other_running", clientName: "All The Best Co" }),
+    }),
+  );
+  await openRefresh(page);
+  const dialog = page.getByRole("dialog", { name: "Another pull is running" });
+  await expect(dialog).toContainText(
+    "All The Best Co is pulling right now. Try again in a few minutes.",
+  );
+  await expect(dialog.getByRole("button", { name: "Pull now" })).toHaveCount(0);
+  if (info.project.name === "mobile-390") await tapTargetsOk(page);
+  await dialog.getByRole("button", { name: "OK" }).click();
+  await expect(dialog).toBeHidden();
+});
+
 test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, info) => {
   test.setTimeout(60_000); // remaining tasks run 2 at a time (paced only after a 429)
   await setup(page);

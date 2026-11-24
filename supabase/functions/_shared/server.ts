@@ -8,6 +8,8 @@ import {
 } from "../credits/logic.ts";
 import { decodeLinkedInCursor, parseRetryAfter, type Platform } from "./pull-logic.ts";
 
+import { type UsageInput, usageRow } from "./usage.ts";
+
 export { withSupabase } from "npm:@supabase/server@1.9.2";
 export type { SupabaseClient };
 
@@ -164,4 +166,29 @@ async function alexandria(request: { provider: string; capability: string; optio
   }
   if (!res.ok) throw new FirecrawlHttpError(res.status);
   return (await res.json()) as unknown;
+}
+
+/**
+ * Record what a call cost (Slice 17a, `usage_events`). Never throws and never fails the request it is
+ * recording: a missing usage row only makes the Usage page a little low, a failed pull would be worse.
+ */
+export async function recordUsage(admin: SupabaseClient, e: UsageInput): Promise<void> {
+  const row = usageRow(e);
+  if (!row) return;
+  try {
+    const { error } = await admin.from("usage_events").insert(row);
+    if (error) console.error(`usage_events write failed (${error.code ?? "unknown"})`);
+  } catch (err) {
+    console.error(`usage_events write failed (${(err as Error).name})`);
+  }
+}
+
+/** Client name for usage rows (kept when a client is later deleted). Null if it can't be read. */
+export async function clientName(
+  admin: SupabaseClient,
+  clientId: string | null,
+): Promise<string | null> {
+  if (!clientId) return null;
+  const { data } = await admin.from("clients").select("name").eq("id", clientId).maybeSingle();
+  return (data as { name?: string } | null)?.name ?? null;
 }

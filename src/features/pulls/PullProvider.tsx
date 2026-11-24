@@ -19,7 +19,7 @@ import type { Competitor } from "../../lib/useCompetitors";
 import { CREDITS_QUERY_KEY, creditsLeft } from "../../lib/useCredits";
 import { PullContext, type PullUiState } from "./pull-context";
 import { PullProgressDialog } from "./PullProgressDialog";
-import { problemSentence, targetNoun, tookLabel } from "./pull-text";
+import { otherPullingText, problemSentence, targetNoun, tookLabel } from "./pull-text";
 import { RefreshDialog } from "./RefreshDialog";
 
 const deps = { listTasks, pullTask, pullFinish };
@@ -233,6 +233,14 @@ export function PullProvider({ children }: { children: ReactNode }) {
       if (res.ok && res.data.status === "started" && res.data.pullId) return drive(res.data.pullId);
       if (res.status === 409 && typeof res.data?.pullId === "string") return drive(res.data.pullId);
       setState({ kind: "idle" });
+      if (res.status === 409 && res.data?.status === "other_running") {
+        toast.show({
+          title: "Another pull is running",
+          detail: otherPullingText(String(res.data?.clientName ?? "Another client")),
+          pose: "idle",
+        });
+        return;
+      }
       if (res.ok && res.data.status === "insufficient") {
         setRefreshOpen(true); // balance changed since 05 — the dialog re-checks and shows 05f
         return;

@@ -6,6 +6,7 @@ import {
   durationText,
   fittingPlatforms,
   mobileProgressLine,
+  otherPullingText,
   possessive,
   problemSentence,
   targetNoun,
@@ -168,6 +169,14 @@ describe("Facebook (Slice 16a)", () => {
   it("progress line includes Facebook", () => {
     expect(mobileProgressLine([task("linkedin", "done"), task("facebook", "queued")])).toBe(
       "LinkedIn done · Facebook waiting",
+    );
+  });
+});
+
+describe("one pull at a time across clients (Slice 17a)", () => {
+  it("says who is pulling", () => {
+    expect(otherPullingText("OBU Health")).toBe(
+      "OBU Health is pulling right now. Try again in a few minutes.",
     );
   });
 });

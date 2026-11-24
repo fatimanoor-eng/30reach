@@ -433,6 +433,12 @@ export function facebookPageUrl(input: string): string | null {
       const id = new URLSearchParams(link[2] ?? "").get("id");
       return id && /^\d{5,25}$/.test(id) ? `https://www.facebook.com/profile.php?id=${id}` : null;
     }
+    // Newer page links: facebook.com/p/<Name>-<id>/ → the same page by id (17a; both forms returned the
+    // same posts in a test, 1 credit each). The id is stable when the page is renamed.
+    if (first === "p") {
+      const id = parts[1]?.match(/-(\d{5,25})$/)?.[1];
+      return id ? `https://www.facebook.com/profile.php?id=${id}` : null;
+    }
     if (FACEBOOK_NOT_A_PAGE.has(first)) return null;
     slug = parts[0];
   } else {
@@ -797,4 +803,25 @@ export function parseRetryAfter(
   const seconds = /^\d+(\.\d+)?$/.test(value) ? Number(value) : (Date.parse(value) - nowMs) / 1000;
   if (!Number.isFinite(seconds)) return null;
   return Math.min(120, Math.max(1, Math.ceil(seconds)));
+}
+
+// ───────────────────────────────────────────── one running pull across all clients (17a)
+export type RunningPull = {
+  id: string;
+  client_id: string;
+  clients?: { name?: string } | null;
+} | null;
+
+/**
+ * A pull is already running somewhere? Same client → follow it (`running` + its id, as before).
+ * Another client → `other_running` with that client's name ("OBU is pulling right now. Try again in a few
+ * minutes."): Firecrawl's free plan rate-limits parallel pulls. Null = free to start.
+ */
+export function runningConflict(running: RunningPull, clientId: string) {
+  if (!running) return null;
+  if (running.client_id === clientId) return { status: "running" as const, pullId: running.id };
+  return {
+    status: "other_running" as const,
+    clientName: running.clients?.name?.trim() || "Another client",
+  };
 }

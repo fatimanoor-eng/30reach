@@ -46,6 +46,8 @@ export default {
     const result = await groqJson({
       admin: ctx.supabaseAdmin,
       fn: "suggest-hooks",
+      clientId: input.clientId,
+      actor: ctx.userClaims?.sub ?? null,
       system: hooksSystem({
         client: (client as { name: string } | null)?.name ?? "the client",
         platform: input.platform,

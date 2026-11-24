@@ -27,6 +27,7 @@ import {
   FirecrawlRateLimited,
   json,
   readJson,
+  recordUsage,
   requireTeam,
   scrapePage,
   type SupabaseClient,
@@ -83,7 +84,9 @@ export default {
 
     const { data: pull } = await admin
       .from("pulls")
-      .select("id, client_id, status, started_at, window_days, page_cap, credits_budget")
+      .select(
+        "id, client_id, status, started_at, window_days, page_cap, credits_budget, clients(name)",
+      )
       .eq("id", task.pull_id)
       .single();
     if (!pull || pull.status !== "running") {
@@ -148,6 +151,16 @@ export default {
     }
 
     const page = parsePage(platform, body, task.pages);
+    // Usage (Slice 17a): every page's credits, per client (0-credit pages aren't recorded).
+    await recordUsage(admin, {
+      kind: "pull",
+      clientId: pull.client_id,
+      clientName: (pull as { clients?: { name?: string } | null }).clients?.name ?? null,
+      credits: page.creditsCost,
+      fn: "pull-task",
+      refId: pull.id,
+      actor: ctx.userClaims?.sub ?? null,
+    });
     const creditsUsed = task.credits_used + page.creditsCost;
     const pages = task.pages + 1;
 

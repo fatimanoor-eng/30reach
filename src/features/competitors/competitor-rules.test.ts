@@ -239,3 +239,15 @@ describe("07b copy: found message and cost line", () => {
     );
   });
 });
+
+describe("Facebook /p/ page links (Slice 17a)", () => {
+  it("accepts the newer page link and stores it by id", () => {
+    expect(
+      parseHandle("facebook", "https://www.facebook.com/p/Carnaby-Vine-100095309165059/"),
+    ).toEqual({
+      kind: "ok",
+      handle: "https://www.facebook.com/profile.php?id=100095309165059",
+    });
+    expect(parseHandle("facebook", "facebook.com/p/carnaby").kind).toBe("invalid");
+  });
+});

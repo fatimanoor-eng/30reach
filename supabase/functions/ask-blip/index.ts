@@ -58,6 +58,8 @@ export default {
       const result = await groqJson({
         admin: ctx.supabaseAdmin,
         fn: "ask-blip",
+        clientId: input.clientId,
+        actor: ctx.userClaims?.sub ?? null,
         label: "ask-blip light",
         system: askLightSystem({
           client: (clientRow.data as { name: string }).name,
@@ -86,6 +88,8 @@ export default {
     const result = await groqJson({
       admin: ctx.supabaseAdmin,
       fn: "ask-blip",
+      clientId: input.clientId,
+      actor: ctx.userClaims?.sub ?? null,
       label: "ask-blip full",
       system: askSystem({ client, firstName: firstName(who?.full_name, who?.email), today }),
       user: askUser({ summaryJson, history: input.history, question: input.question }),

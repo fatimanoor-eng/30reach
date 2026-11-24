@@ -16,12 +16,16 @@ export type CheckResult =
  * (Facebook up to 5, and the answer carries the page's followers). For LinkedIn / Facebook `handle` is
  * the canonical page URL.
  */
-export async function checkHandle(platform: Platform, handle: string): Promise<CheckResult> {
+export async function checkHandle(
+  platform: Platform,
+  handle: string,
+  clientId?: string,
+): Promise<CheckResult> {
   const r = await callFunction<{
     status: "ok" | "not_found";
     creditsUsed: number;
     followers?: number | null;
-  }>("check-handle", { platform, handle });
+  }>("check-handle", { platform, handle, clientId });
   if (r.ok) {
     const creditsUsed = r.data.creditsUsed ?? 0;
     return r.data.status === "ok"

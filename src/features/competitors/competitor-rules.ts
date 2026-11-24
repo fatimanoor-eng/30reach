@@ -128,6 +128,12 @@ export function facebookPageUrl(input: string): string | null {
       const id = new URLSearchParams(link[2] ?? "").get("id");
       return id && /^\d{5,25}$/.test(id) ? `https://www.facebook.com/profile.php?id=${id}` : null;
     }
+    // Newer page links: facebook.com/p/<Name>-<id>/ → the same page by id (17a; both forms returned the
+    // same posts in a test, 1 credit each). The id is stable when the page is renamed.
+    if (first === "p") {
+      const id = parts[1]?.match(/-(\d{5,25})$/)?.[1];
+      return id ? `https://www.facebook.com/profile.php?id=${id}` : null;
+    }
     if (FACEBOOK_NOT_A_PAGE.has(first)) return null;
     slug = parts[0];
   } else {

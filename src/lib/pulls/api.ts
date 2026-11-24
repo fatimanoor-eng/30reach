@@ -20,8 +20,10 @@ export type CreditsReading = {
 };
 
 export type PullStartResponse = {
-  status: "preview" | "insufficient" | "started" | "running";
+  status: "preview" | "insufficient" | "started" | "running" | "other_running";
   pullId?: string;
+  /** other_running (17a): the client whose pull is running — one pull at a time across clients. */
+  clientName?: string;
   estimate: Estimate;
   credits: CreditsReading;
   lastPullAt: string | null;

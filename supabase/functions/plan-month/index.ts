@@ -64,6 +64,8 @@ export default {
     const result = await groqJson({
       admin: ctx.supabaseAdmin,
       fn: "plan-month",
+      clientId: input.clientId,
+      actor: ctx.userClaims?.sub ?? null,
       system: planSystem({ client: loaded.data.clientName, monthName, year, today: todayLabel }),
       user: planUser({ summaryJson, events: input.events, boardIdeas }),
       schema: PLAN_SCHEMA,

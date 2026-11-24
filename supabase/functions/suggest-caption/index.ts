@@ -47,6 +47,8 @@ export default {
     const result = await groqJson({
       admin: ctx.supabaseAdmin,
       fn: "suggest-caption",
+      clientId: input.clientId,
+      actor: ctx.userClaims?.sub ?? null,
       system: captionsSystem({
         client: (client as { name: string } | null)?.name ?? "the client",
         platform: input.platform,

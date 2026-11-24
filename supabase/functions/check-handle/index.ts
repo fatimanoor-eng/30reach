@@ -1,7 +1,7 @@
 // `check-handle` Edge Function — is this Instagram / TikTok handle, LinkedIn company page or Facebook
 // page real and public? (Slice 8, 07b; LinkedIn Slice 15a; Facebook Slice 16a)
 //
-// POST { platform: "instagram" | "tiktok" | "linkedin" | "facebook", handle } →   (LinkedIn / Facebook:
+// POST { platform: "instagram" | "tiktok" | "linkedin" | "facebook", handle, clientId? } →   (LinkedIn / Facebook:
 //       page URL or slug)
 //   200 { status: "ok" | "not_found", handle, creditsUsed, credits, followers }   (credits = fresh meter
 //       or null; LinkedIn `handle` = https://www.linkedin.com/company/<slug>/, Facebook `handle` =
@@ -28,6 +28,8 @@ import {
   fetchCreditUsage,
   json,
   readJson,
+  recordUsage,
+  clientName,
   requireTeam,
   saveCreditsCache,
   scrapeFacebookProfile,
@@ -43,7 +45,10 @@ export default {
     const denied = await requireTeam(ctx);
     if (denied) return denied;
 
-    const parsed = parseCheckRequest(await readJson(req));
+    const input = await readJson(req);
+    const parsed = parseCheckRequest(input);
+    // Optional (Slice 17a): which client the check is for, so its credits show on that client's Usage row.
+    const clientId = typeof input.clientId === "string" ? input.clientId : null;
     if ("error" in parsed) return json(parsed, 400);
     const { platform, handle } = parsed;
     const admin = ctx.supabaseAdmin;
@@ -85,6 +90,15 @@ export default {
       platform === "facebook"
         ? profileOutcome(parseFacebookProfile(body))
         : checkOutcome(parsePage(platform, body, 0));
+
+    await recordUsage(admin, {
+      kind: "handle_check",
+      clientId,
+      clientName: await clientName(admin, clientId),
+      credits: outcome.creditsUsed,
+      fn: "check-handle",
+      actor: ctx.userClaims?.sub ?? null,
+    });
 
     // Refresh the sidebar meter cache (0 credits) so the spend shows up straight away.
     const after = await fetchCreditUsage();

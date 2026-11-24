@@ -11,6 +11,7 @@ import {
   availablePlatforms,
   durationText,
   fittingPlatforms,
+  otherPullingText,
   PLATFORM_LABEL,
   platformEstimate,
   refreshIntro,
@@ -34,8 +35,10 @@ export function RefreshDialog() {
     queryFn: async (): Promise<PullStartResponse> => {
       const res = await pullStart({ clientId: clientId!, preview: true });
       if (res.ok) return res.data;
-      if (res.status === 409)
-        return { ...(res.data as unknown as PullStartResponse), status: "running" };
+      if (res.status === 409) {
+        const data = res.data as unknown as PullStartResponse;
+        return { ...data, status: data.status === "other_running" ? "other_running" : "running" };
+      }
       throw new Error(
         res.status === 502
           ? "Firecrawl credits couldn’t be checked."
@@ -73,6 +76,8 @@ export function RefreshDialog() {
     );
   }
   if (preview.data.status === "running") return <AlreadyRunning />;
+  if (preview.data.status === "other_running")
+    return <OtherClientPulling name={preview.data.clientName ?? "Another client"} />;
   return preview.data.status === "insufficient" ? (
     <NotEnoughCredits preview={preview.data} />
   ) : (
@@ -160,6 +165,24 @@ function AlreadyRunning() {
       description="Someone started a pull a moment ago. You can follow its progress here."
       // pull-start answers 409 + the running pull's id; the provider then drives and shows it.
       primary={{ label: "Show progress", onClick: () => void start(PLATFORMS) }}
+    />
+  );
+}
+
+/**
+ * Another client is pulling (17a): one pull at a time across all clients, so Firecrawl's free plan
+ * doesn't rate-limit two pulls at once.
+ */
+function OtherClientPulling({ name }: { name: string }) {
+  const { closeRefresh } = usePull();
+  return (
+    <ResponsiveDialog
+      open
+      onClose={closeRefresh}
+      title="Another pull is running"
+      description={otherPullingText(name)}
+      primary={{ label: "OK", onClick: closeRefresh }}
+      cancelLabel={null}
     />
   );
 }

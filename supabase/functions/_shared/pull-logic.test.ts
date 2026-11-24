@@ -31,6 +31,7 @@ import {
   linkedInUrl,
   parseFollowers,
   parseRetryAfter,
+  runningConflict,
   type MappedPost,
   parsePage,
   postColumns,
@@ -648,5 +649,44 @@ describe("estimate — Facebook", () => {
       budgetLeft: 100,
     });
     expect(d).toEqual({ more: false, reason: "page_cap" });
+  });
+});
+
+describe("Facebook /p/ page links (Slice 17a)", () => {
+  it("facebook.com/p/<Name>-<id> → the page by id (both forms returned the same posts)", () => {
+    expect(facebookPageUrl("https://www.facebook.com/p/Carnaby-Vine-100095309165059/")).toBe(
+      "https://www.facebook.com/profile.php?id=100095309165059",
+    );
+    expect(facebookPageUrl("facebook.com/p/Carnaby-Vine-100095309165059")).toBe(
+      "https://www.facebook.com/profile.php?id=100095309165059",
+    );
+    expect(facebookPageUrl("https://www.facebook.com/p/no-id-here/")).toBeNull();
+    expect(facebookPageUrl("https://www.facebook.com/p/")).toBeNull();
+  });
+});
+
+describe("runningConflict — one pull at a time across clients (Slice 17a)", () => {
+  const A = "11111111-1111-4111-8111-111111111111";
+  const B = "22222222-2222-4222-8222-222222222222";
+  it("nothing running → free to start", () => {
+    expect(runningConflict(null, A)).toBeNull();
+  });
+  it("same client → follow it", () => {
+    expect(runningConflict({ id: "p1", client_id: A }, A)).toEqual({
+      status: "running",
+      pullId: "p1",
+    });
+  });
+  it("another client → say who", () => {
+    expect(runningConflict({ id: "p1", client_id: B, clients: { name: "OBU Health" } }, A)).toEqual(
+      {
+        status: "other_running",
+        clientName: "OBU Health",
+      },
+    );
+    expect(runningConflict({ id: "p1", client_id: B, clients: null }, A)).toEqual({
+      status: "other_running",
+      clientName: "Another client",
+    });
   });
 });

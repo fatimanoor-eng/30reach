@@ -35,7 +35,7 @@ export default {
 
     const { data: card } = await ctx.supabase
       .from("calendar_cards")
-      .select("id")
+      .select("id, client_id, clients(name)")
       .eq("id", input.cardId)
       .maybeSingle();
     if (!card) return json({ error: "no_card" }, 404);
@@ -43,7 +43,12 @@ export default {
     const result = await groqJson({
       admin: ctx.supabaseAdmin,
       fn: "check-claims",
-      system: claimsSystem(todayContext().label),
+      clientId: (card as { client_id: string }).client_id,
+      actor: ctx.userClaims?.sub ?? null,
+      system: claimsSystem({
+        today: todayContext().label,
+        client: (card as { clients?: { name?: string } | null }).clients?.name ?? "the client",
+      }),
       user: claimsUser(input.draft),
       schema: CLAIMS_SCHEMA,
       maxTokens: 1200,

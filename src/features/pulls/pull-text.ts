@@ -95,3 +95,8 @@ export function tookLabel(ms: number): string {
   const rest = min % 60;
   return rest ? `in ${h} h ${rest} min` : `in ${h} h`;
 }
+
+/** One pull at a time across clients (17a): "OBU Health is pulling right now. Try again in a few minutes." */
+export function otherPullingText(name: string) {
+  return `${name} is pulling right now. Try again in a few minutes.`;
+}

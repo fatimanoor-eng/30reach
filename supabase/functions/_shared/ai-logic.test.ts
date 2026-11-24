@@ -53,6 +53,7 @@ import {
   ASK_INSIGHT_EXAMPLE,
   ASK_CHAT_RULES,
   askLightSystem,
+  FACTS,
   askLightUser,
   askSystem,
   askUser,
@@ -994,7 +995,7 @@ describe("prompts", () => {
       Object.keys(item.properties).sort(),
     );
 
-    const claims = claimsSystem(TODAY);
+    const claims = claimsSystem({ today: TODAY, client: "OBU Health" });
     expect(claims).toContain(ALL_KEYS);
     const [clear, flagged] = examples(claims);
     expect(clear).toEqual({ status: "clear", issues: [] });
@@ -1007,7 +1008,7 @@ describe("prompts", () => {
       askSystem({ client: "OBU Health", firstName: null, today: TODAY }),
       askLightSystem({ client: "OBU Health", firstName: null, today: TODAY }),
       planSystem({ client: "OBU Health", monthName: "January", year: 2027, today: TODAY }),
-      claimsSystem(TODAY),
+      claimsSystem({ today: TODAY, client: "OBU Health" }),
       hooksSystem({ client: "OBU Health", platform: null, today: TODAY }),
     ])
       expect(p).toMatch(/JSON/);
@@ -1052,7 +1053,7 @@ describe("prompts", () => {
     );
     for (const p of [
       planSystem({ client: "OBU Health", monthName: "January", year: 2027, today: TODAY }),
-      claimsSystem(TODAY),
+      claimsSystem({ today: TODAY, client: "OBU Health" }),
       hooksSystem({ client: "OBU Health", platform: "tiktok", today: TODAY }),
     ]) {
       expect(p).toContain(BLIP_VOICE_JSON);
@@ -1085,7 +1086,7 @@ describe("prompts", () => {
     const sizes = [
       askSystem({ client: "OBU Health", firstName: "Fatima", today: TODAY }),
       planSystem({ client: "OBU Health", monthName: "January", year: 2027, today: TODAY }),
-      claimsSystem(TODAY),
+      claimsSystem({ today: TODAY, client: "OBU Health" }),
       hooksSystem({ client: "OBU Health", platform: null, today: TODAY }),
     ].map((s) => s.length);
     // ≈ 750 tokens. Ask Blip is the biggest (voice + chat rules); its ~2.5K-token data summary is
@@ -1109,7 +1110,7 @@ describe("today in every prompt", () => {
       askSystem({ client: "OBU Health", firstName: null, today: TODAY }),
       askLightSystem({ client: "OBU Health", firstName: null, today: TODAY }),
       planSystem({ client: "OBU Health", monthName: "January", year: 2027, today: TODAY }),
-      claimsSystem(TODAY),
+      claimsSystem({ today: TODAY, client: "OBU Health" }),
       hooksSystem({ client: "OBU Health", platform: "tiktok", today: TODAY }),
       captionsSystem({ client: "OBU Health", platform: "instagram", today: TODAY }),
     ];
@@ -1469,5 +1470,25 @@ describe("Facebook in Blip (Slice 16c)", () => {
     expect(
       parseCaptionInput({ clientId: CLIENT, title: "t", platform: "facebook", format: "carousel" }),
     ).toMatchObject({ platform: "facebook", format: "carousel" });
+  });
+});
+
+describe("Blip facts block (Slice 17a)", () => {
+  it("every system prompt says who is who, right after the date", () => {
+    const prompts = [
+      askSystem({ client: "OBU Health", firstName: "Fatima", today: TODAY }),
+      askLightSystem({ client: "OBU Health", firstName: null, today: TODAY }),
+      planSystem({ client: "OBU Health", monthName: "January", year: 2027, today: TODAY }),
+      claimsSystem({ today: TODAY, client: "OBU Health" }),
+      hooksSystem({ client: "OBU Health", platform: "facebook", today: TODAY }),
+      captionsSystem({ client: "OBU Health", platform: null, today: TODAY }),
+    ];
+    for (const p of prompts) {
+      expect(p).toContain(FACTS("OBU Health"));
+      expect(p.indexOf("Facts:")).toBeLessThan(400);
+    }
+    expect(FACTS("All The Best Co")).toBe(
+      "Facts: Breakthirty is the agency; 30reach is its tool; you are Blip. All The Best Co is Breakthirty's client (the brand we plan for); competitors are other brands we track.",
+    );
   });
 });

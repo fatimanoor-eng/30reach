@@ -4,13 +4,16 @@
 //        test?: { competitorId, platform } }   ← test mode: one brand × one platform, 2-page cap
 //
 // → { status: "preview" | "insufficient" | "started", estimate, credits, lastPullAt, brands, pullId? }
-// → 409 { status: "running", pullId } if a pull is already running for this client.
+// → 409 { status: "running", pullId } if a pull is already running for this client;
+//   409 { status: "other_running", clientName } if another client is pulling (one pull at a time, 17a).
 //
 // Credits check uses the MAXIMUM possible cost (Σ task page cap × 2; LinkedIn tasks cap at 2 pages,
 // Facebook keeps the pull's cap of 4), so a pull can't overspend.
 
 import {
   estimate,
+  type RunningPull,
+  runningConflict,
   PAGE_CAP,
   type Platform,
   PLATFORMS,
@@ -55,14 +58,18 @@ export default {
 
     const admin = ctx.supabaseAdmin;
 
-    // Already running? → resume instead of starting another.
-    const { data: running } = await admin
-      .from("pulls")
-      .select("id")
-      .eq("client_id", clientId)
-      .eq("status", "running")
-      .maybeSingle();
-    if (running) return json({ status: "running", pullId: running.id }, 409);
+    // One running pull across ALL clients (17a). Same client → resume it; another client → say who.
+    const findRunning = async () =>
+      (
+        await admin
+          .from("pulls")
+          .select("id, client_id, clients(name)")
+          .eq("status", "running")
+          .limit(1)
+          .maybeSingle()
+      ).data as RunningPull;
+    const conflict = runningConflict(await findRunning(), clientId);
+    if (conflict) return json(conflict, 409);
 
     // One task per competitor × platform that has a handle.
     let query = admin
@@ -142,7 +149,10 @@ export default {
       })
       .select("id")
       .single();
-    if (pullError?.code === "23505") return json({ status: "running" }, 409); // raced another tab
+    if (pullError?.code === "23505") {
+      // Raced another tab or another client's pull.
+      return json(runningConflict(await findRunning(), clientId) ?? { status: "running" }, 409);
+    }
     if (pullError || !pull) return json({ error: "db_error" }, 500);
 
     const { error: tasksError } = await admin.from("pull_tasks").insert(

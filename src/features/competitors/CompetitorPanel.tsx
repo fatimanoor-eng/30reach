@@ -174,7 +174,7 @@ export function CompetitorPanel({
       }
       setChecking(p);
       setFeedback((s) => ({ ...s, [p]: { tone: "default", message: "Checking…" } }));
-      const r = await checkHandle(p, after[p]!);
+      const r = await checkHandle(p, after[p]!, clientId);
       setChecking(null);
       if (r.kind === "failed") {
         setFeedback((s) => ({ ...s, [p]: null }));

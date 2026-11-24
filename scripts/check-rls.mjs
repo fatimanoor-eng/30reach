@@ -28,8 +28,11 @@ const TABLES = [
   "calendar_cards",
   "holiday_cache",
   "usage_meters",
+  // Slice 17a (multi-client)
+  "client_platforms",
+  "usage_events",
 ];
-const BUCKETS = ["post-thumbs", "idea-images"];
+const BUCKETS = ["post-thumbs", "idea-images", "client-logos"];
 
 // Publishable keys go in the apikey header only (not Authorization: Bearer).
 const headers = { apikey: KEY };
@@ -120,6 +123,8 @@ const RPCS = {
   delete_ideas: { p_ids: [NO_SUCH_ID] },
   restore_ideas: { p_snapshots: [] },
   delete_all_ideas: { p_client: NO_SUCH_ID, p_expected: -1 }, // -1 never matches: nothing deleted
+  // Slice 17a: remembers your last client (refused without a team sign-in).
+  set_last_client: { p_client: NO_SUCH_ID },
 };
 for (const [fn, args] of Object.entries(RPCS)) {
   const { status, body } = await call("POST", `/rest/v1/rpc/${fn}`, {

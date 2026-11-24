@@ -21,7 +21,8 @@ import {
   type SummaryPost,
   tokenLog,
 } from "./ai-logic.ts";
-import { json, type SupabaseClient } from "./server.ts";
+import { clientName, json, recordUsage, type SupabaseClient } from "./server.ts";
+import { groqTokens } from "./usage.ts";
 
 export const groqModel = () => Deno.env.get("GROQ_MODEL")?.trim() || DEFAULT_GROQ_MODEL;
 
@@ -60,11 +61,15 @@ export async function groqJson<T>(o: {
   schema: JsonSchema;
   maxTokens: number;
   validate: (raw: unknown, attempt: number) => T | null;
+  /** Usage tracking (Slice 17a): which client the tokens are for, and who asked. */
+  clientId?: string | null;
+  actor?: string | null;
 }): Promise<AiResult<T>> {
   const key = Deno.env.get("GROQ_API_KEY");
   if (!key) return { ok: false, error: "not_configured" };
   const model = groqModel();
   let mode: GroqMode = "strict";
+  let name: string | null | undefined;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     const label = `${o.label ?? o.fn}${mode === "json_object" ? " (json_object)" : ""}`;
@@ -108,6 +113,15 @@ export async function groqJson<T>(o: {
 
     const body: unknown = await res.json().catch(() => null);
     console.log(`${tokenLog(label, body, res.headers)} (attempt ${attempt})`);
+    if (name === undefined) name = await clientName(o.admin, o.clientId ?? null);
+    await recordUsage(o.admin, {
+      kind: "groq",
+      clientId: o.clientId,
+      clientName: name,
+      tokens: groqTokens(body),
+      fn: o.fn,
+      actor: o.actor,
+    });
     const value = o.validate(parseGroqJson(body), attempt);
     if (value !== null) return { ok: true, value };
     console.error(`${label}: invalid answer (attempt ${attempt})`);

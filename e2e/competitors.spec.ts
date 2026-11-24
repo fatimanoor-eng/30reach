@@ -79,7 +79,7 @@ async function setup(page: Page) {
   // exist (0 credits); anything else does (2 credits; Facebook 5 with the page's followers).
   await page.route("**/functions/v1/check-handle**", (r) => {
     const body = r.request().postDataJSON() as { platform: string; handle: string };
-    checks.push(body);
+    checks.push({ platform: body.platform, handle: body.handle }); // clientId (17a) is checked separately
     const missing =
       body.handle === "noomofficial" ||
       body.handle === "https://www.linkedin.com/company/nosuchco/" ||
@@ -375,6 +375,22 @@ test("07b Facebook: page checked on save (up to 5 credits), followers saved with
   if (isMobile(info.project.name)) await tapTargetsOk(page);
   await noSidewaysScroll(page);
   await expect(page).toHaveScreenshot("competitor-panel-facebook.png");
+});
+
+test("handle checks say which client they're for (Slice 17a usage)", async ({ page }) => {
+  await setup(page);
+  await ready(page);
+  await page.getByRole("button", { name: "Add competitor" }).click();
+  const panel = page.getByRole("dialog", { name: "Add competitor" });
+  await panel.getByRole("textbox", { name: "Brand name" }).fill("Noom");
+  await panel.getByRole("textbox", { name: "Instagram" }).fill("@noom");
+  const req = page.waitForRequest("**/functions/v1/check-handle**");
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  expect((await req).postDataJSON()).toMatchObject({
+    platform: "instagram",
+    handle: "noom",
+    clientId: "client-1",
+  });
 });
 
 test("Fix page link opens the panel on the Facebook field", async ({ page }) => {
