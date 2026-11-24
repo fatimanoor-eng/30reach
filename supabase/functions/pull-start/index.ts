@@ -7,6 +7,9 @@
 // → 409 { status: "running", pullId } if a pull is already running for this client;
 //   409 { status: "other_running", clientName } if another client is pulling (one pull at a time, 17a).
 //
+// Only platforms the client tracks (Slice 17b: client_platforms on + supported); test pulls (dev page)
+// aren't limited. Nothing tracked → 400 { error: "no_platforms" }.
+//
 // Credits check uses the MAXIMUM possible cost (Σ task page cap × 2; LinkedIn tasks cap at 2 pages,
 // Facebook keeps the pull's cap of 4), so a pull can't overspend.
 
@@ -21,6 +24,7 @@ import {
   type TaskKey,
   taskKey,
   TEST_PAGE_CAP,
+  trackedPlatforms,
   WINDOW_DAYS,
 } from "../_shared/pull-logic.ts";
 import {
@@ -49,14 +53,24 @@ export default {
     if (isTest && (typeof test.competitorId !== "string" || !isPlatform(test.platform))) {
       return json({ error: "bad_test_target" }, 400);
     }
+    const admin = ctx.supabaseAdmin;
+
+    // The client's tracked platforms (Slice 17b). Test pulls pick one platform by hand.
+    let tracked: Platform[] = PLATFORMS;
+    if (!isTest) {
+      const { data: rows, error: rowsError } = await admin
+        .from("client_platforms")
+        .select("platform, state")
+        .eq("client_id", clientId);
+      if (rowsError) return json({ error: "db_error" }, 500);
+      tracked = trackedPlatforms(rows);
+    }
     const platforms: Platform[] = isTest
       ? [test.platform as Platform]
       : Array.isArray(body.platforms)
-        ? PLATFORMS.filter((p) => (body.platforms as unknown[]).includes(p))
-        : PLATFORMS;
+        ? tracked.filter((p) => (body.platforms as unknown[]).includes(p))
+        : tracked;
     if (platforms.length === 0) return json({ error: "no_platforms" }, 400);
-
-    const admin = ctx.supabaseAdmin;
 
     // One running pull across ALL clients (17a). Same client → resume it; another client → say who.
     const findRunning = async () =>

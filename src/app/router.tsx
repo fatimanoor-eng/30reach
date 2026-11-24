@@ -13,6 +13,7 @@ import { IdeasPage } from "../features/ideas/IdeasPage";
 import { CompetitorsPage } from "../features/competitors/CompetitorsPage";
 import { SocialPage } from "../features/social/SocialPage";
 import { AppShell } from "./AppShell";
+import { LastClientRedirect } from "./LastClientRedirect";
 
 /**
  * Dev-only routes. `import.meta.env.DEV` is replaced with `false` in production builds, so this
@@ -39,12 +40,16 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
     ]
   : [];
 
-/** Everything inside the app shell — only for signed-in @breakthirty.com accounts. */
+/**
+ * Everything inside the app shell — only for signed-in @breakthirty.com accounts. The client is in the
+ * URL (/c/{slug}/…, Slice 17b); any address without one goes to your last client (LastClientRedirect).
+ */
 const appRoutes: RouteObject[] = [
   {
+    path: "c/:clientSlug",
     element: <AppShell />,
     children: [
-      { index: true, element: <Navigate to="/overview" replace /> },
+      { index: true, element: <Navigate to="overview" replace /> },
       { path: "overview", element: <OverviewPage /> },
       { path: "instagram", element: <SocialPage key="instagram" platform="instagram" /> },
       { path: "tiktok", element: <SocialPage key="tiktok" platform="tiktok" /> },
@@ -62,6 +67,7 @@ const appRoutes: RouteObject[] = [
       { path: "*", element: <NotFoundPage /> },
     ],
   },
+  { path: "*", element: <LastClientRedirect /> },
 ];
 
 export const routes: RouteObject[] = [

@@ -63,7 +63,7 @@ describe("sign in (01)", () => {
   it("a signed-in team member skips it", async () => {
     const router = renderAt("/sign-in", fakeAuth("team"));
     await h1(OVERVIEW);
-    expect(router.state.location.pathname).toBe("/overview");
+    expect(router.state.location.pathname).toBe("/c/northwind-clinic/overview");
   });
 });
 
@@ -74,14 +74,14 @@ describe("/welcome (01b)", () => {
     expect(await h1("Welcome in, Fatima!")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Open 30reach" }));
     await h1(OVERVIEW);
-    expect(router.state.location.pathname).toBe("/overview");
+    expect(router.state.location.pathname).toBe("/c/northwind-clinic/overview");
     expect(sessionStorage.getItem(FRESH_SIGN_IN_KEY)).toBeNull();
   });
 
   it("goes straight to Overview when not fresh", async () => {
     const router = renderAt("/welcome", fakeAuth("team"));
     await h1(OVERVIEW);
-    expect(router.state.location.pathname).toBe("/overview");
+    expect(router.state.location.pathname).toBe("/c/northwind-clinic/overview");
   });
 
   it("hook rejection in the URL → 02 with the rejected email", async () => {

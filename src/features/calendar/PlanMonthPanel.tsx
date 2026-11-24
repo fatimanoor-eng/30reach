@@ -19,6 +19,7 @@ import {
   planLoadingLines,
 } from "./plan-month";
 import { useHolidays } from "./useHolidays";
+import { useClientPath } from "../../lib/useClient";
 
 /**
  * 10 Plan {month}: Blip suggests ~6 dated post ideas with reasons. The team ticks some and either
@@ -76,6 +77,7 @@ export function PlanMonthPanel({
   const queryClient = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
+  const path = useClientPath();
   const [saving, setSaving] = useState<"board" | "calendar" | null>(null);
   const [saveError, setSaveError] = useState<"board" | "calendar" | null>(null);
 
@@ -99,7 +101,7 @@ export function PlanMonthPanel({
       title: `Added ${added} ${added === 1 ? "idea" : "ideas"} to the board 💡`,
       detail: "Nothing is scheduled until you plan it.",
       pose: "success",
-      action: { label: "Open", onClick: () => navigate("/ideas?tab=ai") },
+      action: { label: "Open", onClick: () => navigate(path("/ideas?tab=ai")) },
     });
   }
 
@@ -138,7 +140,7 @@ export function PlanMonthPanel({
       title: `Planned ${planned.length} ${planned.length === 1 ? "idea" : "ideas"} as Idea cards`,
       detail: `On Blip’s suggested days, from ${plannedLabel(first.date)}. Move or edit them any time.`,
       pose: "success",
-      action: { label: "Open", onClick: () => navigate(`/calendar?date=${first.date}`) },
+      action: { label: "Open", onClick: () => navigate(path(`/calendar?date=${first.date}`)) },
     });
   }
 

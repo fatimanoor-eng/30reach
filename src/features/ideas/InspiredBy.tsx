@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { formatCompact, formatShortDate } from "../../lib/format";
 import { ideaAge, ideaAuthor, ideaText, likesWord, type Idea } from "./idea-rules";
 import { useIdea, useIdeaImages } from "./ideas-api";
+import { useClientPath } from "../../lib/useClient";
 
 /** The two lines under "INSPIRED BY": what it was, then numbers / who and when. */
 function describe(idea: Idea): { title: string; meta: string } {
@@ -33,6 +34,7 @@ function describe(idea: Idea): { title: string; meta: string } {
  */
 export function InspiredBy({ ideaId }: { ideaId: string | null }) {
   const idea = useIdea(ideaId);
+  const clientTo = useClientPath();
   const path = idea.data?.image_path ?? null;
   const images = useIdeaImages(path ? [path] : []);
   if (!ideaId || !idea.data) return null;
@@ -40,7 +42,7 @@ export function InspiredBy({ ideaId }: { ideaId: string | null }) {
   const thumb = path ? images.data?.get(path) : undefined;
   return (
     <Link
-      to={`/ideas?idea=${idea.data.id}`}
+      to={clientTo(`/ideas?idea=${idea.data.id}`)}
       className="flex items-center gap-3 rounded-tile bg-bg p-3 hover:bg-soft"
     >
       {thumb ? (

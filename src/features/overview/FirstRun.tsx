@@ -6,6 +6,7 @@ import { Button } from "../../components/Button";
 import { plural } from "../../lib/format";
 import type { Competitor } from "../../lib/useCompetitors";
 import { percentOf, usePull } from "../pulls/pull-context";
+import { useClientPath } from "../../lib/useClient";
 
 /** 03 First run — shown until the client's first real pull is saved. */
 export function FirstRun({
@@ -16,6 +17,7 @@ export function FirstRun({
   competitors: Competitor[];
 }) {
   const pull = usePull();
+  const path = useClientPath();
   const label =
     pull.state.kind === "running"
       ? `Pulling… ${percentOf(pull.state)}%`
@@ -55,7 +57,7 @@ export function FirstRun({
           {label}
         </Button>
         <Link
-          to="/competitors"
+          to={path("/competitors")}
           className="inline-flex min-h-11 items-center rounded-control border border-line bg-surface px-4 text-body-sm font-medium hover:bg-soft md:min-h-10"
         >
           Review competitors

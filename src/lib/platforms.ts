@@ -74,3 +74,15 @@ export const PLATFORM_FILL: Record<Platform, string> = {
   linkedin: "bg-blue",
   facebook: "bg-fresh",
 };
+
+/**
+ * Platforms a client tracks (Slice 17b): `client_platforms` rows that are on AND supported in 30reach.
+ * Mirrors trackedPlatforms() in supabase/functions/_shared/pull-logic.ts. No rows → every platform.
+ */
+export function trackedPlatforms(
+  rows: readonly { platform: string; state: string }[] | null | undefined,
+): Platform[] {
+  if (!rows || rows.length === 0) return PLATFORMS;
+  const on = new Set(rows.filter((r) => r.state === "on").map((r) => r.platform));
+  return PLATFORMS.filter((p) => on.has(p));
+}

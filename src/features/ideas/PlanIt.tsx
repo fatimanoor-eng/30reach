@@ -13,6 +13,7 @@ import { ideaCardTitle, plannedLabel, planSummary, suggestedDay, type Idea } fro
 import { todayIso } from "../calendar/events/dates";
 import { planIdea, PlanError } from "./ideas-api";
 import { PlanCalendar } from "./PlanCalendar";
+import { useClientPath } from "../../lib/useClient";
 
 /**
  * 14d "Plan it": pick a day (yellow dots = event days), platform and format → "Create calendar card".
@@ -36,6 +37,7 @@ export function PlanIt({
   const queryClient = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
+  const path = useClientPath();
   // AI ideas from Plan {month} start on Blip's suggested day (still editable).
   const [day, setDay] = useState<IsoDay | null>(() =>
     suggestedDay(idea.source_snapshot, todayIso()),
@@ -60,7 +62,7 @@ export function PlanIt({
         pose: "success",
         action: {
           label: "Open",
-          onClick: () => navigate(`/calendar?date=${card.date}&card=${card.id}`),
+          onClick: () => navigate(path(`/calendar?date=${card.date}&card=${card.id}`)),
         },
       });
     },

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { Outlet } from "react-router";
 import { BlipIdle } from "../components/blip/BlipPoses";
 import { ToastProvider } from "../components/ToastProvider";
 import { AskBlipPanel } from "../features/blip/AskBlipPanel";
 import { useBlipThread } from "../features/blip/useBlipThread";
 import { ModalPresence } from "../components/ModalPresence";
-import { useClient } from "../lib/useClient";
+import { useClient, useClientSlug, useRememberClient } from "../lib/useClient";
+import { Card } from "../components/Card";
+import { EmptyState } from "../components/EmptyState";
+import { Link, Outlet } from "react-router";
 import { IdeaCaptureProvider } from "../features/ideas/IdeaCaptureProvider";
 import { SaveAsIdeaProvider } from "../features/posts/SaveAsIdeaProvider";
 import { PullProvider } from "../features/pulls/PullProvider";
@@ -26,6 +28,10 @@ export function AppShell() {
   // Ask Blip's thread lives here for the session, so the panel can unmount between opens.
   const client = useClient();
   const thread = useBlipThread(client.data?.id);
+  // Slice 17b: remember the client you opened (this browser + your profile, for any device).
+  useRememberClient(client.data);
+  // The slug in the URL (not the loaded client): known at once, so pages don't mount twice.
+  const slug = useClientSlug();
 
   // "/" opens Ask Blip (ANNOTATIONS › Shared rules), unless you're typing.
   useEffect(() => {
@@ -47,7 +53,7 @@ export function AppShell() {
   const openAskPlain = () => openAsk();
 
   return (
-    <BrandSelectionProvider>
+    <BrandSelectionProvider resetKey={slug}>
       <ToastProvider>
         <PullProvider>
           <IdeaCaptureProvider>
@@ -67,7 +73,15 @@ export function AppShell() {
 
                   <main id="main" tabIndex={-1} className="min-w-0 flex-1 pb-28 md:pb-0">
                     <div className="mx-auto max-w-300 px-4 py-6 md:px-6 md:py-8 xl:px-10 xl:py-10">
-                      <Outlet />
+                      {client.data === null ? (
+                        <ClientNotFound />
+                      ) : (
+                        // Keyed by client: switching clients starts each page fresh (filters, open
+                        // panels), while the shell (and a running pull) stays.
+                        <div key={slug} className="contents">
+                          <Outlet />
+                        </div>
+                      )}
                     </div>
                   </main>
                 </div>
@@ -93,5 +107,26 @@ export function AppShell() {
         </PullProvider>
       </ToastProvider>
     </BrandSelectionProvider>
+  );
+}
+
+/** /c/{slug} for a slug no client has (renamed, deleted, mistyped). */
+function ClientNotFound() {
+  return (
+    <Card>
+      <EmptyState
+        label="404"
+        title="Client not found"
+        text="This client doesn’t exist or was deleted."
+        actions={
+          <Link
+            to="/"
+            className="inline-flex min-h-11 items-center rounded-control bg-ink px-4 text-body-sm font-medium text-white md:min-h-10"
+          >
+            Go to your last client
+          </Link>
+        }
+      />
+    </Card>
   );
 }

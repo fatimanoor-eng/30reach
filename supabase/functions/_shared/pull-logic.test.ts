@@ -32,6 +32,7 @@ import {
   parseFollowers,
   parseRetryAfter,
   runningConflict,
+  trackedPlatforms,
   type MappedPost,
   parsePage,
   postColumns,
@@ -688,5 +689,24 @@ describe("runningConflict — one pull at a time across clients (Slice 17a)", ()
       status: "other_running",
       clientName: "Another client",
     });
+  });
+});
+
+describe("trackedPlatforms — per-client platforms (Slice 17b)", () => {
+  it("on and supported, in the usual order", () => {
+    expect(
+      trackedPlatforms([
+        { platform: "facebook", state: "on" },
+        { platform: "x", state: "on" },
+        { platform: "youtube", state: "on" },
+        { platform: "linkedin", state: "off" },
+        { platform: "instagram", state: "on" },
+      ]),
+    ).toEqual(["instagram", "facebook"]);
+  });
+  it("a client without rows tracks everything; all off tracks nothing", () => {
+    expect(trackedPlatforms([])).toEqual(["instagram", "tiktok", "linkedin", "facebook"]);
+    expect(trackedPlatforms(null)).toEqual(["instagram", "tiktok", "linkedin", "facebook"]);
+    expect(trackedPlatforms([{ platform: "tiktok", state: "off" }])).toEqual([]);
   });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 import { fakeAuth } from "../test/fake-auth";
@@ -21,7 +21,40 @@ describe("App shell", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Run your first pull" }),
     ).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe("/overview");
+    expect(router.state.location.pathname).toBe("/c/northwind-clinic/overview");
+  });
+
+  it("old links without a client open the same page for your last client (17b)", async () => {
+    const router = renderAt("/ideas?idea=abc");
+    await screen.findByRole("heading", { level: 1, name: /^Ideas\s*Idea board$/ });
+    expect(router.state.location.pathname).toBe("/c/northwind-clinic/ideas");
+    expect(router.state.location.search).toBe("?idea=abc");
+  });
+
+  it("a slug no client has shows Client not found", async () => {
+    renderAt("/c/nobody/overview");
+    expect(await screen.findByRole("heading", { name: "Client not found" })).toBeInTheDocument();
+  });
+
+  it("the switcher lists clients with the current one ticked, and its settings (17b)", async () => {
+    renderAt("/c/northwind-clinic/calendar");
+    const [sidebarCard] = await screen.findAllByRole("button", {
+      name: "Client: Northwind Clinic. Switch client",
+    });
+    fireEvent.click(sidebarCard);
+    const menu = await screen.findByRole("group", { name: "Switch client" });
+    const row = await within(menu).findByRole("link", { current: true });
+    expect(row).toHaveTextContent("Northwind Clinic");
+    expect(row).toHaveAttribute("href", "/c/northwind-clinic/calendar"); // same page, other client
+    expect(await within(menu).findByText("No pull yet")).toBeInTheDocument();
+    expect(within(menu).getByRole("link", { name: "Northwind Clinic settings" })).toHaveAttribute(
+      "href",
+      "/c/northwind-clinic/settings",
+    );
+    // Fewer than 6 clients: no search.
+    expect(within(menu).queryByPlaceholderText("Search clients")).not.toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("group", { name: "Switch client" })).not.toBeInTheDocument();
   });
 
   // Social pages: jsdom ignores CSS, so the heading reads "Social" (mobile) + the desktop title.
@@ -48,8 +81,9 @@ describe("App shell", () => {
     renderAt("/settings");
     // jsdom has no CSS, so the sidebar, mobile top bar and breadcrumb all render it.
     expect((await screen.findAllByText("Northwind Clinic")).length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByLabelText("Client: Northwind Clinic")).toBeInTheDocument(); // icon rail
-    expect(screen.getByText("NO")).toBeInTheDocument(); // rail avatar initials
+    // Sidebar card, icon rail and phone app bar each open the switcher.
+    expect(screen.getAllByLabelText("Client: Northwind Clinic. Switch client")).toHaveLength(3);
+    expect(screen.getAllByText("NO").length).toBeGreaterThanOrEqual(2); // client mark initials
   });
 
   it("unknown routes show Page not found", async () => {
@@ -98,7 +132,7 @@ describe("App shell", () => {
     try {
       const router = renderAt("/more");
       await screen.findByRole("heading", { level: 1, name: /^(Overview|Run your first pull)$/ });
-      expect(router.state.location.pathname).toBe("/overview");
+      expect(router.state.location.pathname).toBe("/c/northwind-clinic/overview");
     } finally {
       window.__mqMatches = false;
     }

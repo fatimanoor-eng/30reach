@@ -19,6 +19,7 @@ import { type PullProgress, PullInterrupted, runPull } from "../../lib/pulls/run
 import { formatNumber, formatShortDate, plural } from "../../lib/format";
 import { PLATFORM_NAME, PLATFORMS, TARGET_KEY } from "../../lib/platforms";
 import { supabase } from "../../lib/supabase";
+import { useClient } from "../../lib/useClient";
 import { CREDITS_QUERY_KEY } from "../../lib/useCredits";
 
 /**
@@ -41,18 +42,7 @@ export function TestPullPage() {
   const [confirming, setConfirming] = useState(false);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
 
-  const client = useQuery({
-    queryKey: ["client", "obu-health"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id, name")
-        .eq("slug", "obu-health")
-        .single();
-      if (error) throw error;
-      return data;
-    },
-  });
+  const client = useClient(); // the client in the URL (/c/{slug}/dev/test-pull), Slice 17b
 
   const competitors = useQuery({
     queryKey: ["competitors", client.data?.id],

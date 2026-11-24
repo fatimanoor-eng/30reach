@@ -4,6 +4,7 @@ import { PLATFORM_NAME } from "../../lib/platforms";
 import { useVisiblePlatforms } from "../../lib/useVisiblePlatforms";
 import { useBrandSelection } from "../../lib/brand-selection-context";
 import { PostsCard } from "../posts/PostsCard";
+import { useClientPath } from "../../lib/useClient";
 import { platformHref } from "./filters";
 import type { BrandRef, OverviewPost } from "./metrics";
 
@@ -29,6 +30,7 @@ export function TopPostsCard({
 }) {
   const { selected } = useBrandSelection();
   const { search } = useLocation();
+  const path = useClientPath();
   const visible = useVisiblePlatforms(); // only platforms a competitor has an account on (16b)
   return (
     <PostsCard
@@ -44,7 +46,7 @@ export function TopPostsCard({
       links={
         <>
           {visible.map((p) => (
-            <Link key={p} to={platformHref(p, search, { posts: "all" })} className={link}>
+            <Link key={p} to={path(platformHref(p, search, { posts: "all" }))} className={link}>
               {/* Header on tablet/desktop is short ("LinkedIn →"); phones stack the full label. */}
               <span className="md:sr-only">All </span>
               {PLATFORM_NAME[p]}

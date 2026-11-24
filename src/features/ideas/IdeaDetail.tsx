@@ -13,7 +13,7 @@ import { useAuth } from "../../lib/auth/auth-context";
 import { useProfile } from "../../lib/auth/useProfile";
 import { initialsFor } from "../../lib/auth/domain";
 import { formatCompact, formatShortDate } from "../../lib/format";
-import { useClient } from "../../lib/useClient";
+import { useClient, useClientPath } from "../../lib/useClient";
 import { AiTag } from "../calendar/CardTile";
 import {
   canDeleteIdea,
@@ -75,6 +75,7 @@ export function IdeaDetail({
   planOnOpen?: boolean;
 }) {
   const client = useClient();
+  const path = useClientPath();
   const queryClient = useQueryClient();
   const toast = useToast();
   const [planOpen, setPlanOpen] = useState(planOnOpen && !idea.planned);
@@ -208,7 +209,7 @@ export function IdeaDetail({
         )}
         {idea.planned ? (
           <Link
-            to={`/calendar?date=${idea.planned.date}&card=${idea.planned.id}`}
+            to={path(`/calendar?date=${idea.planned.date}&card=${idea.planned.id}`)}
             className="inline-flex min-h-11 items-center gap-2 rounded-control border border-line px-4 text-body-sm font-medium hover:bg-soft md:min-h-10"
           >
             <span aria-hidden="true" className="size-1.5 rounded-full bg-fresh" />

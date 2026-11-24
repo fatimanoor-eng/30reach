@@ -32,6 +32,7 @@ import {
 } from "./card-drafts";
 import { HealthCheck, type HealthCheckState } from "./HealthCheck";
 import { HookSuggestions, type HooksState } from "./HookSuggestions";
+import { useClientPath } from "../../lib/useClient";
 
 /**
  * 09 card detail (drawer from 768 px) / M08 (full-screen page with a back arrow and a sticky Save bar).
@@ -117,6 +118,7 @@ export function CardPanel({
   const [formatRequest, setFormatRequest] = useState(0);
   const [moveOpen, setMoveOpen] = useState(false);
   const navigate = useNavigate();
+  const path = useClientPath();
   // 09 "Move to idea board" (card_to_idea). Closes first so the toast and its Open are reachable.
   const move = useMutation({
     mutationFn: () => cardToIdea(card!.id),
@@ -128,7 +130,7 @@ export function CardPanel({
       toast.show({
         title: "Moved to the idea board",
         pose: "success",
-        action: { label: "Open", onClick: () => navigate(`/ideas?idea=${ideaId}`) },
+        action: { label: "Open", onClick: () => navigate(path(`/ideas?idea=${ideaId}`)) },
       });
     },
   });

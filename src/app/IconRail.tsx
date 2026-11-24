@@ -4,9 +4,10 @@ import { BlipError, BlipIdle } from "../components/blip/BlipPoses";
 import { LogoMark } from "../components/Logo";
 import { Tooltip } from "../components/Tooltip";
 import { useCurrentUser } from "../lib/auth/useCurrentUser";
-import { clientInitials, useClient } from "../lib/useClient";
+import { useClientPath } from "../lib/useClient";
 import { creditsFraction } from "../lib/format";
 import { creditsSummary, useCredits } from "../lib/useCredits";
+import { RailClientSwitcher } from "./ClientSwitcher";
 import { useNavSections } from "./useNav";
 
 const railButton =
@@ -23,10 +24,10 @@ export function IconRail({
   onAskBlip: () => void;
   className?: string;
 }) {
-  const clientName = useClient().data?.name;
   const me = useCurrentUser();
   const credits = useCredits();
   const navSections = useNavSections();
+  const path = useClientPath();
 
   return (
     <aside
@@ -35,26 +36,7 @@ export function IconRail({
     >
       <LogoMark className="h-auto w-8 text-white" />
 
-      {clientName ? (
-        <Tooltip side="right" content={`Client: ${clientName}`} className="mt-5">
-          {(t) => (
-            <span
-              tabIndex={0}
-              aria-describedby={t["aria-describedby"]}
-              aria-label={`Client: ${clientName}`}
-              className="rounded-full"
-            >
-              <Avatar initials={clientInitials(clientName)} tone="dark" size="md" />
-            </span>
-          )}
-        </Tooltip>
-      ) : (
-        // Loading (or failed): same-size placeholder so the rail doesn't jump.
-        <span
-          aria-hidden="true"
-          className="mt-5 size-8 rounded-full bg-sidebar-2 motion-safe:animate-pulse"
-        />
-      )}
+      <RailClientSwitcher />
 
       <nav aria-label="Main" className="mt-5 flex flex-col items-center gap-1">
         {navSections.map((section, i) => (
@@ -65,7 +47,7 @@ export function IconRail({
                 <Tooltip side="right" content={label}>
                   {(t) => (
                     <NavLink
-                      to={to}
+                      to={path(to)}
                       aria-label={label}
                       aria-describedby={t["aria-describedby"]}
                       className={({ isActive }) =>
@@ -158,7 +140,7 @@ export function IconRail({
         <Tooltip side="right" content={`${me.name} · Settings`}>
           {(t) => (
             <Link
-              to="/settings"
+              to={path("/settings")}
               aria-label={`${me.name}, settings`}
               aria-describedby={t["aria-describedby"]}
               className="rounded-full"

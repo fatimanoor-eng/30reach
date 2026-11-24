@@ -1,6 +1,7 @@
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import type { Platform } from "../../lib/platforms";
 import type { Filters } from "./metrics";
+import { useClientPath } from "../../lib/useClient";
 
 /**
  * Date range lives in the URL (?days=7) so a view can be shared and survives a reload. Brand pills stay
@@ -43,8 +44,9 @@ const PATH: Record<PlatformPage, string> = {
 export function usePlatformNav() {
   const navigate = useNavigate();
   const { search } = useLocation();
+  const path = useClientPath();
   // Drops ?posts=all: the expanded post list belongs to the page you're leaving.
-  return (to: PlatformPage) => navigate(platformHref(to, search));
+  return (to: PlatformPage) => navigate(path(platformHref(to, search)));
 }
 
 /**

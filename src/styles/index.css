@@ -23,6 +23,11 @@
     outline-color: var(--color-white);
   }
 
+  /* Light panels opened from a dark surface (client switcher menu / sheet): ink ring again. */
+  .on-dark .on-light :focus-visible {
+    outline-color: var(--color-ink);
+  }
+
   /* Icons: 1.75 stroke everywhere (DESIGN_SYSTEM › Icons). CSS beats the SVG attribute. */
   svg.lucide,
   svg.icon {

@@ -1,4 +1,6 @@
 import { Link, useLocation } from "react-router";
+import { appPathOf } from "../lib/client-path";
+import { useClientPath } from "../lib/useClient";
 import { isActive } from "./nav";
 import { useMobileTabs } from "./useNav";
 
@@ -6,6 +8,7 @@ import { useMobileTabs } from "./useNav";
 export function BottomTabs({ className = "" }: { className?: string }) {
   const { pathname } = useLocation();
   const mobileTabs = useMobileTabs();
+  const path = useClientPath();
 
   return (
     <nav
@@ -14,11 +17,11 @@ export function BottomTabs({ className = "" }: { className?: string }) {
     >
       <ul className="grid h-16 grid-cols-5">
         {mobileTabs.map(({ to, label, icon: Icon, match }) => {
-          const active = isActive(pathname, match);
+          const active = isActive(appPathOf(pathname), match);
           return (
             <li key={to}>
               <Link
-                to={to}
+                to={path(to)}
                 aria-current={active ? "page" : undefined}
                 className={`relative flex h-full flex-col items-center justify-center gap-1 text-label ${
                   active

@@ -9,26 +9,28 @@ import { useCurrentUser } from "../../lib/auth/useCurrentUser";
 import { useCompetitors } from "../../lib/useCompetitors";
 import { plural } from "../../lib/format";
 import { useCredits } from "../../lib/useCredits";
+import { useClientPath } from "../../lib/useClient";
 
 /** Mobile "More" tab (Figma M12): Competitors, Settings, credits, account. Tablet/desktop use the nav. */
 export function MorePage() {
   const tabletUp = useMediaQuery(MQ_TABLET_UP);
+  const path = useClientPath();
   const me = useCurrentUser();
   const credits = useCredits();
   const competitors = useCompetitors();
   const rows = [
     {
-      to: "/competitors",
+      to: path("/competitors"),
       icon: Users,
       title: "Competitors",
       text: competitors.data
         ? `${plural(competitors.data.length, "brand")} · add, edit, remove`
         : "Add, edit, remove",
     },
-    { to: "/settings", icon: SlidersVertical, title: "Settings", text: "Team, usage, data" },
+    { to: path("/settings"), icon: SlidersVertical, title: "Settings", text: "Team, usage, data" },
   ];
   const { signOut } = useAuth();
-  if (tabletUp) return <Navigate to="/overview" replace />;
+  if (tabletUp) return <Navigate to={path("/overview")} replace />;
 
   return (
     <>

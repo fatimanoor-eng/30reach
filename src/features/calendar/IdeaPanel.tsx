@@ -7,6 +7,7 @@ import { formatShortDate } from "../../lib/format";
 import { aiSuggestion, ideaAuthor, ideaText, planOnLabel, type Idea } from "../ideas/idea-rules";
 import { usePlanOnDay } from "../ideas/usePlanOnDay";
 import { todayIso } from "./events/dates";
+import { useClientPath } from "../../lib/useClient";
 
 /** "FROM HERS · 12 NOV", "BLIP" (AI ideas) or the author's first name (08 idea panel). */
 function source(idea: Idea): string {
@@ -45,6 +46,7 @@ export const IdeaPanelItem = forwardRef<
 
 function DraggableIdea({ idea }: { idea: Idea }) {
   const navigate = useNavigate();
+  const path = useClientPath();
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: `idea:${idea.id}` });
   const day = aiSuggestion(idea, todayIso())?.day ?? null;
   const planOn = usePlanOnDay();
@@ -56,7 +58,7 @@ function DraggableIdea({ idea }: { idea: Idea }) {
         {...attributes}
         {...listeners}
         // No mouse: open it on the board with Plan it (keyboards and screen readers plan from there).
-        onClick={() => navigate(`/ideas?idea=${idea.id}&plan=1`)}
+        onClick={() => navigate(path(`/ideas?idea=${idea.id}&plan=1`))}
         aria-roledescription="idea"
         aria-label={`${ideaText(idea).slice(0, 80) || "Idea"}. Drag onto a day, or open to plan it.`}
         className={isDragging ? "opacity-40" : ""}
@@ -94,6 +96,7 @@ export function IdeaPanel({
   onRetry: () => void;
 }) {
   const unplanned = ideas.filter((i) => !i.planned_card_id);
+  const path = useClientPath();
   return (
     <aside
       aria-labelledby="idea-panel-title"
@@ -104,7 +107,7 @@ export function IdeaPanel({
           Idea board
         </h2>
         <Link
-          to="/ideas"
+          to={path("/ideas")}
           className="inline-flex min-h-11 items-center text-small text-blue hover:underline md:min-h-6"
         >
           Open full board »
@@ -145,7 +148,7 @@ export function IdeaPanel({
       )}
 
       <Link
-        to="/ideas"
+        to={path("/ideas")}
         className="flex min-h-11 items-center gap-2 rounded-control border border-dashed border-line px-3 text-small font-medium text-muted hover:border-ink hover:text-ink md:min-h-10"
       >
         <Plus size={14} aria-hidden="true" />

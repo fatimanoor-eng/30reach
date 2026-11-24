@@ -52,12 +52,22 @@ if (!proto.close) {
 // Never talk to the real Supabase project from unit tests: replace the client module.
 // Profile reads resolve to a fixed admin row; auth calls are no-ops.
 vi.mock("../lib/supabase", () => {
+  const northwind = {
+    id: "client-1",
+    slug: "northwind-clinic",
+    name: "Northwind Clinic",
+    initials: null,
+    brand_color: null,
+    is_demo: false,
+    archived_at: null,
+  };
   // Per-table answers. Every query method chains; .single()/.maybeSingle() return the row,
   // awaiting the query itself returns the list.
   const tables: Record<string, { row: unknown; list: unknown[] }> = {
     profiles: { row: { role: "admin", full_name: "Fatima Noor" }, list: [] },
     // Deliberately not "OBU Health": proves the shell shows the database name, not sample data.
-    clients: { row: { id: "client-1", name: "Northwind Clinic" }, list: [] },
+    // Slice 17b: the client is in the URL (/c/northwind-clinic/…); "/" and old paths redirect there.
+    clients: { row: northwind, list: [northwind] },
     pulls: { row: null, list: [] }, // no running pull
     pull_tasks: { row: null, list: [] },
     competitors: {
@@ -72,12 +82,22 @@ vi.mock("../lib/supabase", () => {
   };
   const from = (table: string) => {
     const t = tables[table] ?? { row: null, list: [] };
+    // .eq() on a column the row has must match it (e.g. clients by slug: an unknown slug → null).
+    const filters: [string, unknown][] = [];
+    const row = () => {
+      const r = t.row as Record<string, unknown> | null;
+      return r && filters.every(([k, v]) => !(k in r) || r[k] === v) ? r : null;
+    };
     const query: Record<string, unknown> = {
-      single: async () => ({ data: t.row, error: null }),
-      maybeSingle: async () => ({ data: t.row, error: null }),
+      single: async () => ({ data: row(), error: null }),
+      maybeSingle: async () => ({ data: row(), error: null }),
       then: (resolve: (v: unknown) => unknown) => resolve({ data: t.list, error: null }),
     };
-    for (const m of ["select", "eq", "neq", "in", "order", "limit", "or"]) query[m] = () => query;
+    for (const m of ["select", "neq", "in", "order", "limit", "or"]) query[m] = () => query;
+    query.eq = (k: string, v: unknown) => {
+      filters.push([k, v]);
+      return query;
+    };
     return query;
   };
   return {
@@ -85,6 +105,7 @@ vi.mock("../lib/supabase", () => {
     AUTH_STORAGE_KEY: "30reach-auth",
     supabase: {
       from,
+      rpc: async () => ({ data: null, error: null }), // set_last_client
       functions: {
         invoke: async () => ({
           data: {

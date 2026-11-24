@@ -51,6 +51,13 @@ export function useBlipThread(clientId: string | undefined) {
     [competitors.data, clientName],
   );
   const [messages, setMessages] = useState<Message[]>([]);
+  // One thread per client (Slice 17b): switching clients starts a fresh one. A switch passes through
+  // `undefined` while the next client loads, so only a new, known client resets it.
+  const [threadFor, setThreadFor] = useState(clientId);
+  if (clientId && clientId !== threadFor) {
+    setThreadFor(clientId);
+    if (threadFor) setMessages([]);
+  }
   const nextId = useRef(1);
   const inFlight = useRef(false); // set at once, so a quick double click can't ask twice
   // ask() reads the committed thread (it's only called from events, after a commit).

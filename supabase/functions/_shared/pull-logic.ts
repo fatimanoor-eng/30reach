@@ -825,3 +825,17 @@ export function runningConflict(running: RunningPull, clientId: string) {
     clientName: running.clients?.name?.trim() || "Another client",
   };
 }
+
+/**
+ * Platforms a client tracks (Slice 17b): its `client_platforms` rows that are on AND supported here.
+ * Rows for platforms 30reach can't pull yet (x, pinterest, youtube…) show "coming later" in the app and
+ * count once supported. A client with no rows at all (shouldn't happen after 17a) tracks every platform,
+ * so an older client never silently stops pulling.
+ */
+export function trackedPlatforms(
+  rows: readonly { platform: string; state: string }[] | null | undefined,
+): Platform[] {
+  if (!rows || rows.length === 0) return PLATFORMS;
+  const on = new Set(rows.filter((r) => r.state === "on").map((r) => r.platform));
+  return PLATFORMS.filter((p) => on.has(p));
+}

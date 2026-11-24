@@ -7,14 +7,25 @@ import type { PullProgress } from "../../lib/pulls/run-pull";
  * starting    — pull-start in flight
  * running     — pull in progress; cardOpen = 05b card visible (else 05c progress on the button)
  * interrupted — a running pull that isn't being driven (reload / Firecrawl hiccup) → Resume
+ *
+ * `client` = whose pull it is (Slice 17b): it keeps going when you switch clients, and its links
+ * ("See what's new", "Fix handle") open that client.
  */
+export type PullOwner = { id: string; slug: string; name: string };
 export type PullUiState =
   | { kind: "idle" }
   | { kind: "starting" }
-  | { kind: "running"; pullId: string; progress: PullProgress | null; cardOpen: boolean }
-  | { kind: "interrupted"; pullId: string; progress: PullProgress | null };
+  | {
+      kind: "running";
+      pullId: string;
+      client: PullOwner;
+      progress: PullProgress | null;
+      cardOpen: boolean;
+    }
+  | { kind: "interrupted"; pullId: string; client: PullOwner; progress: PullProgress | null };
 
 export type PullApi = {
+  /** The pull as seen from the client you're on: another client's pull reads as idle here. */
   state: PullUiState;
   clientId: string | null;
   refreshOpen: boolean;

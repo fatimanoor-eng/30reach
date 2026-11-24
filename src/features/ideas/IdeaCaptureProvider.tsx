@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useToast } from "../../components/toast-context";
+import { appPathOf } from "../../lib/client-path";
 import { isTyping } from "../../lib/is-typing";
+import { useClientPath, useClientSlug } from "../../lib/useClient";
 import { CaptureContext, MAX_DRAFTS, type CaptureApi, type Draft } from "./capture-context";
 import { compressImage, ImageCompressionError } from "./compress-image";
 import { looksLikeUrl, normaliseUrl } from "./idea-rules";
@@ -20,9 +22,19 @@ const IDEAS_PATH = "/ideas";
 export function IdeaCaptureProvider({ children }: { children: ReactNode }) {
   const toast = useToast();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname: fullPath } = useLocation();
+  const pathname = appPathOf(fullPath);
+  const path = useClientPath();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  // Drafts belong to the client they were captured for: switching clients starts empty (17b).
+  const slug = useClientSlug();
+  const [draftsFor, setDraftsFor] = useState(slug);
+  if (draftsFor !== slug) {
+    setDraftsFor(slug);
+    setDrafts([]);
+    setFocusKey(null);
+  }
   const draftsRef = useRef(drafts);
   useEffect(() => {
     draftsRef.current = drafts;
@@ -30,8 +42,8 @@ export function IdeaCaptureProvider({ children }: { children: ReactNode }) {
 
   const room = MAX_DRAFTS - drafts.length;
   const openBoard = useCallback(() => {
-    if (pathname !== IDEAS_PATH) navigate(IDEAS_PATH);
-  }, [pathname, navigate]);
+    if (pathname !== IDEAS_PATH) navigate(path(IDEAS_PATH));
+  }, [pathname, navigate, path]);
 
   const prepend = useCallback((items: Draft[]) => {
     if (!items.length) return;

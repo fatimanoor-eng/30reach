@@ -14,10 +14,11 @@ import {
 } from "../../lib/pulls/api";
 import { progressOf, PullInterrupted, runPull, toProgress } from "../../lib/pulls/run-pull";
 import { supabase } from "../../lib/supabase";
+import { clientPath } from "../../lib/client-path";
 import { useClient } from "../../lib/useClient";
 import type { Competitor } from "../../lib/useCompetitors";
 import { CREDITS_QUERY_KEY, creditsLeft } from "../../lib/useCredits";
-import { PullContext, type PullUiState } from "./pull-context";
+import { PullContext, type PullOwner, type PullUiState } from "./pull-context";
 import { PullProgressDialog } from "./PullProgressDialog";
 import { otherPullingText, problemSentence, targetNoun, tookLabel } from "./pull-text";
 import { RefreshDialog } from "./RefreshDialog";
@@ -28,11 +29,17 @@ const AUTO_RESUME_MS = 60_000; // one automatic resume after repeated 429s
 /**
  * Owns the pull for the whole app shell (Slice 5): 05 confirm → pull-start → runPull (05b/05c) →
  * pull-finish → toast (05d/05g). On app open, finds a `running` pull and offers Resume.
- * Lives in the shell so a pull keeps going while you move between pages.
+ * Lives in the shell so a pull keeps going while you move between pages, and between clients (17b):
+ * one pull runs at a time across all clients, and it remembers whose it is.
  */
 export function PullProvider({ children }: { children: ReactNode }) {
   const client = useClient();
   const clientId = client.data?.id ?? null;
+  const owner = useMemo<PullOwner | null>(
+    () =>
+      client.data ? { id: client.data.id, slug: client.data.slug, name: client.data.name } : null,
+    [client.data],
+  );
   const toast = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -51,30 +58,30 @@ export function PullProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   // `drive` and the toasts reference each other (Resume / Try again buttons), so keep a stable ref.
-  const driveRef = useRef<(pullId: string) => void>(() => {});
+  const driveRef = useRef<(pullId: string, who: PullOwner) => void>(() => {});
   const openRefresh = useCallback(() => setRefreshOpen(true), []);
 
-  /** 05e only makes sense once 2 real pulls exist. */
-  const hasPreviousPull = useCallback(async () => {
-    if (!clientId) return false;
+  /** 05e only makes sense once 2 real pulls exist (for the client that was pulled). */
+  const hasPreviousPull = useCallback(async (pulledId: string) => {
     const { data } = await supabase
       .from("pulls")
       .select("id")
-      .eq("client_id", clientId)
+      .eq("client_id", pulledId)
       .eq("is_test", false)
       .in("status", ["done", "partial"])
       .limit(2);
     return (data?.length ?? 0) >= 2;
-  }, [clientId]);
+  }, []);
 
   const showResult = useCallback(
-    async (r: PullFinishResponse, tookMs: number | null = null) => {
+    async (r: PullFinishResponse, who: PullOwner, tookMs: number | null = null) => {
       const label = r.isTest ? "Test pull" : "Pull";
       const seeWhatsNew =
-        !r.isTest && r.status !== "failed" && (await hasPreviousPull())
+        !r.isTest && r.status !== "failed" && (await hasPreviousPull(who.id))
           ? {
               label: "See what’s new",
-              onClick: () => navigate("/overview", { state: { whatsNew: true } }),
+              onClick: () =>
+                navigate(clientPath(who.slug, "/overview"), { state: { whatsNew: true } }),
             }
           : undefined;
       if (r.status === "done") {
@@ -111,9 +118,12 @@ export function PullProvider({ children }: { children: ReactNode }) {
                 label: targetNoun(handleProblem.platform) === "page" ? "Fix page" : "Fix handle",
                 onClick: () =>
                   navigate(
-                    fixTarget
-                      ? `/competitors?edit=${fixTarget.id}&focus=${handleProblem.platform}`
-                      : "/competitors",
+                    clientPath(
+                      who.slug,
+                      fixTarget
+                        ? `/competitors?edit=${fixTarget.id}&focus=${handleProblem.platform}`
+                        : "/competitors",
+                    ),
                   ),
               }
             : seeWhatsNew,
@@ -131,10 +141,10 @@ export function PullProvider({ children }: { children: ReactNode }) {
   );
 
   const drive = useCallback(
-    async (pullId: string) => {
+    async (pullId: string, who: PullOwner) => {
       if (driving.current) return;
       driving.current = true;
-      setState({ kind: "running", pullId, progress: null, cardOpen: true });
+      setState({ kind: "running", pullId, client: who, progress: null, cardOpen: true });
       const started = Date.now(); // this run (a resumed pull counts from the resume)
       try {
         const result = await runPull(
@@ -151,7 +161,7 @@ export function PullProvider({ children }: { children: ReactNode }) {
         );
         setState({ kind: "idle" });
         await refreshData(); // new pull → Overview reloads before the toast points at it
-        void showResult(result, Date.now() - started);
+        void showResult(result, who, Date.now() - started);
       } catch (err) {
         if (
           err instanceof PullInterrupted &&
@@ -163,6 +173,7 @@ export function PullProvider({ children }: { children: ReactNode }) {
           setState((s) => ({
             kind: "interrupted",
             pullId,
+            client: who,
             progress: s.kind === "running" ? s.progress : null,
           }));
           toast.show({
@@ -170,12 +181,13 @@ export function PullProvider({ children }: { children: ReactNode }) {
             detail: `Resuming in ${AUTO_RESUME_MS / 1000} s — nothing to do.`,
             pose: "idle",
           });
-          window.setTimeout(() => driveRef.current(pullId), AUTO_RESUME_MS);
+          window.setTimeout(() => driveRef.current(pullId, who), AUTO_RESUME_MS);
           return;
         }
         setState((s) => ({
           kind: "interrupted",
           pullId,
+          client: who,
           progress: s.kind === "running" ? s.progress : null,
         }));
         toast.show({
@@ -187,7 +199,7 @@ export function PullProvider({ children }: { children: ReactNode }) {
                 ? "Firecrawl didn’t respond. Nothing is lost — resume when you’re ready."
                 : "Something went wrong. Nothing is lost — resume when you’re ready.",
           pose: "error",
-          action: { label: "Resume", onClick: () => driveRef.current(pullId) },
+          action: { label: "Resume", onClick: () => driveRef.current(pullId, who) },
         });
       } finally {
         driving.current = false;
@@ -198,40 +210,51 @@ export function PullProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    driveRef.current = (id: string) => void drive(id);
+    driveRef.current = (id: string, who: PullOwner) => void drive(id, who);
   }, [drive]);
 
-  // Resume after a reload: a `running` pull that nobody is driving.
+  // Resume after a reload: a `running` pull that nobody is driving, for any client (one runs at a time).
   useEffect(() => {
     if (!clientId || resumeChecked.current) return;
     resumeChecked.current = true;
     void supabase
       .from("pulls")
-      .select("id")
-      .eq("client_id", clientId)
+      .select("id, client_id, clients(slug, name)")
       .eq("status", "running")
+      .limit(1)
       .maybeSingle()
       .then(async ({ data }) => {
-        if (!data?.id || driving.current) return;
-        const progress = progressOf((await listTasks(data.id)).map(toProgress));
-        setState({ kind: "interrupted", pullId: data.id, progress });
+        const row = data as {
+          id: string;
+          client_id: string;
+          clients: { slug: string; name: string } | null;
+        } | null;
+        if (!row?.id || !row.clients || driving.current) return;
+        const who = { id: row.client_id, slug: row.clients.slug, name: row.clients.name };
+        const progress = progressOf((await listTasks(row.id)).map(toProgress));
+        setState({ kind: "interrupted", pullId: row.id, client: who, progress });
         toast.show({
-          title: "Your last pull didn’t finish",
+          title:
+            who.id === clientId
+              ? "Your last pull didn’t finish"
+              : `${who.name}’s last pull didn’t finish`,
           detail: `${Math.round(progress.fraction * 100)}% done · nothing is lost`,
           pose: "idle",
-          action: { label: "Resume", onClick: () => driveRef.current(data.id) },
+          action: { label: "Resume", onClick: () => driveRef.current(row.id, who) },
         });
       });
   }, [clientId, toast]);
 
   const start = useCallback(
     async (platforms: Platform[]) => {
-      if (!clientId) return;
+      if (!owner) return;
       setRefreshOpen(false);
       setState({ kind: "starting" });
-      const res = await pullStart({ clientId, platforms });
-      if (res.ok && res.data.status === "started" && res.data.pullId) return drive(res.data.pullId);
-      if (res.status === 409 && typeof res.data?.pullId === "string") return drive(res.data.pullId);
+      const res = await pullStart({ clientId: owner.id, platforms });
+      if (res.ok && res.data.status === "started" && res.data.pullId)
+        return drive(res.data.pullId, owner);
+      if (res.status === 409 && typeof res.data?.pullId === "string")
+        return drive(res.data.pullId, owner);
       setState({ kind: "idle" });
       if (res.status === 409 && res.data?.status === "other_running") {
         toast.show({
@@ -252,27 +275,43 @@ export function PullProvider({ children }: { children: ReactNode }) {
         action: { label: "Try again", onClick: openRefresh },
       });
     },
-    [clientId, drive, openRefresh, toast],
+    [owner, drive, openRefresh, toast],
+  );
+
+  // Another client's pull: this client's Refresh reads as idle and explains who is pulling (17a/17b).
+  const otherClient =
+    (state.kind === "running" || state.kind === "interrupted") && state.client.id !== clientId
+      ? state.client
+      : null;
+  const shown = useMemo<PullUiState>(
+    () => (otherClient ? { kind: "idle" } : state),
+    [otherClient, state],
   );
 
   const api = useMemo(
     () => ({
-      state,
+      state: shown,
       clientId,
       refreshOpen,
       onRefreshClick: () => {
-        if (state.kind === "running") setState({ ...state, cardOpen: true });
-        else if (state.kind === "interrupted") void drive(state.pullId);
+        if (otherClient) {
+          toast.show({
+            title: "Another pull is running",
+            detail: otherPullingText(otherClient.name),
+            pose: "idle",
+          });
+        } else if (state.kind === "running") setState({ ...state, cardOpen: true });
+        else if (state.kind === "interrupted") void drive(state.pullId, state.client);
         else if (state.kind === "idle") setRefreshOpen(true);
       },
       closeRefresh: () => setRefreshOpen(false),
       start,
       resume: () => {
-        if (state.kind === "interrupted") void drive(state.pullId);
+        if (state.kind === "interrupted" && !otherClient) void drive(state.pullId, state.client);
       },
       hideCard: () => setState((s) => (s.kind === "running" ? { ...s, cardOpen: false } : s)),
     }),
-    [state, clientId, refreshOpen, start, drive],
+    [state, shown, otherClient, clientId, refreshOpen, start, drive, toast],
   );
 
   return (
@@ -282,7 +321,7 @@ export function PullProvider({ children }: { children: ReactNode }) {
       <ModalPresence open={refreshOpen}>
         <RefreshDialog />
       </ModalPresence>
-      <ModalPresence open={state.kind === "running" && state.cardOpen}>
+      <ModalPresence open={shown.kind === "running" && shown.cardOpen}>
         <PullProgressDialog />
       </ModalPresence>
     </PullContext>

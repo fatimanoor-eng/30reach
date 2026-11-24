@@ -4,8 +4,9 @@ import { useLocation, useNavigate } from "react-router";
 import { Chip } from "../../components/Chip";
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 import { useToast } from "../../components/toast-context";
+import { appPathOf } from "../../lib/client-path";
 import { formatShortDate } from "../../lib/format";
-import { useClient } from "../../lib/useClient";
+import { useClient, useClientPath } from "../../lib/useClient";
 import { PLATFORM_LABEL } from "../calendar/calendar-ui";
 import { formatLabel, type SourceSnapshot } from "../ideas/idea-rules";
 import { copyThumbnail, createIdea } from "../ideas/ideas-api";
@@ -16,7 +17,7 @@ const NOTE_MAX = 2000;
 
 /** Where a post was saved from, for "SAVED FROM OVERVIEW" on the board. */
 function savedFrom(pathname: string): string | undefined {
-  const page = pathname.split("/")[1];
+  const page = appPathOf(pathname).split("/")[1];
   return ["overview", "instagram", "tiktok", "linkedin", "facebook"].includes(page)
     ? page
     : undefined;
@@ -37,6 +38,7 @@ export function SaveAsIdeaProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const client = useClient();
+  const path = useClientPath();
   const queryClient = useQueryClient();
   const toast = useToast();
   const noteId = useId();
@@ -86,7 +88,7 @@ export function SaveAsIdeaProvider({ children }: { children: ReactNode }) {
         title: "Saved to idea board",
         detail: copied ? undefined : "The post’s picture couldn’t be copied.",
         pose: "success",
-        action: { label: "Open", onClick: () => navigate(`/ideas?idea=${id}`) },
+        action: { label: "Open", onClick: () => navigate(path(`/ideas?idea=${id}`)) },
       });
     },
   });

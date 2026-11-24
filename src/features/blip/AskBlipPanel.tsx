@@ -7,7 +7,7 @@ import { useNativeModal } from "../../components/useNativeModal";
 import { AI_COPY, answerText, type BlipChat, type BlipInsight } from "../../lib/ai/ai-api";
 import { useProfile } from "../../lib/auth/useProfile";
 import { useCompetitors } from "../../lib/useCompetitors";
-import { useClient } from "../../lib/useClient";
+import { useClient, useClientPath } from "../../lib/useClient";
 import { formatShortDate } from "../../lib/format";
 import { useMediaQuery } from "../../lib/useMediaQuery";
 import { createIdea } from "../ideas/ideas-api";
@@ -60,6 +60,7 @@ export function AskBlipPanel({
   const blipPosts = usePullPosts(open ? latest?.id : null).data;
   const competitors = useCompetitors();
   const navigate = useNavigate();
+  const path = useClientPath();
 
   const { messages, busy, revealingId, finishReveal } = thread;
   const revealing = revealingId != null;
@@ -266,7 +267,7 @@ export function AskBlipPanel({
                       clientId={clientId ?? null}
                       onOpenIdea={(ideaId) => {
                         onClose();
-                        navigate(`/ideas?idea=${ideaId}`);
+                        navigate(path(`/ideas?idea=${ideaId}`));
                       }}
                     />
                   </BlipSays>

@@ -1,11 +1,12 @@
-import { ChevronDown, SlidersVertical } from "lucide-react";
+import { SlidersVertical } from "lucide-react";
 import { Link, NavLink } from "react-router";
 import { Avatar } from "../components/Avatar";
 import { BlipIdle } from "../components/blip/BlipPoses";
 import { CreditsMeter } from "../components/CreditsMeter";
 import { Logo } from "../components/Logo";
 import { useCurrentUser } from "../lib/auth/useCurrentUser";
-import { ClientName } from "./ClientName";
+import { SidebarClientSwitcher } from "./ClientSwitcher";
+import { useClientPath } from "../lib/useClient";
 import { useCredits } from "../lib/useCredits";
 import { useNavSections } from "./useNav";
 
@@ -20,6 +21,7 @@ export function Sidebar({
   const me = useCurrentUser();
   const credits = useCredits();
   const navSections = useNavSections();
+  const path = useClientPath();
   return (
     <aside
       aria-label="Sidebar"
@@ -32,16 +34,7 @@ export function Sidebar({
         </span>
       </div>
 
-      {/* Single client for now; the switcher menu comes later (PRD › Later). */}
-      <div className="mt-6 flex items-center justify-between rounded-control bg-sidebar-2 px-3 py-2.5">
-        <div>
-          <p className="mono-label text-sidebar-text">Client</p>
-          <p className="text-body-sm">
-            <ClientName skeletonClassName="bg-sidebar-line" />
-          </p>
-        </div>
-        <ChevronDown size={16} className="text-sidebar-text" aria-hidden="true" />
-      </div>
+      <SidebarClientSwitcher />
 
       <nav aria-label="Main" className="mt-6 flex flex-col gap-6">
         {navSections.map((section) => (
@@ -51,7 +44,7 @@ export function Sidebar({
               {section.items.map(({ to, label, icon: Icon }) => (
                 <li key={to}>
                   <NavLink
-                    to={to}
+                    to={path(to)}
                     className={({ isActive }) =>
                       `relative flex h-10 items-center gap-3 rounded-control px-3 text-body-sm transition-colors ${
                         isActive
@@ -93,7 +86,7 @@ export function Sidebar({
             <p className="text-label text-sidebar-text">{me.role}</p>
           </div>
           <Link
-            to="/settings"
+            to={path("/settings")}
             aria-label="Settings"
             className="inline-flex size-8 items-center justify-center rounded-control text-sidebar-text hover:bg-sidebar-2 hover:text-white"
           >

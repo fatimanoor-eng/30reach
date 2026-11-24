@@ -21,6 +21,7 @@ import {
   type IdeaPlatform,
 } from "./idea-rules";
 import { usePlanOnDay } from "./usePlanOnDay";
+import { useClientPath } from "../../lib/useClient";
 
 function PlatformIcon({ platform }: { platform: IdeaPlatform | null }) {
   if (!platform) return null;
@@ -38,9 +39,10 @@ function PlatformIcon({ platform }: { platform: IdeaPlatform | null }) {
 
 /** "Planned · Tue 5 Jan" (14b) / "Planned · 5 Jan" (M09). Opens that calendar card. */
 function PlannedBadge({ planned }: { planned: NonNullable<Idea["planned"]> }) {
+  const path = useClientPath();
   return (
     <Link
-      to={`/calendar?date=${planned.date}&card=${planned.id}`}
+      to={path(`/calendar?date=${planned.date}&card=${planned.id}`)}
       className="relative z-10 -my-3 inline-flex min-h-11 shrink-0 items-center self-start md:my-0 md:min-h-0"
     >
       <span className="inline-flex items-center gap-1.5 rounded-full bg-ink px-2 py-0.5 text-label font-medium text-white hover:bg-sidebar-2">

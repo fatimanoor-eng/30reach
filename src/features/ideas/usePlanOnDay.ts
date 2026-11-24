@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useToast } from "../../components/toast-context";
 import { ideaCardTitle, plannedLabel, type Idea } from "./idea-rules";
 import { planIdea, PlanError } from "./ideas-api";
+import { useClientPath } from "../../lib/useClient";
 
 /**
  * One-click "Plan on {date}" for a Plan {month} idea (14b tiles, 08 idea panel): plan_idea on Blip's
@@ -13,6 +14,7 @@ export function usePlanOnDay() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
+  const path = useClientPath();
   return useMutation({
     mutationFn: ({ idea, day }: { idea: Idea; day: string }) =>
       planIdea({
@@ -31,7 +33,7 @@ export function usePlanOnDay() {
         pose: "success",
         action: {
           label: "Open",
-          onClick: () => navigate(`/calendar?date=${card.date}&card=${card.id}`),
+          onClick: () => navigate(path(`/calendar?date=${card.date}&card=${card.id}`)),
         },
       });
     },
