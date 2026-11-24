@@ -6,6 +6,7 @@ import {
   signInAs,
   stubSupabase,
   tapTargetsOk,
+  appUrl,
 } from "./helpers";
 import {
   BRANDS,
@@ -105,7 +106,7 @@ async function setup(
 }
 
 async function ready(page: Page, path = "/overview") {
-  await page.goto(path);
+  await page.goto(appUrl(path));
   await page.locator("h1").first().waitFor();
   await page.evaluate(() => document.fonts.ready);
 }

@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
+import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk, appUrl } from "./helpers";
 import { COMPETITORS, makePosts, NOW } from "./overview-fixtures";
 
 /*
@@ -257,7 +257,7 @@ async function setup(
 }
 
 async function open(page: Page, path: string) {
-  await page.goto(path);
+  await page.goto(appUrl(path));
   await page.locator("h1").first().waitFor();
   await page.evaluate(() => document.fonts.ready);
 }

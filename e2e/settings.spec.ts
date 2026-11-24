@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
+import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk, appUrl } from "./helpers";
 import { NOW } from "./overview-fixtures";
 
 /*
@@ -193,7 +193,7 @@ async function setup(
 }
 
 async function open(page: Page, path = "/settings") {
-  await page.goto(path);
+  await page.goto(appUrl(path));
   await page.locator("h1").first().waitFor();
   await page.evaluate(() => document.fonts.ready);
 }
@@ -475,7 +475,7 @@ test("Access removed — is_team() is false: Blip/Error screen with Sign out", a
   await setup(page);
   // Last registered route wins: this account's access was removed.
   await page.route("**/rest/v1/rpc/is_team", (r) => r.fulfill(json(false)));
-  await page.goto("/overview");
+  await page.goto(appUrl("/overview"));
   await expect(page).toHaveURL(/\/access-removed$/);
   await expect(page.getByRole("heading", { name: "Your access was removed" })).toBeVisible();
   await expect(

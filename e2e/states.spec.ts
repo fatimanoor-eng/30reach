@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { signInAs, stubSupabase } from "./helpers";
+import { signInAs, stubSupabase, appUrl } from "./helpers";
 
 /*
  * Loading and error states on every page that loads data (Overview, Social, Calendar,
@@ -63,7 +63,7 @@ const slug = (path: string) => path.slice(1).split("?")[0];
 for (const p of PAGES) {
   test(`${slug(p.path)} — loading skeleton in the page's shape`, async ({ page }, info) => {
     await setup(page, p.table, "hold");
-    await page.goto(p.path);
+    await page.goto(appUrl(p.path));
     const skeleton = page.locator(`[aria-busy="true"][aria-label="${p.loading}"]`);
     await expect(skeleton).toBeVisible();
     // Hidden for its first 150 ms, so a quick load never flashes grey.
@@ -74,7 +74,7 @@ for (const p of PAGES) {
 
   test(`${slug(p.path)} — load error shows Blip/Error and Try again`, async ({ page }, info) => {
     await setup(page, p.table, "fail");
-    await page.goto(p.path);
+    await page.goto(appUrl(p.path));
     const alert = page.getByRole("alert").filter({ hasText: p.error });
     await expect(alert).toBeVisible({ timeout: 15_000 });
     await expect(alert.getByRole("button", { name: "Try again" })).toBeVisible();
@@ -89,7 +89,7 @@ for (const p of PAGES) {
 test("skeleton — no pulse with reduced motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await setup(page, "ideas", "hold");
-  await page.goto("/ideas");
+  await page.goto(appUrl("/ideas"));
   const skeleton = page.locator('[aria-busy="true"][aria-label="Loading ideas"]');
   await expect(skeleton).toBeVisible();
   const bone = skeleton.locator(".bg-soft").first();
@@ -99,7 +99,7 @@ test("skeleton — no pulse with reduced motion", async ({ page }) => {
 test("skeleton — pulses normally", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await setup(page, "ideas", "hold");
-  await page.goto("/ideas");
+  await page.goto(appUrl("/ideas"));
   const bone = page
     .locator('[aria-busy="true"][aria-label="Loading ideas"]')
     .locator(".bg-soft")
@@ -111,7 +111,7 @@ test("credits — load error shows Blip/Error and Retry", async ({ page }, info)
   await setup(page, "ideas", "hold");
   await page.route("**/functions/v1/credits**", (r) => r.fulfill(json({ error: "boom" }, 500)));
   const width = page.viewportSize()?.width ?? 0;
-  await page.goto(width < 768 ? "/more" : "/ideas");
+  await page.goto(appUrl(width < 768 ? "/more" : "/ideas"));
   if (width >= 768 && width < 1200) {
     // Icon rail: Blip/Error replaces the bar and retries on click.
     const retry = page.getByRole("button", { name: "Couldn't load Firecrawl credits. Retry" });

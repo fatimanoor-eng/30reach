@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signInAs, stubSupabase } from "./helpers";
+import { signInAs, stubSupabase, appUrl } from "./helpers";
 
 // Dev-only page; one size is enough. Everything is stubbed — 0 Firecrawl credits.
 test.beforeEach(() => {
@@ -17,9 +17,6 @@ test("opening /dev/test-pull only previews — nothing spends credits until conf
     contentType: "application/json",
     body: JSON.stringify(body),
   });
-  await page.route("**/rest/v1/clients**", (r) =>
-    r.fulfill(json({ id: "client-1", name: "OBU Health" })),
-  );
   await page.route("**/rest/v1/competitors**", (r) =>
     r.fulfill(
       json([
@@ -54,7 +51,7 @@ test("opening /dev/test-pull only previews — nothing spends credits until conf
     );
   });
 
-  await page.goto("/dev/test-pull");
+  await page.goto(appUrl("/dev/test-pull"));
   await expect(page.getByText("4 credits (2 pages × 2)")).toBeVisible();
   await expect(page.getByText("@hims")).toBeVisible(); // defaults to Hims Instagram
 

@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
+import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk, appUrl } from "./helpers";
 import { BRANDS, makePosts, NOW } from "./overview-fixtures";
 
 /*
@@ -99,7 +99,7 @@ async function setup(page: Page) {
 }
 
 async function ready(page: Page, path = "/competitors") {
-  await page.goto(path);
+  await page.goto(appUrl(path));
   await page.locator("h1").first().waitFor();
   await page.evaluate(() => document.fonts.ready);
 }
@@ -287,7 +287,7 @@ test("07c remove: confirm, then gone from the dashboards", async ({ page }, info
     page.getByText("5 brands tracked. Changes apply on the next Refresh."),
   ).toBeVisible();
 
-  await page.goto("/overview");
+  await page.goto(appUrl("/overview"));
   await page.locator("h1").first().waitFor();
   await expect(
     page.getByRole("group", { name: "Brands" }).getByRole("button", { name: "Hims", exact: true }),
@@ -405,33 +405,57 @@ test("Fix page link opens the panel on the Facebook field", async ({ page }) => 
   await expect(panel.getByText("Not found in the last pull. Check the spelling.")).toBeVisible();
 });
 
-/** Names of the CSS animations running on the open <dialog> and its backdrop. */
+/**
+ * Record the modal's own animations (dialog + ::backdrop) as they start, and whether a dialog was ever
+ * marked data-closing. Recording beats reading live animations: under parallel load a 200 ms animation
+ * can be over before the check runs. Blip (Slice 13) animates inside too; only "modal-*" counts.
+ */
+async function recordModalMotion(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __modalAnims: string[]; __sawClosing: boolean };
+    w.__modalAnims = [];
+    w.__sawClosing = false;
+    document.addEventListener(
+      "animationstart",
+      (e) => {
+        if (e.animationName.startsWith("modal-")) w.__modalAnims.push(e.animationName);
+      },
+      true,
+    );
+    new MutationObserver((records) => {
+      if (records.some((r) => (r.target as Element).hasAttribute?.("data-closing")))
+        w.__sawClosing = true;
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ["data-closing"] });
+  });
+}
+
+/** Modal animations that started since the last call (sorted), then start a fresh list. */
 const dialogAnimations = (page: Page) =>
-  page.evaluate(() =>
-    (document.querySelector("dialog[open]")?.getAnimations({ subtree: true }) ?? [])
-      .filter((a) => a instanceof CSSAnimation)
-      .map((a) => (a as CSSAnimation).animationName)
-      // The modal's own motion; Blip inside it (Slice 13) animates too but isn't what's checked here.
-      .filter((n) => n.startsWith("modal-"))
-      .sort(),
-  );
+  page.evaluate(() => {
+    const w = window as unknown as { __modalAnims: string[] };
+    const names = [...w.__modalAnims].sort();
+    w.__modalAnims = [];
+    return names;
+  });
 
 test("motion: drawer slides in / out, sheets slide up, backdrop fades", async ({ page }, info) => {
+  await recordModalMotion(page);
   await setup(page);
   await ready(page);
+  await dialogAnimations(page); // start counting from here
   await page.getByRole("button", { name: "Add competitor" }).click();
   const panel = page.getByRole("dialog", { name: "Add competitor" });
   await expect(panel).toBeVisible();
-  expect(await dialogAnimations(page)).toEqual(["modal-drawer-in", "modal-fade-in"]);
+  await expect.poll(() => dialogAnimations(page)).toEqual(["modal-drawer-in", "modal-fade-in"]);
   await expect(panel).toHaveAttribute("data-motion", "drawer");
 
-  // Close: it stays in the page (sliding out) and only then goes away.
+  // Close: it stays in the page (sliding out, marked data-closing) and only then goes away.
   await panel.getByRole("button", { name: "Cancel" }).click();
-  await expect(panel).toHaveAttribute("data-closing", "");
-  expect(await page.evaluate(() => document.querySelector("dialog[data-closing]") !== null)).toBe(
-    true,
-  );
   await expect(page.locator("dialog[data-motion='drawer']")).toHaveCount(0); // unmounted after exit
+  expect(
+    await page.evaluate(() => (window as unknown as { __sawClosing: boolean }).__sawClosing),
+  ).toBe(true);
+  await dialogAnimations(page); // the exit animations aren't what's checked next
 
   // Confirm: centred; on mobile it's a bottom sheet that slides up.
   await page.getByRole("button", { name: "Remove Hims" }).filter({ visible: true }).click();
@@ -441,7 +465,7 @@ test("motion: drawer slides in / out, sheets slide up, backdrop fades", async ({
     "center",
   );
   if (isMobile(info.project.name)) {
-    expect(await dialogAnimations(page)).toEqual(["modal-fade-in", "modal-sheet-in"]);
+    await expect.poll(() => dialogAnimations(page)).toEqual(["modal-fade-in", "modal-sheet-in"]);
   }
   await confirm.getByRole("button", { name: "Cancel" }).click();
   await expect(confirm).toBeHidden();
@@ -449,9 +473,11 @@ test("motion: drawer slides in / out, sheets slide up, backdrop fades", async ({
 
 test("motion: reduced motion fades only", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await recordModalMotion(page);
   await setup(page);
   await ready(page);
+  await dialogAnimations(page);
   await page.getByRole("button", { name: "Add competitor" }).click();
   await expect(page.getByRole("dialog", { name: "Add competitor" })).toBeVisible();
-  expect(await dialogAnimations(page)).toEqual(["modal-fade-in", "modal-fade-in"]);
+  await expect.poll(() => dialogAnimations(page)).toEqual(["modal-fade-in", "modal-fade-in"]);
 });

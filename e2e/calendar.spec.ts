@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
+import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk, appUrl } from "./helpers";
 import { NOW } from "./overview-fixtures";
 import { readFileSync } from "node:fs";
 
@@ -247,7 +247,7 @@ async function setup(page: Page) {
 }
 
 async function open(page: Page, path = "/calendar?date=2026-12-24") {
-  await page.goto(path);
+  await page.goto(appUrl(path));
   await page.locator("h1").first().waitFor();
   await page.evaluate(() => document.fonts.ready);
 }
@@ -674,7 +674,10 @@ test("calendar — idea panel lists ideas not planned yet (08)", async ({ page }
   await expect(panel.getByText("Behind the scenes with an OBU clinician")).toBeVisible();
   await expect(panel.getByText("“Dry January” check-in carousel")).toBeVisible();
   await expect(panel.getByText("Myth vs fact mini-series")).toHaveCount(0); // already planned
-  await expect(panel.getByRole("link", { name: "Add idea" })).toHaveAttribute("href", "/ideas");
+  await expect(panel.getByRole("link", { name: "Add idea" })).toHaveAttribute(
+    "href",
+    "/c/obu-health/ideas",
+  );
 });
 
 test("calendar — drag an idea onto a day plans it", async ({ page }) => {

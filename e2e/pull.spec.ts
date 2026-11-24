@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
+import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk, appUrl } from "./helpers";
 
 /*
  * Slice 5 pull UI with every Supabase / Edge Function call answered locally — 0 Firecrawl credits.
@@ -76,7 +76,7 @@ function gatePullTask(page: Page, free: number) {
 }
 
 async function openRefresh(page: Page) {
-  await page.goto("/overview");
+  await page.goto(appUrl("/overview"));
   await page.locator("h1").first().waitFor();
   await page.evaluate(() => document.fonts.ready);
   // No saved pull in these stubs → Overview is 03 First run ("Pull data now"); with data it's "Refresh".
@@ -322,9 +322,17 @@ test("05g finished with problems → Fix handle", async ({ page }, info) => {
 test("resume after a reload", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
   await setup(page);
-  await page.route("**/rest/v1/pulls**", (r) => r.fulfill(json({ id: "pull-9" })));
+  await page.route("**/rest/v1/pulls**", (r) =>
+    r.fulfill(
+      json({
+        id: "pull-9",
+        client_id: "client-1",
+        clients: { slug: "obu-health", name: "OBU Health" },
+      }),
+    ),
+  );
   await page.route("**/rest/v1/pull_tasks**", (r) => r.fulfill(json(tasks(6))));
-  await page.goto("/overview");
+  await page.goto(appUrl("/overview"));
 
   const toast = page.getByRole("status");
   await expect(toast).toContainText("Your last pull didn’t finish");

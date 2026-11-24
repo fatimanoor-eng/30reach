@@ -6,8 +6,19 @@ import { expect, type Page } from "@playwright/test";
  * in localStorage (key "30reach-auth", see src/lib/supabase.ts) before the app loads.
  */
 
+/** App pages live under the client (Slice 17b): "/calendar?date=…" → "/c/obu-health/calendar?date=…".
+ *  Going there directly skips the last-client redirect (covered in clients.spec.ts). Other paths
+ *  (sign-in, welcome, /c/…) are left as they are. */
+export function appUrl(path: string, slug = "obu-health"): string {
+  return /^\/(overview|instagram|tiktok|linkedin|facebook|competitors|calendar|ideas|settings|more|dev)\b/.test(
+    path,
+  )
+    ? `/c/${slug}${path}`
+    : path;
+}
+
 export async function ready(page: Page, path: string) {
-  await page.goto(path);
+  await page.goto(appUrl(path));
   await page.locator("h1").first().waitFor();
   await page.evaluate(() => document.fonts.ready);
 }
@@ -79,8 +90,20 @@ export async function stubSupabase(
     contentType: "application/json",
     body: JSON.stringify(body),
   });
-  await page.route("**/rest/v1/clients**", (route) =>
-    route.fulfill(ok({ id: "client-1", name: "OBU Health" })),
+  await stubClients(page, [OBU]);
+  // Every platform on for the client (Slice 17b; client_platforms decides what's tracked).
+  await page.route("**/rest/v1/client_platforms**", (route) =>
+    route.fulfill(
+      ok(
+        ["instagram", "tiktok", "linkedin", "facebook"].map((platform) => ({
+          platform,
+          state: "on",
+        })),
+      ),
+    ),
+  );
+  await page.route("**/rest/v1/rpc/set_last_client", (route) =>
+    route.fulfill({ status: 204, body: "" }),
   );
   // Access check on app open (is_team() also checks the "removed" flag, Slice 12).
   await page.route("**/rest/v1/rpc/is_team", (route) => route.fulfill(ok(true)));
@@ -154,6 +177,42 @@ export async function stubSupabase(
       body: JSON.stringify([profile]),
     }),
   );
+}
+
+export type TestClient = {
+  id: string;
+  slug: string;
+  name: string;
+  initials: string | null;
+  brand_color: string | null;
+  is_demo: boolean;
+  archived_at: string | null;
+};
+export const OBU: TestClient = {
+  id: "client-1",
+  slug: "obu-health",
+  name: "OBU Health",
+  initials: "OB",
+  brand_color: null,
+  is_demo: false,
+  archived_at: null,
+};
+
+/**
+ * The clients table (Slice 17b): the list for the switcher / redirects, or one client by `slug=eq.…`
+ * (the client in the URL; unknown slug → empty). The last registered route wins, so specs can call it
+ * again with more clients.
+ */
+export async function stubClients(page: Page, clients: TestClient[]) {
+  await page.route("**/rest/v1/clients**", (route) => {
+    const slug = new URL(route.request().url()).searchParams.get("slug");
+    const list = slug ? clients.filter((c) => `eq.${c.slug}` === slug) : clients;
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(list),
+    });
+  });
 }
 
 const b64url = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
