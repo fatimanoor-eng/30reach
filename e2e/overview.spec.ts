@@ -212,7 +212,10 @@ test("Facebook on Overview (Slice 16b): Fresh block with a white tag chip, link 
       .filter({ visible: true })
       .first(),
   ).toBeVisible();
-  await expect(card.getByRole("button", { name: "Save as idea" })).toHaveCount(0); // until 16c
+  // Slice 16c: Facebook posts can be saved as ideas.
+  await expect(
+    card.getByRole("button", { name: "Save as idea" }).filter({ visible: true }).first(),
+  ).toBeVisible();
   await expect(
     card.getByRole("link", { name: "All Facebook posts" }).filter({ visible: true }),
   ).toHaveCount(1);

@@ -85,6 +85,12 @@ const SEED: Row[] = [
     format: "document",
     status: "drafting",
   }),
+  // Slice 16c: a Facebook card, in January so the December baselines don't change.
+  card("k11", "2027-01-20", "Five lunch swaps, one album", {
+    platform: "facebook",
+    format: "carousel",
+    status: "drafting",
+  }),
 ];
 
 // 08 idea panel (Figma): three ideas to plan; Blip's is already planned (k6), so it isn't listed.
@@ -614,6 +620,38 @@ test("calendar — LinkedIn card: Blue bar, LinkedIn tint and formats (Slice 15c
   await dialog.getByRole("button", { name: "Platform: LinkedIn" }).click();
   await dialog.getByRole("option", { name: "Instagram" }).click();
   await expect(dialog.getByRole("listbox", { name: "Format" })).toBeVisible();
+});
+
+test("calendar — Facebook card: Fresh bar, Facebook tint, Album; Approved pill stays visible (Slice 16c)", async ({
+  page,
+}, info) => {
+  await setup(page);
+  await open(page, "/calendar?date=2027-01-20");
+  await expect(page.getByText("Five lunch swaps, one album").first()).toBeVisible();
+  await expect(page.getByText(/^FB · Album$/i).first()).toBeVisible();
+  if (isDesktop(page))
+    await expect(page.getByRole("list", { name: "Legend" })).toContainText("Facebook");
+
+  await open(page, "/calendar?date=2027-01-20&card=k11");
+  const dialog = page.getByRole("dialog");
+  const header = dialog.locator("div.rounded-panel");
+  await expect(header).toHaveCSS("background-color", "rgb(238, 246, 242)"); // --color-tint-facebook
+  // Approved isn't selected here, so it's a soft pill: a different colour from the header, ink text.
+  const approved = dialog.getByRole("radio", { name: "Approved" }).locator("span").first();
+  await expect(approved).toHaveCSS("background-color", "rgb(225, 238, 230)"); // --color-status-approved
+  await expect(approved).toHaveCSS("color", "rgb(11, 11, 12)"); // ink (16.5:1 on the pill)
+  await dialog.getByRole("button", { name: "Format: Album" }).click();
+  await expect(dialog.getByRole("listbox", { name: "Format" }).getByRole("option")).toHaveText([
+    "Reel",
+    "Video",
+    "Image",
+    "Album",
+    "Link",
+    "Text",
+  ]);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300); // drawer slide-in
+  await expect(header).toHaveScreenshot(`facebook-card-header-${info.project.name}.png`);
 });
 
 test("calendar — chip menu, open", async ({ page }, info) => {

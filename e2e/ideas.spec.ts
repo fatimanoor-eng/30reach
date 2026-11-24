@@ -452,6 +452,46 @@ test("ideas — a LinkedIn post idea and a LinkedIn link (Slice 15c)", async ({ 
   });
 });
 
+test("ideas — a Facebook post idea and a Facebook link (Slice 16c)", async ({ page }, info) => {
+  const facebook = [
+    idea("fb1", "post", {
+      note: "Do a five-swaps album for January",
+      platform: "facebook",
+      format: "carousel",
+      source_snapshot: {
+        brand: "WeightWatchers",
+        date: "2026-11-14T15:00:00Z",
+        caption: "Five lunch swaps that actually fill you up",
+        likes: 59,
+        comments: 11,
+        format: "carousel",
+        saved_from: "facebook",
+      },
+      created_at: daysAgo(1),
+    }),
+    idea("fb2", "link", {
+      link_url: "https://www.facebook.com/weightwatchers/posts/pfbid0Jm58X4TR",
+      note: "Question in the first line, recipe after",
+      platform: "facebook",
+      created_at: daysAgo(2),
+    }),
+  ];
+  await setup(page, { seed: facebook });
+  await open(page);
+  const reactions = page.getByText("59 reactions · 11 comments").filter({ visible: true });
+  if (isDesktop(page)) {
+    await expect(reactions).toBeVisible();
+    await expect(page.getByText("SAVED FROM FACEBOOK")).toBeVisible();
+    await expect(page.getByText("facebook.com/weightwatchers/…")).toBeVisible();
+    await expect(page.getByRole("img", { name: "Facebook" }).first()).toBeVisible();
+    await expect(page.getByText(/Album/).filter({ visible: true }).first()).toBeVisible();
+  }
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot(`ideas-facebook-${info.project.name}.png`, {
+    fullPage: true,
+  });
+});
+
 test("ideas — board like Figma 14b / M09", async ({ page }, info) => {
   await setup(page);
   await open(page);

@@ -240,14 +240,24 @@ test("Facebook page (Slice 16b) — reactions, shares, video views, 12-post cap 
     ),
   ).toBeVisible();
   await expect(page.getByText("Albums").filter({ visible: true }).first()).toBeVisible();
-  // Ideas don't know Facebook until Slice 16c: no Save as idea on Facebook posts.
-  await expect(page.getByRole("button", { name: "Save as idea" })).toHaveCount(0);
+
   await expect(currentPlatform(page, "Facebook", mobile)).toBeVisible();
   await checks(page, mobile, "social-facebook.png");
 
   // One brand without the cap: the note goes away.
   await pill(page, "Ro").click();
   await expect(page.getByText(/Showing the latest 12 Facebook posts/)).toHaveCount(0);
+
+  // Slice 16c: Facebook posts can be saved as ideas (platform + format filled in from the post).
+  await page
+    .getByRole("button", { name: "Save as idea" })
+    .filter({ visible: true })
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Save to idea board" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Facebook", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
 });
 
 test("platforms nobody has an account on are hidden; a direct link keeps its empty state", async ({
