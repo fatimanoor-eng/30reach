@@ -163,6 +163,9 @@ export async function stubSupabase(
     ),
   );
   await page.route("**/rest/v1/pull_tasks**", (route) => route.fulfill(ok([])));
+  // No posts unless a spec serves them: never let a dashboard query reach the real project (it answered
+  // 401 at an unpredictable speed and delayed "Pull complete" past its timeout).
+  await page.route("**/rest/v1/posts**", (route) => route.fulfill(ok([])));
   // No saved ideas by default (ideas.spec.ts has its own table).
   await page.route("**/rest/v1/ideas**", (route) => route.fulfill(ok([])));
   await page.route("**/rest/v1/profiles**", (route) =>
