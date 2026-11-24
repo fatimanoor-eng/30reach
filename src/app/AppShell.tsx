@@ -7,10 +7,13 @@ import { ModalPresence } from "../components/ModalPresence";
 import { useClient, useClientSlug, useRememberClient } from "../lib/useClient";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
-import { Link, Outlet } from "react-router";
+import { Link, Navigate, Outlet, useLocation } from "react-router";
+import { appPathOf } from "../lib/client-path";
 import { IdeaCaptureProvider } from "../features/ideas/IdeaCaptureProvider";
 import { SaveAsIdeaProvider } from "../features/posts/SaveAsIdeaProvider";
 import { PullProvider } from "../features/pulls/PullProvider";
+import { ClientActionsProvider } from "../features/clients/ClientActionsProvider";
+import { LocationNotice } from "./LocationNotice";
 import { AskBlipContext } from "./ask-blip-context";
 import { BrandSelectionProvider } from "../lib/BrandSelectionProvider";
 import { isTyping } from "../lib/is-typing";
@@ -32,6 +35,7 @@ export function AppShell() {
   useRememberClient(client.data);
   // The slug in the URL (not the loaded client): known at once, so pages don't mount twice.
   const slug = useClientSlug();
+  const location = useLocation();
 
   // "/" opens Ask Blip (ANNOTATIONS › Shared rules), unless you're typing.
   useEffect(() => {
@@ -56,54 +60,67 @@ export function AppShell() {
     <BrandSelectionProvider resetKey={slug}>
       <ToastProvider>
         <PullProvider>
-          <IdeaCaptureProvider>
-            <SaveAsIdeaProvider>
-              <AskBlipContext value={openAsk}>
-                <a
-                  href="#main"
-                  className="sr-only z-50 rounded-control bg-ink px-4 py-2 text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
-                >
-                  Skip to content
-                </a>
+          <ClientActionsProvider>
+            <IdeaCaptureProvider>
+              <LocationNotice />
+              <SaveAsIdeaProvider>
+                <AskBlipContext value={openAsk}>
+                  <a
+                    href="#main"
+                    className="sr-only z-50 rounded-control bg-ink px-4 py-2 text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+                  >
+                    Skip to content
+                  </a>
 
-                <div className="min-h-dvh md:flex">
-                  <Sidebar onAskBlip={openAskPlain} className="hidden xl:flex" />
-                  <IconRail onAskBlip={openAskPlain} className="hidden md:flex xl:hidden" />
-                  <MobileAppBar className="md:hidden" />
+                  <div className="min-h-dvh md:flex">
+                    <Sidebar onAskBlip={openAskPlain} className="hidden xl:flex" />
+                    <IconRail onAskBlip={openAskPlain} className="hidden md:flex xl:hidden" />
+                    <MobileAppBar className="md:hidden" />
 
-                  <main id="main" tabIndex={-1} className="min-w-0 flex-1 pb-28 md:pb-0">
-                    <div className="mx-auto max-w-300 px-4 py-6 md:px-6 md:py-8 xl:px-10 xl:py-10">
-                      {client.data === null ? (
-                        <ClientNotFound />
-                      ) : (
-                        // Keyed by client: switching clients starts each page fresh (filters, open
-                        // panels), while the shell (and a running pull) stays.
-                        <div key={slug} className="contents">
-                          <Outlet />
-                        </div>
-                      )}
-                    </div>
-                  </main>
-                </div>
+                    <main id="main" tabIndex={-1} className="min-w-0 flex-1 pb-28 md:pb-0">
+                      <div className="mx-auto max-w-300 px-4 py-6 md:px-6 md:py-8 xl:px-10 xl:py-10">
+                        {client.data === null ? (
+                          <ClientNotFound />
+                        ) : client.data?.archived_at ? (
+                          // Archived clients are out of the switcher (16b): their links go to your last
+                          // active client, saying why. Restore is in the menu's Archived list.
+                          <Navigate
+                            to={appPathOf(location.pathname) + location.search}
+                            replace
+                            state={{
+                              notice: `${client.data.name} is archived. Restore it from Archived in the client menu.`,
+                            }}
+                          />
+                        ) : (
+                          // Keyed by client: switching clients starts each page fresh (filters, open
+                          // panels), while the shell (and a running pull) stays.
+                          <div key={slug} className="contents">
+                            <Outlet />
+                          </div>
+                        )}
+                      </div>
+                    </main>
+                  </div>
 
-                <BottomTabs className="md:hidden" />
+                  <BottomTabs className="md:hidden" />
 
-                {/* Mobile Ask Blip: floating Blip button; hidden while a sheet/dialog is open or the idea board is in Select mode. */}
-                <button
-                  type="button"
-                  onClick={openAskPlain}
-                  aria-label="Ask Blip"
-                  className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 inline-flex size-14 items-center justify-center rounded-full bg-ink shadow-lg md:hidden [body:has([data-select-bar])_&]:hidden [body:has(dialog[open])_&]:hidden"
-                >
-                  <BlipIdle className="h-auto w-9" />
-                </button>
+                  {/* Mobile Ask Blip: floating Blip button; hidden while a sheet/dialog is open or the idea board is in Select mode. */}
+                  <button
+                    type="button"
+                    onClick={openAskPlain}
+                    aria-label="Ask Blip"
+                    className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 inline-flex size-14 items-center justify-center rounded-full bg-ink shadow-lg md:hidden [body:has([data-select-bar])_&]:hidden [body:has(dialog[open])_&]:hidden"
+                  >
+                    <BlipIdle className="h-auto w-9" />
+                  </button>
 
-                <ModalPresence open={askOpen}>
-                  <AskBlipPanel open onClose={() => setAskOpen(false)} thread={thread} />
-                </ModalPresence>
-              </AskBlipContext>
-            </SaveAsIdeaProvider>
-          </IdeaCaptureProvider>
+                  <ModalPresence open={askOpen}>
+                    <AskBlipPanel open onClose={() => setAskOpen(false)} thread={thread} />
+                  </ModalPresence>
+                </AskBlipContext>
+              </SaveAsIdeaProvider>
+            </IdeaCaptureProvider>
+          </ClientActionsProvider>
         </PullProvider>
       </ToastProvider>
     </BrandSelectionProvider>

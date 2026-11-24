@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Search, SlidersVertical } from "lucide-react";
+import { Archive, Check, ChevronDown, Plus, Search, SlidersVertical } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { BottomSheet } from "../components/BottomSheet";
@@ -6,20 +6,24 @@ import { ModalPresence } from "../components/ModalPresence";
 import { Tooltip } from "../components/Tooltip";
 import {
   appPathOf,
+  type ClientSummary,
   clientPath,
   filterClients,
   lastPullLabel,
   orderClients,
   SEARCH_FROM,
 } from "../lib/client-path";
+import { useClientActions } from "../features/clients/client-actions";
+import { useProfileNames } from "../features/clients/clients-api";
+import { archivedLabel, firstNameFrom } from "../lib/client-rules";
 import { useClient, useClients, useLastPulls } from "../lib/useClient";
 import { ClientMark } from "./ClientMark";
 
 /*
  * Client switcher (Slice 17b; Figma 15a desktop menu, M13 phone sheet; tablet rail = same menu as a
  * popover). Rows: mark · name · last pull (or DEMO), ✓ on the current client; current first, then A–Z;
- * search from 6 clients; "{Client} settings". Add client and Archived (n) arrive with 17c, which builds
- * the screens they open.
+ * search from 6 clients; "{Client} settings" (Client settings, 16), Add client (15f manual form) and
+ * Archived (n) (16c), Slice 17c.
  */
 
 type MenuVariant = "popover" | "sheet";
@@ -121,20 +125,114 @@ function ClientMenu({ variant, onPick }: { variant: MenuVariant; onPick: () => v
         </ul>
       )}
 
+      <div aria-hidden="true" className="-mx-2 my-2 h-px bg-line" />
       {current && (
-        <>
-          <div aria-hidden="true" className="-mx-2 my-2 h-px bg-line" />
-          <Link
-            to={clientPath(current.slug, "/settings")}
-            onClick={onPick}
-            className={`${row} hover:bg-bg`}
-          >
-            <SlidersVertical size={18} aria-hidden="true" className="shrink-0" />
-            {current.name} settings
-          </Link>
-        </>
+        <Link
+          to={clientPath(current.slug, "/client-settings")}
+          onClick={onPick}
+          className={`${row} hover:bg-bg`}
+        >
+          <SlidersVertical size={18} aria-hidden="true" className="shrink-0" />
+          {current.name} settings
+        </Link>
       )}
+      <Link to="/add-client" onClick={onPick} className={`${row} hover:bg-bg`}>
+        <Plus size={18} aria-hidden="true" className="shrink-0" />
+        Add client
+      </Link>
+      <ArchivedSection
+        clients={(clients.data ?? []).filter((c) => c.archived_at)}
+        row={row}
+        sheet={sheet}
+        onPick={onPick}
+      />
     </div>
+  );
+}
+
+/**
+ * 16c: "Archived (n)" expands inside the menu: greyed rows with "Archived N days ago · Fatima", Restore
+ * and Delete permanently…. Hidden when nothing is archived. Archived clients never auto-delete.
+ */
+function ArchivedSection({
+  clients,
+  row,
+  sheet,
+  onPick,
+}: {
+  clients: ClientSummary[];
+  row: string;
+  sheet: boolean;
+  onPick: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const listId = useId();
+  const actions = useClientActions();
+  const names = useProfileNames(
+    open ? clients.map((c) => c.archived_by).filter((id): id is string => !!id) : [],
+  );
+  if (clients.length === 0) return null;
+  const sorted = [...clients].sort((a, b) =>
+    (b.archived_at ?? "").localeCompare(a.archived_at ?? ""),
+  );
+  const now = new Date();
+  return (
+    <>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        onClick={() => setOpen((o) => !o)}
+        className={`${row} hover:bg-bg`}
+      >
+        <Archive size={18} aria-hidden="true" className="shrink-0" />
+        <span className="flex-1">Archived</span>
+        <span className="font-mono text-label text-muted">{clients.length}</span>
+        <ChevronDown
+          size={16}
+          aria-hidden="true"
+          className={`shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <ul id={listId} aria-label="Archived clients" className="flex flex-col gap-1 pb-1">
+          {sorted.map((c) => {
+            const who = c.archived_by ? names.data?.get(c.archived_by) : undefined;
+            return (
+              <li key={c.id} className="flex items-start gap-3 rounded-control px-2.5 py-2">
+                <ClientMark client={c} size={sheet ? "lg" : "md"} className="opacity-50" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-body-sm text-muted">{c.name}</p>
+                  <p className="font-mono text-label text-muted">
+                    {archivedLabel(c.archived_at!, firstNameFrom(who?.full_name, who?.email), now)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onPick();
+                      actions.requestDelete(c);
+                    }}
+                    className="-ml-0.5 inline-flex min-h-11 items-center px-0.5 text-small text-spark-text hover:underline md:min-h-7"
+                  >
+                    Delete permanently…
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onPick();
+                    actions.restore(c);
+                  }}
+                  className="inline-flex min-h-11 shrink-0 items-center rounded-control px-2 text-small font-medium text-blue hover:underline md:min-h-8"
+                >
+                  Restore
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
   );
 }
 

@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router";
-import { Card } from "../components/Card";
-import { EmptyState } from "../components/EmptyState";
 import { LoadError } from "../components/LoadError";
 import { useProfile } from "../lib/auth/useProfile";
 import { clientPath, pickLastClient } from "../lib/client-path";
@@ -12,7 +10,8 @@ import { readStoredSlug, useClients } from "../lib/useClient";
  * → the same page for your last client (Slice 17b): profile (any device) → this browser → first A–Z.
  */
 export function LastClientRedirect() {
-  const { pathname, search, hash } = useLocation();
+  const location = useLocation();
+  const { pathname, search, hash } = location;
   const clients = useClients();
   const profile = useProfile();
 
@@ -31,22 +30,17 @@ export function LastClientRedirect() {
     profileClientId: profile.data?.last_client_id,
     storedSlug: readStoredSlug(),
   });
-  if (!client) {
-    // Only before the first client exists (Add client arrives in 17c).
-    return (
-      <Shell>
-        <Card>
-          <EmptyState
-            label="Clients"
-            title="No clients yet"
-            text="There are no clients to show yet."
-          />
-        </Card>
-      </Shell>
-    );
-  }
+  // No active client at all (all archived, or none yet): Add client (Slice 17c).
+  if (!client) return <Navigate to="/add-client" replace state={location.state} />;
   const page = pathname === "/" ? "/overview" : pathname;
-  return <Navigate to={`${clientPath(client.slug, page)}${search}${hash}`} replace />;
+  // The state carries a notice along (e.g. "{Client} is archived…", LocationNotice).
+  return (
+    <Navigate
+      to={`${clientPath(client.slug, page)}${search}${hash}`}
+      replace
+      state={location.state}
+    />
+  );
 }
 
 function Shell({ children }: { children: ReactNode }) {

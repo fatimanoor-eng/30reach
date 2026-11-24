@@ -9,7 +9,8 @@ import { supabase } from "./supabase";
 export { clientInitials } from "./client-path";
 export type { ClientSummary } from "./client-path";
 
-const CLIENT_COLUMNS = "id, slug, name, initials, brand_color, is_demo, archived_at";
+const CLIENT_COLUMNS =
+  "id, slug, name, initials, brand_color, logo_path, website, is_demo, archived_at, archived_by";
 
 /** This browser's last client (fallback when the profile can't be read). */
 export const LAST_CLIENT_KEY = "30reach:last-client";
@@ -116,8 +117,9 @@ export function useRememberClient(client: ClientSummary | null | undefined) {
       ),
   });
   const { mutate } = save;
-  const id = client?.id;
-  const slug = client?.slug;
+  // Archived clients aren't remembered (17c): their links send you back to your last active one.
+  const id = client?.archived_at ? undefined : client?.id;
+  const slug = client?.archived_at ? undefined : client?.slug;
   useEffect(() => {
     if (!id || !slug) return;
     try {

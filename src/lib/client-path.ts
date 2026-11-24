@@ -10,6 +10,10 @@ export type ClientSummary = {
   brand_color: string | null;
   is_demo: boolean;
   archived_at: string | null;
+  /** Slice 17c */
+  logo_path?: string | null;
+  website?: string | null;
+  archived_by?: string | null;
 };
 
 const PREFIX = /^\/c\/([^/?#]+)/;
@@ -32,8 +36,8 @@ export function slugOf(pathname: string): string | undefined {
 
 /**
  * Which client "/" and old links (/overview, /ideas?idea=…) open: your last client on any device
- * (profiles.last_client_id), else this browser's, else the first one A–Z. Archived clients are only
- * picked when they were your last one (17c shows them with a banner).
+ * (profiles.last_client_id), else this browser's, else the first one A–Z. Archived clients are never
+ * picked (Slice 17c: their links send you here).
  */
 export function pickLastClient<
   T extends Pick<ClientSummary, "id" | "slug" | "name" | "archived_at">,
@@ -41,10 +45,11 @@ export function pickLastClient<
   clients: readonly T[],
   { profileClientId, storedSlug }: { profileClientId?: string | null; storedSlug?: string | null },
 ): T | undefined {
+  const active = clients.filter((c) => !c.archived_at);
   return (
-    clients.find((c) => c.id === profileClientId) ??
-    clients.find((c) => c.slug === storedSlug) ??
-    [...clients].filter((c) => !c.archived_at).sort(byName)[0]
+    active.find((c) => c.id === profileClientId) ??
+    active.find((c) => c.slug === storedSlug) ??
+    [...active].sort(byName)[0]
   );
 }
 

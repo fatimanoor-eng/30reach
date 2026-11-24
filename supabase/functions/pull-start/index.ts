@@ -4,6 +4,7 @@
 //        test?: { competitorId, platform } }   ← test mode: one brand × one platform, 2-page cap
 //
 // → { status: "preview" | "insufficient" | "started", estimate, credits, lastPullAt, brands, pullId? }
+// → 404 { error: "no_client" } · 409 { error: "client_archived" } (Slice 17c: archived clients aren't pulled)
 // → 409 { status: "running", pullId } if a pull is already running for this client;
 //   409 { status: "other_running", clientName } if another client is pulling (one pull at a time, 17a).
 //
@@ -54,6 +55,15 @@ export default {
       return json({ error: "bad_test_target" }, 400);
     }
     const admin = ctx.supabaseAdmin;
+
+    // Archived clients aren't pulled (Slice 17c, 16b): restore first.
+    const { data: clientRow } = await admin
+      .from("clients")
+      .select("archived_at")
+      .eq("id", clientId)
+      .maybeSingle();
+    if (!clientRow) return json({ error: "no_client" }, 404);
+    if (clientRow.archived_at) return json({ error: "client_archived" }, 409);
 
     // The client's tracked platforms (Slice 17b). Test pulls pick one platform by hand.
     let tracked: Platform[] = PLATFORMS;

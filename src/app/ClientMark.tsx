@@ -1,3 +1,4 @@
+import { useLogoUrl } from "../features/clients/clients-api";
 import { type ClientSummary, clientInitials, markColors } from "../lib/client-path";
 
 const sizes = {
@@ -8,7 +9,8 @@ const sizes = {
 /**
  * Client mark (15a): initials on the brand colour, with ink or white text (whichever reads better).
  * No colour, or a black / white brand colour → initials on ink with a hairline (`dark` = the hairline
- * that shows on the black sidebar). Logos come with Client settings / Add client (17c / 17d).
+ * that shows on the black sidebar). With a logo (Slice 17c, private client-logos bucket): the logo on
+ * white, initials while it loads or if it fails.
  */
 export function ClientMark({
   client,
@@ -16,7 +18,7 @@ export function ClientMark({
   dark = false,
   className = "",
 }: {
-  client: Pick<ClientSummary, "name" | "initials" | "brand_color">;
+  client: Pick<ClientSummary, "name" | "initials" | "brand_color" | "logo_path">;
   size?: keyof typeof sizes;
   /** On the black sidebar / rail / app bar. */
   dark?: boolean;
@@ -25,6 +27,17 @@ export function ClientMark({
   const colors = markColors(client.brand_color);
   const base = `inline-flex shrink-0 items-center justify-center font-medium ${sizes[size]} ${className}`;
   const initials = clientInitials(client.name, client.initials);
+  const logo = useLogoUrl(client.logo_path);
+  if (logo.data) {
+    return (
+      <span
+        aria-hidden="true"
+        className={`${base} overflow-hidden border bg-white p-0.5 ${dark ? "border-sidebar-line" : "border-line"}`}
+      >
+        <img src={logo.data} alt="" className="size-full object-contain" />
+      </span>
+    );
+  }
   if (colors.kind === "ink") {
     return (
       <span

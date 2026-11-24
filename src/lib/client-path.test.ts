@@ -45,9 +45,10 @@ describe("pickLastClient", () => {
     expect(pickLastClient(all, { profileClientId: null, storedSlug: "obu-health" })).toBe(obu);
     expect(pickLastClient(all, { profileClientId: "gone", storedSlug: "gone" })).toBe(best);
   });
-  it("never falls back to an archived client, but keeps one you last opened", () => {
+  it("never picks an archived client, even your last one (17c)", () => {
     expect(pickLastClient([old, obu], {})).toBe(obu);
-    expect(pickLastClient([old, obu], { profileClientId: "4" })).toBe(old);
+    expect(pickLastClient([old, obu], { profileClientId: "4" })).toBe(obu);
+    expect(pickLastClient([old], {})).toBeUndefined();
     expect(pickLastClient([], {})).toBeUndefined();
   });
 });

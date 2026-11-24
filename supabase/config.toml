@@ -487,3 +487,9 @@ entrypoint = "./functions/suggest-caption/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/clear-pull/index.ts"
+
+# delete-client (Slice 17c): team only, archived clients only — same locks as the others.
+[functions.delete-client]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/delete-client/index.ts"

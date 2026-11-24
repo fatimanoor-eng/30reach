@@ -14,6 +14,8 @@ import { CompetitorsPage } from "../features/competitors/CompetitorsPage";
 import { SocialPage } from "../features/social/SocialPage";
 import { AppShell } from "./AppShell";
 import { LastClientRedirect } from "./LastClientRedirect";
+import { AddClientPage } from "../features/clients/AddClientPage";
+import { ClientSettingsPage } from "../features/clients/ClientSettingsPage";
 
 /**
  * Dev-only routes. `import.meta.env.DEV` is replaced with `false` in production builds, so this
@@ -62,11 +64,14 @@ const appRoutes: RouteObject[] = [
       { path: "calendar", element: <CalendarPage /> },
       { path: "ideas", element: <IdeasPage /> },
       { path: "settings", element: <SettingsPage /> },
+      { path: "client-settings", element: <ClientSettingsPage /> },
       { path: "more", element: <MorePage /> },
       ...devRoutes,
       { path: "*", element: <NotFoundPage /> },
     ],
   },
+  // Full screen, outside the shell (15b–15f), Slice 17c.
+  { path: "add-client", element: <AddClientPage /> },
   { path: "*", element: <LastClientRedirect /> },
 ];
 

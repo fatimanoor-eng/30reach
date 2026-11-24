@@ -49,8 +49,14 @@ describe("App shell", () => {
     expect(await within(menu).findByText("No pull yet")).toBeInTheDocument();
     expect(within(menu).getByRole("link", { name: "Northwind Clinic settings" })).toHaveAttribute(
       "href",
-      "/c/northwind-clinic/settings",
+      "/c/northwind-clinic/client-settings",
     );
+    expect(within(menu).getByRole("link", { name: "Add client" })).toHaveAttribute(
+      "href",
+      "/add-client",
+    );
+    // Nothing archived: no Archived row (16c).
+    expect(within(menu).queryByRole("button", { name: /Archived/ })).not.toBeInTheDocument();
     // Fewer than 6 clients: no search.
     expect(within(menu).queryByPlaceholderText("Search clients")).not.toBeInTheDocument();
     fireEvent.keyDown(document, { key: "Escape" });
