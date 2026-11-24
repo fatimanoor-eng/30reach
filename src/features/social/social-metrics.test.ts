@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { BrandRef, OverviewPost } from "../overview/metrics";
 import {
   dayPartIndex,
+  FACEBOOK_POST_CAP,
+  facebookCapNote,
+  facebookCappedBrands,
   formatsByBrand,
   formatStats,
   hashtagOverlap,
@@ -231,5 +234,47 @@ describe("compare", () => {
       ["Only Hers", ["hers1"]],
       ["Shared", ["glp1", "meal"]],
     ]);
+  });
+});
+
+describe("Facebook (Slice 16b)", () => {
+  const fb = (o: Partial<OverviewPost>) => post({ platform: "facebook", ...o });
+  it("KPI caption: reactions + comments, avg shares; views never rank", () => {
+    const posts = [
+      fb({ likes: 10, comments: 2, shares: 4, format: "reel", views: 9_000 }),
+      fb({ likes: 30, comments: 0, shares: 8, format: "image" }),
+    ];
+    const [, eng] = socialKpis({
+      posts,
+      allBrandPosts: posts,
+      brands,
+      selected: [],
+      platform: "facebook",
+      days: 30,
+    });
+    expect(eng).toMatchObject({
+      value: "21",
+      caption: "reactions + comments / post · 6 avg shares",
+    });
+  });
+  it("albums are named Albums on Facebook", () => {
+    const albums = [
+      fb({ format: "carousel" }),
+      fb({ format: "carousel" }),
+      fb({ format: "carousel" }),
+    ];
+    expect(formatStats(albums)[0].label).toBe("Albums");
+  });
+  it("cap: brands with 12+ Facebook posts in the pull get the note", () => {
+    const many = Array.from({ length: FACEBOOK_POST_CAP }, () => fb({ competitor_id: "ro" }));
+    const few = [fb({ competitor_id: "hims" }), post({ competitor_id: "hims" })];
+    const capped = facebookCappedBrands([...many, ...few], brands);
+    expect(capped.map((b) => b.name)).toEqual(["Ro"]);
+    expect(facebookCappedBrands([...many], [brands[0]])).toEqual([]); // only brands in scope
+    expect(facebookCapNote(capped)).toBe(
+      "Showing the latest 12 Facebook posts for Ro. A pull reads at most 12 per brand, so older posts in this range aren’t counted.",
+    );
+    expect(facebookCapNote([brands[0], brands[1], brands[2]])).toMatch(/for Hims, Ro and Hers\./);
+    expect(facebookCapNote([])).toBeNull();
   });
 });

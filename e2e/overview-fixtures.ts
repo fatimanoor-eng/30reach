@@ -12,6 +12,19 @@ export const BRANDS = [
   { id: "c-ww", name: "WeightWatchers", initials: "WW" },
 ];
 
+/**
+ * BRANDS as `competitors` rows with accounts (Slice 16b: the platform switch, sidebar and rail show only
+ * platforms someone has an account on). Instagram + TikTok for all, a LinkedIn page for Hims, no Facebook
+ * page (Facebook tests add one where they need it).
+ */
+export const COMPETITORS = BRANDS.map((b) => ({
+  ...b,
+  instagram_handle: b.id.replace("c-", ""),
+  tiktok_handle: b.id.replace("c-", ""),
+  linkedin_url: b.id === "c-hims" ? "https://www.linkedin.com/company/hims-&-hers/" : null,
+  facebook_url: null as string | null,
+}));
+
 const CAPTIONS = [
   "3 things nobody tells you about starting treatment",
   "A doctor answers your questions in 30 seconds",
@@ -113,6 +126,59 @@ export function makeLinkedInPosts(
         counts_hidden: false,
         thumbnail_path:
           opts.withThumbs && k < 2 ? `client-1/${pullId}/li-${brand.id}-${k}.jpg` : null,
+      };
+    }),
+  );
+}
+
+const FB_FORMATS = ["reel", "article", "image", "video", "carousel", "text"] as const;
+const FB_CAPTIONS = [
+  "Your morning bagel sandwich, but with more protein",
+  "Curious about the different types of protein? Read this",
+  "Hot tip: post this in the family group chat",
+  "The Thanksgiving appetizer you won’t believe is on plan",
+  "Dressing the body you have, and loving it",
+];
+
+/**
+ * Facebook posts (Slice 16b) as pull-task saves them: likes = reactions, shares = shares, views only on
+ * reels / videos. WeightWatchers hits the 12-post cap (4 pages × 3); Ro has 5; nobody else has a page.
+ */
+export function makeFacebookPosts(
+  pullId: string,
+  pullStart: Date,
+  opts: { withThumbs?: boolean } = {},
+) {
+  const perBrand: [string, number][] = [
+    ["c-ww", 12],
+    ["c-ro", 5],
+  ];
+  return perBrand.flatMap(([brandId, count], bi) =>
+    Array.from({ length: count }, (_, k) => {
+      const format = FB_FORMATS[(k + bi) % FB_FORMATS.length];
+      const video = format === "reel" || format === "video";
+      const base = 60 - bi * 20;
+      return {
+        id: `${pullId}-fb${bi}-${k}`,
+        competitor_id: brandId,
+        platform: "facebook",
+        external_id: `fb-${brandId}-${k}`,
+        url: video
+          ? `https://www.facebook.com/reel/${bi}${k}00/`
+          : `https://www.facebook.com/page/posts/pfbid${bi}${k}`,
+        posted_at: new Date(
+          pullStart.getTime() - (k * 2 + bi) * 86_400_000 - ((k * 5) % 11) * 3_600_000,
+        ).toISOString(),
+        format,
+        caption: FB_CAPTIONS[(bi + k) % FB_CAPTIONS.length],
+        hashtags: [],
+        likes: Math.round(base * (1 + ((k * 3) % 5) / 2)),
+        comments: Math.round(base / 6) + (k % 3),
+        views: video ? 2_000 + k * 950 : null,
+        shares: 3 + ((k * 2) % 7),
+        counts_hidden: false,
+        thumbnail_path:
+          opts.withThumbs && k % 3 === 0 ? `client-1/${pullId}/fb-${brandId}-${k}.jpg` : null,
       };
     }),
   );

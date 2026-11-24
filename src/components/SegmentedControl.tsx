@@ -6,8 +6,10 @@ export type SegmentOption<T extends string> = {
   label: ReactNode;
   /** Shown but not selectable (e.g. "90 days" until 90-day pulls exist). */
   disabled?: boolean;
-  /** Explains a disabled option ("Needs a 90-day pull, coming later"). */
+  /** Explains a disabled option ("Needs a 90-day pull, coming later"), or names an icon-only one. */
   tooltip?: string;
+  /** Accessible name when the label is an icon (tablet platform switch). */
+  ariaLabel?: string;
 };
 
 /**
@@ -70,6 +72,7 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="radio"
             aria-checked={selected}
+            aria-label={option.ariaLabel}
             aria-disabled={option.disabled || undefined}
             aria-describedby={tip?.["aria-describedby"] || undefined}
             tabIndex={selected ? 0 : -1}

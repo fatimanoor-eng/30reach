@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router";
 import { Card } from "../../components/Card";
-import { PLATFORM_NAME, type ShownPlatform as Platform } from "../../lib/platforms";
+import { type Platform, PLATFORM_NAME } from "../../lib/platforms";
 import { formatCompact, plural } from "../../lib/format";
 import type { BrandRef, OverviewPost } from "../overview/metrics";
 import { PostsCard } from "../posts/PostsCard";
@@ -14,7 +14,8 @@ import {
 
 /**
  * Top posts (06a / 06b / M05): 4 columns desktop, 2 tablet, 8 sideways cards on mobile, ranked by
- * likes + comments (TikTok shows views, LinkedIn reposts; never ranked by them). "See all" expands in place to every
+ * likes / reactions + comments (TikTok shows views, LinkedIn reposts, Facebook shares + video views; never
+ * ranked by them). "See all" expands in place to every
  * post in the current filters (Top / Newest). Soft grey block when there's no thumbnail.
  */
 export function SocialTopPosts({
@@ -48,7 +49,9 @@ export function SocialTopPosts({
           ? "Ranked by likes + comments. Views are shown but don’t change the order."
           : platform === "linkedin"
             ? "Ranked by reactions + comments. Reposts are shown but don’t change the order."
-            : "Ranked by likes + comments."
+            : platform === "facebook"
+              ? "Ranked by reactions + comments. Shares, and views on videos and reels, are shown but don’t change the order."
+              : "Ranked by likes + comments."
       }
       posts={posts}
       brands={brands}
@@ -69,7 +72,7 @@ export function FormatsCard({ stats, platform }: { stats: FormatStat[]; platform
   return (
     <Card
       title="Formats"
-      info={`Avg ${platform === "linkedin" ? "reactions" : "likes"} + comments per post, by format. A format needs at least 3 posts to count as best.`}
+      info={`Avg ${platform === "linkedin" || platform === "facebook" ? "reactions" : "likes"} + comments per post, by format. A format needs at least 3 posts to count as best.`}
     >
       {stats.length === 0 ? (
         <p className="text-body-sm text-muted">No formats to compare yet.</p>

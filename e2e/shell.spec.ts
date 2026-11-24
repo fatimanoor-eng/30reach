@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { noSidewaysScroll, ready, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
+import {
+  noSidewaysScroll,
+  pickPlatform,
+  ready,
+  signInAs,
+  stubSupabase,
+  tapTargetsOk,
+} from "./helpers";
 
 const ROUTES = [
   "/overview",
@@ -59,7 +66,7 @@ test("brand pills: 3 max, selection carries from Instagram to TikTok", async ({ 
 
   // In-app navigation keeps the shared selection (a full reload would reset it).
   if (info.project.name === "mobile-390") {
-    await page.getByRole("radio", { name: "TikTok" }).click(); // Social tab's platform switch
+    await pickPlatform(page, "TikTok", true); // Social tab's "Platform" chip → sheet (Slice 16b)
   } else {
     await page.getByRole("link", { name: "TikTok" }).first().click();
   }

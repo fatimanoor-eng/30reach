@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
-import { BRANDS, makePosts, NOW } from "./overview-fixtures";
+import { COMPETITORS, makePosts, NOW } from "./overview-fixtures";
 
 /*
  * Slice 11 AI: Ask Blip (12 / M11), Plan {month} (10), the 09 health-claim check and Suggest hooks.
@@ -136,7 +136,7 @@ async function setup(
   await page.clock.setFixedTime(NOW); // 17 Nov 2026
   await stubSupabase(page);
   await signInAs(page);
-  await page.route("**/rest/v1/competitors**", (r) => r.fulfill(json(BRANDS)));
+  await page.route("**/rest/v1/competitors**", (r) => r.fulfill(json(COMPETITORS)));
   await page.route("**/rest/v1/pulls**", (r) =>
     r.fulfill(json(r.request().url().includes("status=eq.running") ? null : [LATEST, PREVIOUS])),
   );

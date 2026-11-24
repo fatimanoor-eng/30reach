@@ -1,13 +1,11 @@
 import { formatShortDate, plural } from "../../lib/format";
-import { PLATFORM_NAME, PLATFORMS } from "../../lib/platforms";
+import { PLATFORM_NAME, PLATFORMS, targetNoun } from "../../lib/platforms";
 import type { Platform, PullProblem, PullStartResponse } from "../../lib/pulls/api";
 import type { TaskProgress } from "../../lib/pulls/run-pull";
 
 export const PLATFORM_LABEL = PLATFORM_NAME;
 
-/** "handle" for Instagram/TikTok, "page" for a LinkedIn company page or a Facebook page. */
-export const targetNoun = (p: Platform) =>
-  p === "linkedin" || p === "facebook" ? "page" : "handle";
+export { targetNoun };
 
 const NO_TASKS = { tasks: 0, expected: 0, max: 0 };
 /** One platform's estimate (a pull-start from before LinkedIn has no `linkedin` entry). */

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useSearchParams } from "react-router";
-import type { ShownPlatform } from "../../lib/platforms";
+import type { Platform } from "../../lib/platforms";
 import type { Filters } from "./metrics";
 
 /**
@@ -27,17 +27,17 @@ export function useOverviewFilters() {
   };
 }
 
-/** Facebook gets its page and a place in the switch in Slice 16b. */
-export type PlatformPage = "all" | ShownPlatform;
+export type PlatformPage = "all" | Platform;
 const PATH: Record<PlatformPage, string> = {
   all: "/overview",
   instagram: "/instagram",
   tiktok: "/tiktok",
   linkedin: "/linkedin",
+  facebook: "/facebook",
 };
 
 /**
- * All / Instagram / TikTok / LinkedIn switch = navigation. Keeps the date range (query string); the brand
+ * All / Instagram / TikTok / LinkedIn / Facebook switch = navigation. Keeps the date range (query string); the brand
  * selection lives in context, so it carries over on its own.
  */
 export function usePlatformNav() {

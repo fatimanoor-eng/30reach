@@ -131,7 +131,16 @@ export async function stubSupabase(
           ["c-lifemd", "LifeMD", "LM"],
           ["c-ro", "Ro", "Ro"],
           ["c-ww", "WeightWatchers", "WW"],
-        ].map(([id, name, initials]) => ({ id, name, initials })),
+        ].map(([id, name, initials]) => ({
+          id,
+          name,
+          initials,
+          // Accounts decide which platforms the switch / sidebar show (Slice 16b): IG, TikTok, LinkedIn.
+          instagram_handle: id.replace("c-", ""),
+          tiktok_handle: id.replace("c-", ""),
+          linkedin_url: id === "c-hims" ? "https://www.linkedin.com/company/hims-&-hers/" : null,
+          facebook_url: null,
+        })),
       ),
     ),
   );
@@ -188,4 +197,29 @@ export async function signInAs(
     },
     [JSON.stringify(session), fresh] as const,
   );
+}
+
+/**
+ * Switch platform the way each size does it (Slice 16b): phones open the "Platform" chip's bottom sheet
+ * and tap a row; tablet / desktop click the segmented switch (icon-only on tablet, named by aria-label).
+ */
+export async function pickPlatform(page: Page, name: string, mobile: boolean) {
+  if (mobile) {
+    await page
+      .getByRole("button", { name: /^Platform: / })
+      .filter({ visible: true })
+      .click();
+    const sheet = page.getByRole("dialog", { name: "Platform" });
+    await sheet.getByRole("button", { name, exact: true }).click();
+    await expect(sheet).toBeHidden();
+  } else {
+    await page.getByRole("radio", { name, exact: true }).filter({ visible: true }).click();
+  }
+}
+
+/** The platform the page's switch shows as current, at any size. */
+export function currentPlatform(page: Page, name: string, mobile: boolean) {
+  return mobile
+    ? page.getByRole("button", { name: `Platform: ${name}. Change platform` })
+    : page.getByRole("radio", { name, exact: true, checked: true }).filter({ visible: true });
 }

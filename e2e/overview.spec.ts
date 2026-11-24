@@ -1,6 +1,21 @@
 import { expect, test, type Page } from "@playwright/test";
-import { noSidewaysScroll, signInAs, stubSupabase, tapTargetsOk } from "./helpers";
-import { BRANDS, makeLinkedInPosts, makePosts, NOW, solidPng } from "./overview-fixtures";
+import {
+  currentPlatform,
+  noSidewaysScroll,
+  pickPlatform,
+  signInAs,
+  stubSupabase,
+  tapTargetsOk,
+} from "./helpers";
+import {
+  BRANDS,
+  COMPETITORS,
+  makeFacebookPosts,
+  makeLinkedInPosts,
+  makePosts,
+  NOW,
+  solidPng,
+} from "./overview-fixtures";
 
 /*
  * Slice 6 Overview with fixed fake data — nothing reaches Supabase or Firecrawl.
@@ -24,12 +39,26 @@ async function setup(
     counts?: Record<string, number>;
     /** Add LinkedIn posts to the latest pull (Slice 15b). */
     linkedIn?: boolean;
+    /** Add Facebook posts (no thumbnails) + pages for WeightWatchers and Ro (Slice 16b). */
+    facebook?: boolean;
   } = {},
 ) {
   await page.clock.setFixedTime(NOW);
   await stubSupabase(page);
   await signInAs(page);
-  await page.route("**/rest/v1/competitors**", (r) => r.fulfill(json(BRANDS)));
+  await page.route("**/rest/v1/competitors**", (r) =>
+    r.fulfill(
+      json(
+        COMPETITORS.map((c) => ({
+          ...c,
+          facebook_url:
+            opts.facebook && (c.id === "c-ww" || c.id === "c-ro")
+              ? `https://www.facebook.com/${c.id}`
+              : null,
+        })),
+      ),
+    ),
+  );
   await page.route("**/rest/v1/pulls**", (r) =>
     r.fulfill(json(r.request().url().includes("status=eq.running") ? null : pulls)),
   );
@@ -42,6 +71,7 @@ async function setup(
       counts: opts.counts,
     }).concat(
       opts.linkedIn ? (makeLinkedInPosts(LATEST.id, new Date(LATEST.started_at)) as never[]) : [],
+      opts.facebook ? (makeFacebookPosts(LATEST.id, new Date(LATEST.started_at)) as never[]) : [],
     ),
     [PREVIOUS.id]: makePosts(PREVIOUS.id, new Date(PREVIOUS.started_at), {
       prefix: "old-",
@@ -132,7 +162,8 @@ test("Overview counts LinkedIn too (Slice 15b)", async ({ page }, info) => {
   ).toBeVisible();
   if (info.project.name !== "mobile-390")
     await expect(page.getByText("Across 6 brands, all platforms")).toBeVisible();
-  await expect(page.getByRole("radio", { name: "LinkedIn" })).toBeVisible();
+  if (info.project.name !== "mobile-390")
+    await expect(page.getByRole("radio", { name: "LinkedIn" })).toBeVisible();
   await noSidewaysScroll(page);
   if (info.project.name === "mobile-390") await tapTargetsOk(page);
   await expect(page).toHaveScreenshot("overview-with-linkedin.png", { fullPage: true });
@@ -157,6 +188,37 @@ test("LinkedIn post without a thumbnail: Blue block, tag on a white chip (Slice 
   await noSidewaysScroll(page);
   await card.scrollIntoViewIfNeeded();
   await expect(card).toHaveScreenshot(`linkedin-no-thumbnail-${info.project.name}.png`);
+});
+
+test("Facebook on Overview (Slice 16b): Fresh block with a white tag chip, link to the page", async ({
+  page,
+}, info) => {
+  // Only Facebook posts, none with a thumbnail → Top posts shows the Fresh fallback blocks.
+  await setup(page, [LATEST], {
+    counts: Object.fromEntries(BRANDS.map((b) => [b.id, 0])),
+    facebook: true,
+  });
+  await ready(page);
+  const card = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Top posts", exact: true }) });
+  const block = card.locator("article .bg-fresh").filter({ visible: true }).first();
+  await expect(block).toHaveCSS("background-color", "rgb(12, 82, 56)"); // --color-fresh
+  const tag = block.locator("span").last();
+  await expect(tag).toHaveCSS("background-color", "rgb(255, 255, 255)"); // white chip
+  await expect(
+    card
+      .getByText(/\sreactions · /)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  await expect(card.getByRole("button", { name: "Save as idea" })).toHaveCount(0); // until 16c
+  await expect(
+    card.getByRole("link", { name: "All Facebook posts" }).filter({ visible: true }),
+  ).toHaveCount(1);
+  await noSidewaysScroll(page);
+  await card.scrollIntoViewIfNeeded();
+  await expect(card).toHaveScreenshot(`facebook-no-thumbnail-${info.project.name}.png`);
 });
 
 test("stale data (> 7 days) is amber", async ({ page }) => {
@@ -209,20 +271,19 @@ test("date range filter, 90 days disabled", async ({ page }, info) => {
 });
 
 test("platform switch navigates and keeps brands + date range", async ({ page }, info) => {
+  const mobile = info.project.name === "mobile-390";
   await setup(page, [LATEST]);
   await ready(page, "/overview?days=7");
   await page.getByRole("group", { name: "Brands" }).getByRole("button", { name: "Hims" }).click();
-  await page.getByRole("radio", { name: "TikTok" }).click();
+  // Phones: "Platform" chip → bottom sheet (Slice 16b); tablet/desktop: All / IG / TikTok / LinkedIn.
+  await pickPlatform(page, "TikTok", mobile);
   await expect(page).toHaveURL(/\/tiktok\?days=7$/);
-  // Mobile: the Social tab's Instagram | TikTok | LinkedIn switch; tablet/desktop: All / … / LinkedIn.
-  await expect(
-    page.getByRole("radio", { name: "TikTok", checked: true }).filter({ visible: true }),
-  ).toBeVisible();
+  await expect(currentPlatform(page, "TikTok", mobile)).toBeVisible();
   await expect(
     page.getByRole("group", { name: "Brands" }).getByRole("button", { name: "Hims" }),
   ).toHaveAttribute("aria-pressed", "true");
-  if (info.project.name === "mobile-390") {
-    await page.getByRole("radio", { name: "Instagram" }).click();
+  if (mobile) {
+    await pickPlatform(page, "Instagram", mobile);
     await expect(page).toHaveURL(/\/instagram\?days=7$/);
   } else {
     await page.getByRole("radio", { name: "All" }).click();

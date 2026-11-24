@@ -39,6 +39,30 @@ export const STATUS_KEY = {
 
 export const isPlatform = (v: unknown): v is Platform => PLATFORMS.includes(v as Platform);
 
+/** Short names for the desktop platform switch (Slice 16b): All · IG · TikTok · LinkedIn · FB. */
+export const PLATFORM_SHORT_NAME: Record<Platform, string> = {
+  instagram: "IG",
+  tiktok: "TikTok",
+  linkedin: "LinkedIn",
+  facebook: "FB",
+};
+
+/** "handle" for Instagram/TikTok, "page" for a LinkedIn company page or a Facebook page. */
+export const targetNoun = (p: Platform) =>
+  p === "linkedin" || p === "facebook" ? "page" : "handle";
+
+/**
+ * Platforms that at least one competitor has a handle / page for, in the usual order (Slice 16b: the
+ * switch, sidebar and rail show only these). `null` (competitors not loaded / failed) → all of them,
+ * so nothing disappears on a slow or failed load.
+ */
+export function platformsWithAccounts(
+  competitors: readonly Partial<Record<(typeof TARGET_KEY)[Platform], string | null>>[] | null,
+): Platform[] {
+  if (!competitors) return PLATFORMS;
+  return PLATFORMS.filter((p) => competitors.some((c) => !!c[TARGET_KEY[p]]));
+}
+
 /**
  * Thumbnail fallback block (no saved thumbnail) and other platform fills: Instagram Pop, TikTok Breeze,
  * LinkedIn B30 Blue (Slice 15), Facebook B30 Fresh (Slice 16). Blue and Fresh are dark: put ink text on a
@@ -52,9 +76,8 @@ export const PLATFORM_FILL: Record<Platform, string> = {
 };
 
 /**
- * Platforms the dashboards (Overview, Social pages), calendar, ideas and Blip already show. A pull can
- * save Facebook posts from Slice 16a on; they stay out of these screens until 16b (pages) and 16c
- * (calendar, ideas, Blip) add them.
+ * Platforms the calendar, ideas, the posts export and Blip already know. Facebook has its page and the
+ * dashboards from Slice 16b; it joins these in 16c ("Save as idea" is hidden on Facebook posts until then).
  */
 export type ShownPlatform = Exclude<Platform, "facebook">;
 export const SHOWN_PLATFORMS: ShownPlatform[] = ["instagram", "tiktok", "linkedin"];

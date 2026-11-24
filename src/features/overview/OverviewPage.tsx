@@ -13,7 +13,13 @@ import { useOverviewFilters } from "./filters";
 import { FirstRun } from "./FirstRun";
 import { LeaderboardCard } from "./LeaderboardCard";
 import { type BrandRef, filterPosts, type Filters, kpis, leaderboard, whatsNew } from "./metrics";
-import { DateRangeControl, DateRangeSelect, LastPulled, PlatformNav } from "./OverviewControls";
+import {
+  DateRangeControl,
+  DateRangeSelect,
+  LastPulled,
+  PlatformNav,
+  PlatformPicker,
+} from "./OverviewControls";
 import { TopPostsCard } from "./TopPostsCard";
 import { type SavedPull, usePullPosts, useSavedPulls } from "./useOverviewData";
 import { WhatsNewBar } from "./WhatsNewBar";
@@ -65,7 +71,7 @@ function Dashboard({
   const previousPosts = usePullPosts(previous?.id);
 
   const brands: BrandRef[] = competitors.map(({ id, name, initials }) => ({ id, name, initials }));
-  // Overview always covers all platforms; Instagram / TikTok / LinkedIn have their own pages.
+  // Overview always covers all platforms; each platform has its own page.
   const f: Filters = { platform: "all", days, brandIds: selected };
   const inScope = selected.length ? brands.filter((b) => selected.includes(b.id)) : brands;
 
@@ -86,7 +92,11 @@ function Dashboard({
       />
       <LastPulled startedAt={latest.started_at} className="-mt-3 mb-4 flex md:hidden" />
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <PlatformNav current="all" />
+        {/* Wrapper hides it on phones: SegmentedControl sets inline-flex, which beats `hidden`. */}
+        <span className="hidden md:inline-flex">
+          <PlatformNav current="all" />
+        </span>
+        <PlatformPicker current="all" includeAll className="md:hidden" />
         <DateRangeSelect className="md:hidden" />
       </div>
       <BrandPills brands={brands} />

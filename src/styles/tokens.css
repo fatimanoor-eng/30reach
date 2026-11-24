@@ -38,6 +38,7 @@
   --color-tint-instagram: #feeaf0; /* 09 card header, Instagram card */
   --color-tint-tiktok: #e9f8fe; /* 09 card header, TikTok card */
   --color-tint-linkedin: #e3e8f5; /* LinkedIn tint (Slice 15; 09 card header in 15c) */
+  --color-tint-facebook: #e6efea; /* Facebook tint (Slice 16; 09 card header in 16c). Colour = fresh */
   --color-status-idea: #fbe6fe; /* soft status pills (09) */
   --color-status-drafting: #ddf3fc;
   --color-status-approved: #e1eee6;

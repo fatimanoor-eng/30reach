@@ -3,12 +3,12 @@ import type { CompareColor } from "../../lib/brand-selection";
 import { formatShortDate } from "../../lib/format";
 import { PLATFORM_FILL, PLATFORM_ICON, PLATFORM_NAME } from "../../lib/platforms";
 import { type OverviewPost, postStats } from "../overview/metrics";
-import { useSaveAsIdea } from "./save-as-idea";
+import { isSaveable, useSaveAsIdea } from "./save-as-idea";
 
 const DOT: Record<CompareColor, string> = { ink: "bg-ink", pop: "bg-pop", blue: "bg-blue" };
 const FORMAT_TAG: Record<string, string> = {
   reel: "Reel",
-  carousel: "Carousel",
+  carousel: "Carousel", // Facebook: "Album" (formatTag)
   image: "Image",
   video: "Video",
   text: "Text",
@@ -23,8 +23,9 @@ const FORMAT_TAG: Record<string, string> = {
  * • card — mobile sideways scroll: ~220 px wide, the next one peeks in.
  * • grid — Social grid (06a/06b): full-width 92 px thumbnail strip on top (as in Figma).
  * Thumbnail = saved copy (signed URL), else a block with the format tag (Overview: platform colour,
- * Social: soft grey, as in the Figma frames). LinkedIn's Blue is dark, so its tag always sits on a
- * white chip.
+ * Social: soft grey, as in the Figma frames). LinkedIn's Blue and Facebook's Fresh are dark, so their
+ * tag always sits on a white chip. "Save as idea" isn't offered on Facebook posts until ideas know
+ * Facebook (Slice 16c).
  */
 export function PostItem({
   post: p,
@@ -46,9 +47,13 @@ export function PostItem({
   const saveAsIdea = useSaveAsIdea();
   const Icon = PLATFORM_ICON[p.platform];
   const row = layout === "row";
-  const tag = FORMAT_TAG[p.format ?? ""] ?? "Post";
+  const tag =
+    p.platform === "facebook" && p.format === "carousel"
+      ? "Album"
+      : (FORMAT_TAG[p.format ?? ""] ?? "Post");
   const fill = fallback === "soft" ? "bg-soft" : PLATFORM_FILL[p.platform];
-  const chip = !row || fill === "bg-blue"; // tag on a white chip (always on the dark Blue block)
+  // Tag on a white chip: always on grid / card, and on the dark Blue (LinkedIn) / Fresh (Facebook) blocks.
+  const chip = !row || fill === "bg-blue" || fill === "bg-fresh";
 
   return (
     <article
@@ -96,13 +101,15 @@ export function PostItem({
         <p className="mt-1 line-clamp-2 text-body">{p.caption?.trim() || "No caption"}</p>
         <p className="mt-1 text-small text-muted">{postStats(p)}</p>
         <p className="mt-1.5 flex flex-wrap items-center gap-x-3 text-small">
-          <button
-            type="button"
-            onClick={() => saveAsIdea({ post: p, brandName, thumbUrl })}
-            className="min-h-11 text-blue hover:underline md:min-h-6"
-          >
-            Save as idea
-          </button>
+          {isSaveable(p) && (
+            <button
+              type="button"
+              onClick={() => saveAsIdea({ post: p, brandName, thumbUrl })}
+              className="min-h-11 text-blue hover:underline md:min-h-6"
+            >
+              Save as idea
+            </button>
+          )}
           <a
             href={p.url}
             target="_blank"

@@ -7,7 +7,7 @@ import { useCurrentUser } from "../lib/auth/useCurrentUser";
 import { clientInitials, useClient } from "../lib/useClient";
 import { creditsFraction } from "../lib/format";
 import { creditsSummary, useCredits } from "../lib/useCredits";
-import { navSections } from "./nav";
+import { useNavSections } from "./useNav";
 
 const railButton =
   "relative inline-flex size-11 items-center justify-center rounded-control transition-colors";
@@ -26,6 +26,7 @@ export function IconRail({
   const clientName = useClient().data?.name;
   const me = useCurrentUser();
   const credits = useCredits();
+  const navSections = useNavSections();
 
   return (
     <aside

@@ -7,7 +7,7 @@ import { Logo } from "../components/Logo";
 import { useCurrentUser } from "../lib/auth/useCurrentUser";
 import { ClientName } from "./ClientName";
 import { useCredits } from "../lib/useCredits";
-import { navSections } from "./nav";
+import { useNavSections } from "./useNav";
 
 /** Desktop sidebar, 248 px (Figma 6897:126). Shown from 1200 px. */
 export function Sidebar({
@@ -19,6 +19,7 @@ export function Sidebar({
 }) {
   const me = useCurrentUser();
   const credits = useCredits();
+  const navSections = useNavSections();
   return (
     <aside
       aria-label="Sidebar"

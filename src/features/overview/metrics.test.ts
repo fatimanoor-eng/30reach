@@ -9,6 +9,7 @@ import {
   kpis,
   leaderboard,
   type OverviewPost,
+  formatName,
   postStats,
   slotLabel,
   slotShort,
@@ -266,5 +267,42 @@ describe("whatsNew (05e)", () => {
     expect(w.rankDelta.get("hims")).toBe(1);
     expect(w.rankDelta.get("hers")).toBe(-1);
     expect(w.summary).toEqual(["2 new posts", "Hims moved up to #1", "new tag #dryjanuary"]);
+  });
+});
+
+describe("Facebook (Slice 16b)", () => {
+  it("post stats: views on videos / reels only, then reactions, comments, shares (kept together)", () => {
+    const nb = "\u00a0";
+    expect(
+      postStats(
+        post({
+          platform: "facebook",
+          format: "reel",
+          views: 2771,
+          likes: 12,
+          comments: 3,
+          shares: 3,
+        }),
+      ),
+    ).toBe(`2.8K${nb}views · 12${nb}reactions · 3${nb}comments · 3${nb}shares`);
+    expect(
+      postStats(
+        post({
+          platform: "facebook",
+          format: "article",
+          views: null,
+          likes: 1,
+          comments: 0,
+          shares: 4,
+        }),
+      ),
+    ).toBe(`1${nb}reaction · 0${nb}comments · 4${nb}shares`);
+  });
+  it("albums: a group of only Facebook carousels is Albums; mixed stays Carousels", () => {
+    const fb = post({ platform: "facebook", format: "carousel" });
+    expect(formatName("carousel", [fb])).toBe("Albums");
+    expect(formatName("carousel", [fb, post({ platform: "instagram", format: "carousel" })])).toBe(
+      "Carousels",
+    );
   });
 });

@@ -2,9 +2,10 @@
 // Reuses Overview's rules: engagement = likes + comments (TikTok views shown, never ranked), hidden-count
 // posts excluded from averages, a format needs ≥ 3 posts, < 10 posts = small sample.
 // LinkedIn (Slice 15b): likes = reactions, reposts shown in the caption (never ranked), no views.
+// Facebook (Slice 16b): likes = reactions, shares shown in the caption (never ranked), views on video posts.
 
 import { formatCompact, plural } from "../../lib/format";
-import type { ShownPlatform as Platform } from "../../lib/platforms";
+import type { Platform } from "../../lib/platforms";
 import {
   type BrandRef,
   engagement,
@@ -156,7 +157,7 @@ export const cellLabel = (c: Pick<HeatCell, "day" | "part">) => `${DAY_LONG[c.da
 // ───────────────────────────────────────────── KPI strip (06a / 06b)
 /**
  * Posts · Avg engagement · Best format · Best time. One brand → "#2 of 6 brands" (rank among all brands
- * on this platform, same date range). TikTok → views in the caption, LinkedIn → reposts.
+ * on this platform, same date range). TikTok → views in the caption, LinkedIn → reposts, Facebook → shares.
  */
 export function socialKpis(args: {
   posts: OverviewPost[];
@@ -182,7 +183,9 @@ export function socialKpis(args: {
   };
 
   let engCaption =
-    platform === "linkedin" ? "reactions + comments / post" : "likes + comments / post";
+    platform === "linkedin" || platform === "facebook"
+      ? "reactions + comments / post"
+      : "likes + comments / post";
   if (single) {
     const rows = leaderboard(allBrandPosts, brands).filter((r) => r.posts > 0);
     const rank = rows.find((r) => r.brand.id === selected[0])?.rank;
@@ -193,6 +196,8 @@ export function socialKpis(args: {
   const reposts = counted.map((p) => p.shares).filter((v): v is number => v !== null);
   if (platform === "linkedin" && reposts.length)
     engCaption += ` · ${formatCompact(avg(reposts))} avg reposts`;
+  if (platform === "facebook" && reposts.length)
+    engCaption += ` · ${formatCompact(avg(reposts))} avg shares`;
   const engKpi: Kpi = {
     label: "Avg engagement",
     value: counted.length ? formatCompact(avgEng) : "—",
@@ -332,4 +337,30 @@ export function hashtagOverlap(
   return brands.length === 2
     ? [only(brands[0]), shared, only(brands[1])]
     : [...brands.map(only), shared];
+}
+
+// ───────────────────────────────────────────── Facebook page cap (16b)
+/** A Facebook pull reads at most 4 pages × 3 posts per brand (pull-logic PAGE_CAP × FACEBOOK_PAGE_SIZE). */
+export const FACEBOOK_POST_CAP = 12;
+
+/**
+ * Brands (in `scope`) whose Facebook posts in the saved pull reached the cap: the pull stopped before the
+ * 30 days were covered, so older posts in the range are missing ("Showing the latest 12 posts…").
+ * `pullPosts` = every post of the saved pull (all platforms, all dates).
+ */
+export function facebookCappedBrands(pullPosts: OverviewPost[], scope: BrandRef[]): BrandRef[] {
+  return scope.filter(
+    (b) =>
+      pullPosts.filter((p) => p.platform === "facebook" && p.competitor_id === b.id).length >=
+      FACEBOOK_POST_CAP,
+  );
+}
+
+/** "Showing the latest 12 Facebook posts for WeightWatchers and Ro. A pull reads at most 12 per brand…" */
+export function facebookCapNote(capped: BrandRef[]): string | null {
+  if (capped.length === 0) return null;
+  const names = capped.map((b) => b.name);
+  const list =
+    names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  return `Showing the latest ${FACEBOOK_POST_CAP} Facebook posts for ${list}. A pull reads at most ${FACEBOOK_POST_CAP} per brand, so older posts in this range aren’t counted.`;
 }

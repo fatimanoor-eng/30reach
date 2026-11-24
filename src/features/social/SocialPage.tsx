@@ -1,3 +1,4 @@
+import { Info } from "lucide-react";
 import { PageHeader } from "../../app/PageHeader";
 import { BrandPills } from "../../components/BrandPills";
 import { Card } from "../../components/Card";
@@ -5,29 +6,25 @@ import { EmptyState } from "../../components/EmptyState";
 import { KpiTile } from "../../components/KpiTile";
 import { LoadError } from "../../components/LoadError";
 import { Bone, Skeleton, SkeletonCard, SkeletonKpis } from "../../components/Skeleton";
-import { SegmentedControl } from "../../components/SegmentedControl";
 import { useBrandSelection } from "../../lib/brand-selection-context";
-import {
-  PLATFORM_ICON,
-  PLATFORM_NAME as NAME,
-  SHOWN_PLATFORMS as PLATFORMS,
-  type ShownPlatform as Platform,
-  TARGET_KEY,
-} from "../../lib/platforms";
+import { type Platform, PLATFORM_NAME as NAME, TARGET_KEY, targetNoun } from "../../lib/platforms";
 import { type Competitor, useCompetitors } from "../../lib/useCompetitors";
-import { useOverviewFilters, usePlatformNav } from "../overview/filters";
+import { useOverviewFilters } from "../overview/filters";
 import { type BrandRef, filterPosts } from "../overview/metrics";
 import {
   DateRangeControl,
   DateRangeSelect,
   LastPulled,
   PlatformNav,
+  PlatformPicker,
 } from "../overview/OverviewControls";
 import { type SavedPull, usePullPosts, useSavedPulls } from "../overview/useOverviewData";
 import { RefreshButton } from "../pulls/RefreshButton";
 import { FormatsSideBySideCard, HashtagOverlapCard, HeadToHeadCard } from "./CompareCards";
 import { BestTimesCard, FormatsCard, HashtagsCard, SocialTopPosts } from "./SocialCards";
 import {
+  facebookCapNote,
+  facebookCappedBrands,
   formatsByBrand,
   formatStats,
   hashtagOverlap,
@@ -38,11 +35,11 @@ import {
 } from "./social-metrics";
 
 /**
- * Instagram, TikTok and LinkedIn pages (06a all brands · 06b one brand · 06c compare 2–3; M05 / M06).
- * Same layout for all three; TikTok shows views, LinkedIn reposts (likes / reactions + comments still
- * rank). LinkedIn has no Figma frame: it reuses these (Slice 15b). Reads the last saved pull only —
- * never fetches from Firecrawl. Date range from the URL, brand pills shared with Overview.
- * Mobile: one "Social" tab with an Instagram | TikTok | LinkedIn switch.
+ * Instagram, TikTok, LinkedIn and Facebook pages (06a all brands · 06b one brand · 06c compare 2–3;
+ * M05 / M06). Same layout for all; TikTok shows views, LinkedIn reposts, Facebook shares + video views
+ * (likes / reactions + comments still rank). LinkedIn (15b) and Facebook (16b) have no Figma frame: they
+ * reuse these. Reads the last saved pull only — never fetches from Firecrawl. Date range from the URL,
+ * brand pills shared with Overview. Mobile: one "Social" tab with a "Platform ⌄" bottom-sheet picker.
  */
 export function SocialPage({ platform }: { platform: Platform }) {
   const saved = useSavedPulls();
@@ -82,8 +79,9 @@ export function SocialPage({ platform }: { platform: Platform }) {
           </>
         }
       />
-      <PlatformSwitch platform={platform} />
-      {/* Tablet/desktop: same All / Instagram / TikTok / LinkedIn switch as Overview (All → /overview). */}
+      {/* Phones (M05 Social tab): "Platform ⌄" chip → bottom sheet, platforms only (All is Overview). */}
+      <PlatformPicker current={platform} className="mb-4 w-full md:hidden" />
+      {/* Tablet/desktop: the same switch as Overview (All → /overview). */}
       <div className="mb-4 hidden md:flex">
         <PlatformNav current={platform} />
       </div>
@@ -146,35 +144,6 @@ export function SocialPage({ platform }: { platform: Platform }) {
   );
 }
 
-/**
- * Instagram | TikTok | LinkedIn, full width, mobile only (M05) — the Social tab. Keeps date range and
- * brands. Icon + name; at 390 px three segments still fit (LinkedIn added in Slice 15b).
- */
-function PlatformSwitch({ platform }: { platform: Platform }) {
-  const go = usePlatformNav();
-  return (
-    <div className="mb-4 md:hidden">
-      <SegmentedControl
-        label="Platform"
-        fullWidth
-        value={platform}
-        onChange={(p) => p !== platform && go(p)}
-        options={PLATFORMS.map((p) => {
-          const Icon = PLATFORM_ICON[p];
-          return {
-            value: p,
-            label: (
-              <>
-                <Icon size={16} aria-hidden="true" /> {NAME[p]}
-              </>
-            ),
-          };
-        })}
-      />
-    </div>
-  );
-}
-
 function SocialBody({
   latest,
   platform,
@@ -216,6 +185,8 @@ function SocialBody({
   const hasHandle = (c: Competitor) => !!c[TARGET_KEY[platform]];
   const missingHandle =
     chosen.length === 1 && competitors.some((c) => c.id === chosen[0].id && !hasHandle(c));
+  // Opened by link while no competitor has an account here (the switch hides it then, Slice 16b).
+  const nobody = !competitors.some(hasHandle);
 
   if (posts.length === 0) {
     return (
@@ -223,12 +194,14 @@ function SocialBody({
         <EmptyState
           label="Nothing here"
           title={
-            missingHandle
-              ? `${chosen[0].name} has no ${NAME[platform]} ${platform === "linkedin" ? "page" : "handle"}`
-              : `No ${NAME[platform]} posts in the last ${days} days`
+            nobody
+              ? `No competitor has a ${NAME[platform]} ${targetNoun(platform)} yet`
+              : missingHandle
+                ? `${chosen[0].name} has no ${NAME[platform]} ${targetNoun(platform)}`
+                : `No ${NAME[platform]} posts in the last ${days} days`
           }
           text={
-            missingHandle
+            nobody || missingHandle
               ? "Add one on Competitors; it’s pulled on the next Refresh."
               : days === 7
                 ? "Try 30 days, another platform, or All brands."
@@ -239,10 +212,25 @@ function SocialBody({
     );
   }
 
+  // Facebook stops at 12 posts per brand: say so when that cut the range (Slice 16b).
+  const capNote =
+    platform === "facebook"
+      ? facebookCapNote(facebookCappedBrands(latestPosts.data, chosen.length ? chosen : brands))
+      : null;
+  const cap = capNote && (
+    <p className="mt-3 flex items-start gap-2 text-small text-muted">
+      <Info size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
+      {capNote}
+    </p>
+  );
+
   if (chosen.length >= 2) {
     return (
       <div className="mt-6 flex flex-col gap-6">
-        <HeadToHeadCard cols={headToHead(posts, chosen)} days={days} />
+        <div>
+          <HeadToHeadCard cols={headToHead(posts, chosen)} days={days} />
+          {cap}
+        </div>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
           <FormatsSideBySideCard rows={formatsByBrand(posts, chosen)} brands={chosen} />
           <HashtagOverlapCard columns={hashtagOverlap(posts, chosen)} brands={chosen} />
@@ -259,6 +247,7 @@ function SocialBody({
           <KpiTile key={k.label} label={k.label} value={k.value} caption={k.caption} />
         ))}
       </div>
+      {cap}
       <div className="mt-6">
         <SocialTopPosts posts={posts} brands={brands} platform={platform} />
       </div>

@@ -1,9 +1,11 @@
 import { Link, useLocation } from "react-router";
-import { isActive, mobileTabs } from "./nav";
+import { isActive } from "./nav";
+import { useMobileTabs } from "./useNav";
 
 /** Mobile bottom tabs: Overview · Social · Calendar · Ideas · More (Figma M02). Below 768 px. */
 export function BottomTabs({ className = "" }: { className?: string }) {
   const { pathname } = useLocation();
+  const mobileTabs = useMobileTabs();
 
   return (
     <nav

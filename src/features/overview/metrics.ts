@@ -1,9 +1,11 @@
 // Overview numbers (Slice 6), computed in the browser from the saved pull (~170 posts).
 // Pure functions — tested in metrics.test.ts. Engagement = likes + comments (TikTok views shown, not ranked).
 // LinkedIn (Slice 15b): `likes` holds all reactions, `shares` the reposts (shown, not ranked), no views.
+// Facebook (Slice 16b): `likes` = all reactions, `shares` = shares, views on videos / reels only (shown,
+// never ranked).
 
 import { formatCompact, plural } from "../../lib/format";
-import { PLATFORM_NAME, type ShownPlatform as Platform } from "../../lib/platforms";
+import { type Platform, PLATFORM_NAME } from "../../lib/platforms";
 
 export type OverviewPost = {
   id: string;
@@ -18,7 +20,7 @@ export type OverviewPost = {
   likes: number | null;
   comments: number | null;
   views: number | null;
-  /** LinkedIn reposts; null on Instagram / TikTok. */
+  /** LinkedIn reposts / Facebook (and TikTok) shares; null on Instagram. */
   shares: number | null;
   counts_hidden: boolean;
   thumbnail_path: string | null;
@@ -111,12 +113,15 @@ export const FORMAT_LABEL: Record<NonNullable<OverviewPost["format"]>, string> =
 
 /**
  * A format's name for a group of posts. LinkedIn counts multi-image posts as "image", so a group of
- * only LinkedIn posts says "Images" (not "Single images").
+ * only LinkedIn posts says "Images" (not "Single images"); Facebook's multi-image posts are albums, so a
+ * group of only Facebook carousels says "Albums".
  */
 export function formatName(format: NonNullable<OverviewPost["format"]>, posts: OverviewPost[]) {
-  return format === "image" && posts.length > 0 && posts.every((p) => p.platform === "linkedin")
-    ? "Images"
-    : FORMAT_LABEL[format];
+  const only = (platform: Platform) =>
+    posts.length > 0 && posts.every((p) => p.platform === platform);
+  if (format === "image" && only("linkedin")) return "Images";
+  if (format === "carousel" && only("facebook")) return "Albums";
+  return FORMAT_LABEL[format];
 }
 
 export type Kpi = {
@@ -306,11 +311,12 @@ export function topPosts(posts: OverviewPost[], n = 3): OverviewPost[] {
 
 /**
  * "18.4K likes · 1.1K comments" (Instagram) / "212K views · 9.8K likes" (TikTok) /
- * "1.2K reactions · 48 comments · 12 reposts" (LinkedIn).
+ * "1.2K reactions · 48 comments · 12 reposts" (LinkedIn) /
+ * "2.8K views · 12 reactions · 3 comments · 3 shares" (Facebook; views on videos / reels only).
  */
 export function postStats(p: OverviewPost): string {
-  // LinkedIn's three parts wrap on cards: keep each number with its word ("12\u00a0reposts").
-  const gap = p.platform === "linkedin" ? "\u00a0" : " ";
+  // LinkedIn's and Facebook's 3–4 parts wrap on cards: keep each number with its word ("12\u00a0reposts").
+  const gap = p.platform === "linkedin" || p.platform === "facebook" ? "\u00a0" : " ";
   const part = (n: number | null, word: string) =>
     n === null ? null : `${formatCompact(n)}${gap}${n === 1 ? word : `${word}s`}`;
   const parts =
@@ -318,7 +324,14 @@ export function postStats(p: OverviewPost): string {
       ? [part(p.views, "view"), part(p.likes, "like")]
       : p.platform === "linkedin"
         ? [part(p.likes, "reaction"), part(p.comments, "comment"), part(p.shares, "repost")]
-        : [p.counts_hidden ? "likes hidden" : part(p.likes, "like"), part(p.comments, "comment")];
+        : p.platform === "facebook"
+          ? [
+              part(p.views, "view"),
+              part(p.likes, "reaction"),
+              part(p.comments, "comment"),
+              part(p.shares, "share"),
+            ]
+          : [p.counts_hidden ? "likes hidden" : part(p.likes, "like"), part(p.comments, "comment")];
   return parts.filter(Boolean).join(" · ");
 }
 

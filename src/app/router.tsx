@@ -49,6 +49,7 @@ const appRoutes: RouteObject[] = [
       { path: "instagram", element: <SocialPage key="instagram" platform="instagram" /> },
       { path: "tiktok", element: <SocialPage key="tiktok" platform="tiktok" /> },
       { path: "linkedin", element: <SocialPage key="linkedin" platform="linkedin" /> },
+      { path: "facebook", element: <SocialPage key="facebook" platform="facebook" /> },
       {
         path: "competitors",
         element: <CompetitorsPage />,

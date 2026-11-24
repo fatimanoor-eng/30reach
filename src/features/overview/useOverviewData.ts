@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { SHOWN_PLATFORMS } from "../../lib/platforms";
 import { supabase } from "../../lib/supabase";
 import { useClient } from "../../lib/useClient";
 import type { OverviewPost } from "./metrics";
@@ -43,8 +42,7 @@ export function usePullPosts(pullId: string | null | undefined) {
         .from("posts")
         .select(POST_COLUMNS)
         .eq("pull_id", pullId!)
-        .eq("hidden", false)
-        .in("platform", SHOWN_PLATFORMS); // Facebook joins in Slice 16b
+        .eq("hidden", false);
       if (error) throw error;
       return (data ?? []) as OverviewPost[];
     },
