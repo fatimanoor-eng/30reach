@@ -3,7 +3,13 @@
 // only the permanent delete needs an Edge Function (storage files + the row, `delete-client`).
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../lib/auth/auth-context";
-import { type ContentRule, manualPlatformRows, slugify, uniqueSlug } from "../../lib/client-rules";
+import {
+  type ContentRule,
+  initialsFor,
+  manualPlatformRows,
+  slugify,
+  uniqueSlug,
+} from "../../lib/client-rules";
 import type { Platform } from "../../lib/platforms";
 import { callFunction } from "../../lib/pulls/api";
 import { supabase } from "../../lib/supabase";
@@ -291,6 +297,7 @@ export async function createClient(input: NewClient, userId: string | null) {
       .from("clients")
       .insert({
         name: input.name,
+        initials: initialsFor(input.name),
         slug,
         website: input.website,
         country: input.country,

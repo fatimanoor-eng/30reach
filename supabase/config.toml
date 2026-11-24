@@ -488,6 +488,17 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/clear-pull/index.ts"
 
+# Add client from a website (Slice 17d): team only, same locks as the others.
+[functions.scan-site]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/scan-site/index.ts"
+
+[functions.suggest-competitors]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/suggest-competitors/index.ts"
+
 # delete-client (Slice 17c): team only, archived clients only — same locks as the others.
 [functions.delete-client]
 enabled = true

@@ -1,16 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { BlipError } from "../../components/blip/BlipPoses";
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 import { formatNumber, formatShortDate, plural } from "../../lib/format";
 import { PLATFORM_ICON, PLATFORMS } from "../../lib/platforms";
 import { type Platform, pullStart, type PullStartResponse } from "../../lib/pulls/api";
+import { useClient, useClientPath } from "../../lib/useClient";
 import { usePull } from "./pull-context";
 import {
   availablePlatforms,
   durationText,
   fittingPlatforms,
+  noAccountsText,
   otherPullingText,
   PLATFORM_LABEL,
   platformEstimate,
@@ -19,6 +22,13 @@ import {
 } from "./pull-text";
 
 const TITLE = "Refresh competitor data?";
+
+/** pull-start found nothing to pull for this client (Slice 17c fix): say why instead of "Couldn't estimate". */
+class NothingToPull extends Error {
+  constructor(public code: "no_competitors" | "no_accounts" | "no_platforms") {
+    super(code);
+  }
+}
 
 /**
  * 05 Refresh — confirm cost (dialog) / M03 (bottom sheet). The estimate comes from pull-start with
@@ -38,6 +48,10 @@ export function RefreshDialog() {
       if (res.status === 409) {
         const data = res.data as unknown as PullStartResponse;
         return { ...data, status: data.status === "other_running" ? "other_running" : "running" };
+      }
+      const code = res.data?.error;
+      if (code === "no_competitors" || code === "no_accounts" || code === "no_platforms") {
+        throw new NothingToPull(code);
       }
       throw new Error(
         res.status === 502
@@ -64,6 +78,8 @@ export function RefreshDialog() {
       />
     );
   }
+  if (preview.error instanceof NothingToPull)
+    return <NothingToPullDialog code={preview.error.code} />;
   if (preview.isError) {
     return (
       <ResponsiveDialog
@@ -253,5 +269,33 @@ function Option(props: { checked: boolean; onChange: () => void; title: string; 
         <span className="block text-small text-muted">{props.text}</span>
       </span>
     </label>
+  );
+}
+
+/** No competitor with an account on a tracked platform, or no platform switched on: nothing is charged. */
+function NothingToPullDialog({ code }: { code: NothingToPull["code"] }) {
+  const { closeRefresh } = usePull();
+  const client = useClient().data?.name ?? "This client";
+  const navigate = useNavigate();
+  const path = useClientPath();
+  const platforms = code === "no_platforms";
+  return (
+    <ResponsiveDialog
+      open
+      onClose={closeRefresh}
+      title={TITLE}
+      description={
+        platforms
+          ? `${client} has no platforms switched on. Turn one on in Client settings to run a pull.`
+          : noAccountsText(client)
+      }
+      primary={{
+        label: platforms ? "Client settings" : "Add competitors",
+        onClick: () => {
+          closeRefresh();
+          navigate(path(platforms ? "/client-settings" : "/competitors?add=1"));
+        },
+      }}
+    />
   );
 }

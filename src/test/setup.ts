@@ -73,9 +73,9 @@ vi.mock("../lib/supabase", () => {
     competitors: {
       row: null,
       list: [
-        { id: "c-hers", name: "Hers", initials: "He" },
-        { id: "c-hims", name: "Hims", initials: "Hi" },
-        { id: "c-ro", name: "Ro", initials: "Ro" },
+        { id: "c-hers", name: "Hers", initials: "He", instagram_handle: "hers" },
+        { id: "c-hims", name: "Hims", initials: "Hi", instagram_handle: "hims" },
+        { id: "c-ro", name: "Ro", initials: "Ro", instagram_handle: "ro" },
       ],
     },
     posts: { row: null, list: [] },

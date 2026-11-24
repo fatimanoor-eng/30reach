@@ -86,3 +86,18 @@ export function trackedPlatforms(
   const on = new Set(rows.filter((r) => r.state === "on").map((r) => r.platform));
   return PLATFORMS.filter((p) => on.has(p));
 }
+
+export type PullReadiness = "ok" | "no_competitors" | "no_accounts";
+
+/**
+ * Can this client be pulled (same rule as pull-start)? At least one competitor with a handle / page on
+ * a platform the client tracks. `tracked` null (still loading) counts every platform.
+ */
+export function pullReadiness(
+  competitors: readonly Partial<Record<(typeof TARGET_KEY)[Platform], string | null>>[],
+  tracked: readonly Platform[] | null,
+): PullReadiness {
+  if (competitors.length === 0) return "no_competitors";
+  const on = tracked ?? PLATFORMS;
+  return competitors.some((c) => on.some((p) => !!c[TARGET_KEY[p]])) ? "ok" : "no_accounts";
+}

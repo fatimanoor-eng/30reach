@@ -9,7 +9,9 @@
 //   409 { status: "other_running", clientName } if another client is pulling (one pull at a time, 17a).
 //
 // Only platforms the client tracks (Slice 17b: client_platforms on + supported); test pulls (dev page)
-// aren't limited. Nothing tracked → 400 { error: "no_platforms" }.
+// aren't limited. Nothing tracked → 400 { error: "no_platforms" }. No competitors → 400
+// { error: "no_competitors" }; competitors but none with an account on a tracked platform → 400
+// { error: "no_accounts" }.
 //
 // Credits check uses the MAXIMUM possible cost (Σ task page cap × 2; LinkedIn tasks cap at 2 pages,
 // Facebook keeps the pull's cap of 4), so a pull can't overspend.
@@ -111,7 +113,13 @@ export default {
         if (c[TARGET_COLUMN[platform]]) tasks.push({ competitorId: c.id, platform, name: c.name });
       }
     }
-    if (tasks.length === 0) return json({ error: "no_tasks" }, 400);
+    // Nothing to pull: say why (first-run and the Refresh dialog explain it, Slice 17c fix).
+    if (tasks.length === 0) {
+      return json(
+        { error: (competitors ?? []).length === 0 && !isTest ? "no_competitors" : "no_accounts" },
+        400,
+      );
+    }
 
     // Estimate from the last successful real pull (per brand × platform), else spike defaults.
     const { data: lastPull } = await admin

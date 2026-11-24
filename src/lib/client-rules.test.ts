@@ -6,6 +6,7 @@ import {
   countsSentence,
   deleteConfirmMatches,
   firstNameFrom,
+  initialsFor,
   landingAfterArchive,
   manualPlatformRows,
   parseXHandle,
@@ -192,5 +193,14 @@ describe("manual Add client (15f)", () => {
       "linkedin",
       "facebook",
     ]);
+  });
+});
+
+describe("initialsFor (new clients)", () => {
+  it("first letters of the meaningful words", () => {
+    expect(initialsFor("All The Best Co")).toBe("AB");
+    expect(initialsFor("Carnaby & Vine")).toBe("CV");
+    expect(initialsFor("Baskits")).toBe("BA");
+    expect(initialsFor("The Co")).toBe("TH");
   });
 });

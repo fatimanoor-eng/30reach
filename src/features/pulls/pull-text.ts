@@ -100,3 +100,7 @@ export function tookLabel(ms: number): string {
 export function otherPullingText(name: string) {
   return `${name} is pulling right now. Try again in a few minutes.`;
 }
+
+/** No competitor with an account on a tracked platform (first-run hint, Refresh dialog). */
+export const noAccountsText = (client: string) =>
+  `${client} has no competitors with accounts yet. Add one to run a pull.`;

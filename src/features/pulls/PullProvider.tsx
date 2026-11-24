@@ -16,6 +16,8 @@ import { progressOf, PullInterrupted, runPull, toProgress } from "../../lib/pull
 import { supabase } from "../../lib/supabase";
 import { clientPath } from "../../lib/client-path";
 import { useClient } from "../../lib/useClient";
+import { PLATFORMS } from "../../lib/platforms";
+import { START_PULL_KEY } from "../clients/add/add-client-state";
 import type { Competitor } from "../../lib/useCompetitors";
 import { CREDITS_QUERY_KEY, creditsLeft } from "../../lib/useCredits";
 import { PullContext, type PullOwner, type PullUiState } from "./pull-context";
@@ -287,6 +289,19 @@ export function PullProvider({ children }: { children: ReactNode }) {
     () => (otherClient ? { kind: "idle" } : state),
     [otherClient, state],
   );
+
+  // 15e "Pull now" (Add client, Slice 17d): the new client's Overview starts its first pull once.
+  useEffect(() => {
+    if (!clientId || state.kind !== "idle") return;
+    let flagged = false;
+    try {
+      flagged = sessionStorage.getItem(START_PULL_KEY(clientId)) === "1";
+      if (flagged) sessionStorage.removeItem(START_PULL_KEY(clientId));
+    } catch {
+      /* blocked storage: Refresh still works */
+    }
+    if (flagged) void Promise.resolve().then(() => start(PLATFORMS));
+  }, [clientId, state.kind, start]);
 
   const api = useMemo(
     () => ({

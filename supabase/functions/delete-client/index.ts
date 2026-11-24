@@ -9,7 +9,7 @@
 //   409 { error: "pull_running" }    this client's pull is running: wait for it
 //
 // Storage doesn't cascade with rows, so files go first: every object under `{client}/` in post-thumbs,
-// idea-images and client-logos. Then usage_events keep the client's name (their client_id becomes null on
+// idea-images and client-logos (+ a scanned logo under scans/). Then usage_events keep the client's name (their client_id becomes null on
 // delete), and the client row goes; competitors, pulls, posts, ideas, comments, calendar cards and
 // client_platforms cascade. Uses 0 Firecrawl credits.
 
@@ -63,7 +63,7 @@ export default {
     const admin = ctx.supabaseAdmin;
     const { data: client, error } = await admin
       .from("clients")
-      .select("id, name, archived_at")
+      .select("id, name, archived_at, logo_path")
       .eq("id", clientId)
       .maybeSingle();
     if (error) return json({ error: "load_failed" }, 500);
@@ -85,6 +85,10 @@ export default {
       if (!(await removeFolder(admin, bucket, clientId))) {
         return json({ error: "storage_failed", bucket }, 500);
       }
+    }
+    // A logo from a website scan (Slice 17d) lives under scans/, outside the client's folder.
+    if (client.logo_path && !client.logo_path.startsWith(`${clientId}/`)) {
+      await admin.storage.from("client-logos").remove([client.logo_path]);
     }
     // Usage history keeps the name once client_id goes null.
     await admin

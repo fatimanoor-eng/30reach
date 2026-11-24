@@ -281,3 +281,18 @@ export function manualPlatformRows(accounts: Partial<Record<Platform | "x", stri
   }
   return rows;
 }
+
+const FILLER = new Set(["the", "and", "of", "a", "an", "co", "inc", "llc", "ltd", "&", "+"]);
+
+/**
+ * Initials for a new client's mark: the first letters of its first two meaningful words ("All The Best
+ * Co" → "AB", "OBU Health" → "OH"), else the first two letters ("Baskits" → "BA"). Saved on the client.
+ */
+export function initialsFor(name: string): string {
+  const words = name
+    .split(/\s+/)
+    .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ""))
+    .filter((w) => w && !FILLER.has(w.toLowerCase()));
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return (words[0] ?? name.trim()).slice(0, 2).toUpperCase();
+}

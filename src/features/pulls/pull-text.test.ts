@@ -6,6 +6,7 @@ import {
   durationText,
   fittingPlatforms,
   mobileProgressLine,
+  noAccountsText,
   otherPullingText,
   possessive,
   problemSentence,
@@ -177,6 +178,14 @@ describe("one pull at a time across clients (Slice 17a)", () => {
   it("says who is pulling", () => {
     expect(otherPullingText("OBU Health")).toBe(
       "OBU Health is pulling right now. Try again in a few minutes.",
+    );
+  });
+});
+
+describe("noAccountsText (Slice 17c fix)", () => {
+  it("names the client", () => {
+    expect(noAccountsText("Acme Studio")).toBe(
+      "Acme Studio has no competitors with accounts yet. Add one to run a pull.",
     );
   });
 });

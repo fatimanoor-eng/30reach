@@ -71,3 +71,34 @@ export function FacebookIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** X line icon (Slice 17d: Add client review, platforms found but not pulled yet). */
+export function XIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 4L20 20" />
+      <path d="M20 4L4 20" />
+    </svg>
+  );
+}
+
+/** YouTube line icon (Slice 17d; "coming later" platform). */
+export function YouTubeIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="6" width="18" height="12" rx="4" />
+      <path d="M10.5 9.5L14.5 12L10.5 14.5Z" />
+    </svg>
+  );
+}
+
+/** Pinterest line icon (Slice 17d; "coming later" platform). */
+export function PinterestIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" />
+      <path d="M11 9.5C11 8.5 11.9 7.5 13 7.5C14.4 7.5 15.5 8.6 15.5 10C15.5 11.7 14.3 13 12.8 13C12.2 13 11.6 12.7 11.4 12.2" />
+      <path d="M11.8 9.5L10 18" />
+    </svg>
+  );
+}

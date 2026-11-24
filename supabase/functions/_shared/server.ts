@@ -168,6 +168,98 @@ async function alexandria(request: { provider: string; capability: string; optio
   return (await res.json()) as unknown;
 }
 
+export type SiteScrape = {
+  markdown: string;
+  links: string[];
+  metadata: Record<string, unknown>;
+  branding: Record<string, unknown> | null;
+  /** What Firecrawl charged (1 for a page, also a 403 / 404 page that returns a document). */
+  credits: number;
+  /** The site's own HTTP status (an error page still costs a credit). */
+  statusCode: number | null;
+};
+
+/**
+ * One web page through Firecrawl /v2/scrape (Slice 17d, Add client): markdown + links (+ branding for the
+ * client's own site). 1 credit; a site that never answers costs nothing and returns null.
+ */
+export async function scrapeSite(
+  url: string,
+  { branding, markdown = branding }: { branding: boolean; markdown?: boolean },
+): Promise<SiteScrape | null> {
+  const res = await fetch("https://api.firecrawl.dev/v2/scrape", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${firecrawlKey()}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url,
+      formats: [...(markdown ? ["markdown"] : []), "links", ...(branding ? ["branding"] : [])],
+      onlyMainContent: false,
+      timeout: 30_000,
+    }),
+    signal: AbortSignal.timeout(45_000),
+  }).catch(() => null);
+  if (!res) return null;
+  if (res.status === 429) {
+    await res.body?.cancel();
+    throw new FirecrawlRateLimited(parseRetryAfter(res.headers.get("retry-after")));
+  }
+  if (!res.ok) {
+    await res.body?.cancel();
+    return null; // timeout, bot wall, DNS: no document, not charged
+  }
+  const body = (await res.json().catch(() => null)) as {
+    success?: boolean;
+    data?: Record<string, unknown>;
+  } | null;
+  const d = body?.data;
+  if (!body?.success || !d) return null;
+  const meta = (d.metadata ?? {}) as Record<string, unknown>;
+  const status = Number(meta.statusCode);
+  return {
+    markdown: typeof d.markdown === "string" ? d.markdown : "",
+    links: Array.isArray(d.links)
+      ? (d.links as unknown[]).filter((l): l is string => typeof l === "string")
+      : [],
+    metadata: meta,
+    branding: (d.branding ?? null) as Record<string, unknown> | null,
+    credits: Number(meta.creditsUsed) || 1,
+    statusCode: Number.isFinite(status) ? status : null,
+  };
+}
+
+/** Web search through Firecrawl /v2/search (2 credits per 10 results). Null when it fails. */
+export async function searchWeb(
+  query: string,
+  { limit = 10, country }: { limit?: number; country?: string } = {},
+): Promise<{ url: string; title: string; description: string; position: number }[] | null> {
+  const res = await fetch("https://api.firecrawl.dev/v2/search", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${firecrawlKey()}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ query, limit, ...(country ? { country } : {}) }),
+    signal: AbortSignal.timeout(45_000),
+  }).catch(() => null);
+  if (!res) return null;
+  if (res.status === 429) {
+    await res.body?.cancel();
+    throw new FirecrawlRateLimited(parseRetryAfter(res.headers.get("retry-after")));
+  }
+  if (!res.ok) {
+    await res.body?.cancel();
+    return null;
+  }
+  const body = (await res.json().catch(() => null)) as { data?: { web?: unknown[] } } | null;
+  const web = Array.isArray(body?.data?.web) ? body!.data!.web! : [];
+  return web
+    .map((r) => r as Record<string, unknown>)
+    .filter((r) => typeof r.url === "string")
+    .map((r, i) => ({
+      url: r.url as string,
+      title: typeof r.title === "string" ? r.title : "",
+      description: typeof r.description === "string" ? r.description : "",
+      position: typeof r.position === "number" ? r.position : i + 1,
+    }));
+}
+
 /**
  * Record what a call cost (Slice 17a, `usage_events`). Never throws and never fails the request it is
  * recording: a missing usage row only makes the Usage page a little low, a failed pull would be worse.
