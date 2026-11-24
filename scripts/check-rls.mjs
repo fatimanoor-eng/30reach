@@ -125,6 +125,8 @@ const RPCS = {
   delete_all_ideas: { p_client: NO_SUCH_ID, p_expected: -1 }, // -1 never matches: nothing deleted
   // Slice 17a: remembers your last client (refused without a team sign-in).
   set_last_client: { p_client: NO_SUCH_ID },
+  usage_overview: { p_from: "2026-01-01T00:00:00Z", p_weeks_from: "2026-01-01T00:00:00Z" }, // 17f
+  claim_scan_usage: { p_scan: NO_SUCH_ID, p_client: NO_SUCH_ID }, // 17f
 };
 for (const [fn, args] of Object.entries(RPCS)) {
   const { status, body } = await call("POST", `/rest/v1/rpc/${fn}`, {

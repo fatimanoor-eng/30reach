@@ -25,6 +25,7 @@ import {
   type Suggestion,
 } from "../_shared/site-logic.ts";
 import { groqJson } from "../_shared/ai-server.ts";
+import { isUuid } from "../_shared/ai-logic.ts";
 import {
   fetchCreditUsage,
   FirecrawlRateLimited,
@@ -62,6 +63,7 @@ export default {
 
     const admin = ctx.supabaseAdmin;
     const actor = ctx.userClaims?.sub ?? null;
+    const scanId = isUuid(body.scanId) ? body.scanId : null; // Slice 17f: claimed by the new client
     const credits = await fetchCreditUsage();
     if (!credits) return json({ error: "credits_unavailable" }, 502);
     await saveCreditsCache(admin, credits);
@@ -85,6 +87,7 @@ export default {
       credits: spent,
       requests: ok.length,
       fn: "suggest-competitors",
+      refId: scanId,
       actor,
     });
     if (ok.length === 0) return json({ error: "search_failed" }, 502);
@@ -134,6 +137,7 @@ export default {
           kind: "competitor_search",
           credits: page.credits,
           fn: "suggest-competitors",
+          refId: scanId,
           actor,
         });
         const brands = await groqJson({

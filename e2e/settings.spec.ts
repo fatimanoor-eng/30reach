@@ -212,13 +212,10 @@ test("Settings — Team, usage, data and account like Figma 13 (admin)", async (
   await expect(page.getByText("Signed in on 2 Nov")).toBeVisible(); // Sherry
 
   // Usage: used / limit, like Figma.
-  await expect(page.getByText("588 left of 1,000").last()).toBeVisible(); // Firecrawl, like the sidebar
-  await expect(page.getByText("38 / 1,000")).toBeVisible(); // Groq
-  await expect(page.getByText("42 MB / 500 MB")).toBeVisible();
-  await expect(page.getByText("86 MB / 1 GB")).toBeVisible();
-  await expect(page.getByRole("meter", { name: "Database" })).toHaveAttribute(
-    "aria-valuetext",
-    "42 MB / 500 MB",
+  // Slice 17f: the meters moved to Usage; Settings links there.
+  await expect(page.getByRole("link", { name: "Open Usage", exact: true })).toHaveAttribute(
+    "href",
+    "/c/obu-health/usage",
   );
   await expect(page.getByText("Free database pauses after 7 quiet days")).toBeVisible();
   await expect(page.getByText("Signed in as Fatima Noor")).toBeVisible();

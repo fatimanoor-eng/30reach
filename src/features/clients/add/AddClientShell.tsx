@@ -2,21 +2,26 @@ import { Check, X as XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Logo } from "../../../components/Logo";
 
-const STEPS = ["Website", "Scan", "Review", "First pull"] as const;
+/** The scan path (15b–15e). The manual path passes its own: Website → Details → First pull. */
+const SCAN_STEPS = ["Website", "Scan", "Review", "First pull"];
 
 /**
  * Add client frame (15b–15f, M14–M18): top bar with the 30reach logo, "Add client", the 4 steps (done =
- * ink ✓, current = Flash dot, next = outlined) and Close. Phones: "ADD CLIENT · STEP n OF 4" + the step
+ * ink ✓, current = Flash dot, next = outlined) and Close (no "Add client" label, Fatima 25 Nov).
+ * Phones: "ADD CLIENT · STEP n OF 4" + the step
  * name, ✕, and four progress segments.
  */
 export function AddClientShell({
   step,
+  steps = SCAN_STEPS,
   onClose,
   children,
   footer,
 }: {
   /** 1–4 */
   step: number;
+  /** Step names; default = the scan path. */
+  steps?: string[];
   onClose: () => void;
   children: ReactNode;
   /** Sticky bottom bar (Review). */
@@ -29,10 +34,9 @@ export function AddClientShell({
         <div className="hidden h-16 items-center justify-between gap-4 px-6 md:flex xl:px-8">
           <div className="flex items-center gap-4 xl:min-w-44">
             <Logo className="h-6 w-auto" />
-            <span className="hidden text-body-sm text-muted lg:inline">Add client</span>
           </div>
           <ol aria-label="Add client steps" className="flex items-center gap-2 xl:gap-3">
-            {STEPS.map((label, i) => {
+            {steps.map((label, i) => {
               const n = i + 1;
               const state = n < step ? "done" : n === step ? "current" : "next";
               return (
@@ -80,8 +84,10 @@ export function AddClientShell({
         <div className="px-4 pt-3 pb-2 md:hidden">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="mono-label text-muted">Add client · Step {step} of 4</p>
-              <p className="text-body-sm font-medium">{STEPS[step - 1]}</p>
+              <p className="mono-label text-muted">
+                Add client · Step {step} of {steps.length}
+              </p>
+              <p className="text-body-sm font-medium">{steps[step - 1]}</p>
             </div>
             <button
               type="button"
@@ -92,8 +98,12 @@ export function AddClientShell({
               <XIcon size={20} aria-hidden="true" />
             </button>
           </div>
-          <div aria-hidden="true" className="mt-2 grid grid-cols-4 gap-1">
-            {STEPS.map((label, i) => (
+          <div
+            aria-hidden="true"
+            className="mt-2 grid gap-1"
+            style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
+          >
+            {steps.map((label, i) => (
               <span
                 key={label}
                 className={`h-1 rounded-full ${i + 1 < step ? "bg-ink" : i + 1 === step ? "bg-flash" : "bg-line"}`}

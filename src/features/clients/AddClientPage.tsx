@@ -32,6 +32,9 @@ import { ReviewStep } from "./add/ReviewStep";
 import { ScanningStep } from "./add/ScanningStep";
 import { WebsiteStep } from "./add/WebsiteStep";
 
+/** The manual form has no scan or review: Website → Details → First pull (Fatima, 25 Nov). */
+const MANUAL_STEPS = ["Website", "Details", "First pull"];
+
 const STEP_NUMBER: Record<FlowState["step"], number> = {
   website: 1,
   scanning: 2,
@@ -64,6 +67,7 @@ export function AddClientPage() {
     setState((s) => ({ ...s, ...(typeof patch === "function" ? patch(s) : patch) }));
 
   const started = state.step !== "website" || manualDirty || !!state.scan;
+  const manualPath = state.step === "manual" || state.step === "unreadable";
   function leave() {
     clearFlow();
     if (state.created) {
@@ -122,6 +126,7 @@ export function AddClientPage() {
           competitors,
         },
         user?.id ?? null,
+        state.scanId,
       );
       invalidateClient(queryClient, client.id);
       update({
@@ -163,7 +168,7 @@ export function AddClientPage() {
             // Same site after Back: return to Review with the edits kept (nothing is paid again).
             state.draft && state.website === website
               ? update({ step: "review" })
-              : setState({ ...START, website, step: "scanning" })
+              : setState({ ...START, website, step: "scanning", scanId: crypto.randomUUID() })
           }
           onManual={() => update({ step: "manual", unreadable: null })}
         />
@@ -238,7 +243,11 @@ export function AddClientPage() {
   }
 
   return (
-    <AddClientShell step={STEP_NUMBER[state.step]} onClose={close}>
+    <AddClientShell
+      step={manualPath ? 2 : STEP_NUMBER[state.step]}
+      steps={manualPath ? MANUAL_STEPS : undefined}
+      onClose={close}
+    >
       {body}
       <ModalPresence open={leaving}>
         <ConfirmDialog

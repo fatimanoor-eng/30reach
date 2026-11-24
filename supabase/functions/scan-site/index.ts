@@ -27,6 +27,7 @@ import {
   validateProfile,
 } from "../_shared/site-logic.ts";
 import { groqJson } from "../_shared/ai-server.ts";
+import { isUuid } from "../_shared/ai-logic.ts";
 import {
   fetchCreditUsage,
   FirecrawlRateLimited,
@@ -90,6 +91,8 @@ export default {
     const mode = body.mode === "accounts" ? "accounts" : "client";
     const admin = ctx.supabaseAdmin;
     const actor = ctx.userClaims?.sub ?? null;
+    // One id per Add client run (Slice 17f): creating the client claims these usage rows.
+    const scanId = isUuid(body.scanId) ? body.scanId : null;
 
     // Never start blind: the whole Add client run needs ~12 credits; one competitor page needs 1.
     const credits = await fetchCreditUsage();
@@ -115,6 +118,7 @@ export default {
       kind: mode === "client" ? "scan" : "competitor_search",
       credits: page.credits,
       fn: "scan-site",
+      refId: scanId,
       actor,
     });
     if (page.statusCode && page.statusCode >= 400) {

@@ -4,7 +4,8 @@ import { useProfile } from "../../lib/auth/useProfile";
 import { AccountCard } from "./AccountCard";
 import { DataCard } from "./DataCard";
 import { TeamCard } from "./TeamCard";
-import { UsageCard } from "./UsageCard";
+import { DemoClientCard } from "./DemoClientCard";
+import { UsageLinkCard } from "./UsageLinkCard";
 
 /**
  * 13 Settings (desktop) / More → Settings (phones, single column). Desktop: Team + Data on the
@@ -24,7 +25,8 @@ export function SettingsPage() {
           <DataCard isAdmin={isAdmin} />
         </div>
         <div className="flex flex-col gap-4 xl:w-110 xl:shrink-0">
-          <UsageCard now={now} />
+          <UsageLinkCard />
+          <DemoClientCard />
           <AccountCard isAdmin={isAdmin} />
         </div>
       </div>

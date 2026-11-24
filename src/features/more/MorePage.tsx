@@ -1,4 +1,4 @@
-import { ChevronRight, SlidersVertical, Users } from "lucide-react";
+import { ChevronRight, SlidersVertical, Users, Gauge } from "lucide-react";
 import { Link, Navigate } from "react-router";
 import { PageHeader } from "../../app/PageHeader";
 import { Avatar } from "../../components/Avatar";
@@ -27,7 +27,8 @@ export function MorePage() {
         ? `${plural(competitors.data.length, "brand")} · add, edit, remove`
         : "Add, edit, remove",
     },
-    { to: path("/settings"), icon: SlidersVertical, title: "Settings", text: "Team, usage, data" },
+    { to: path("/usage"), icon: Gauge, title: "Usage", text: "Free-tier meters, cost per client" },
+    { to: path("/settings"), icon: SlidersVertical, title: "Settings", text: "Team, data" },
   ];
   const { signOut } = useAuth();
   if (tabletUp) return <Navigate to={path("/overview")} replace />;

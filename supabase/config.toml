@@ -488,6 +488,12 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/clear-pull/index.ts"
 
+# reset-demo (Slice 17f): team only; writes the Demo client's made-up data (0 credits).
+[functions.reset-demo]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/reset-demo/index.ts"
+
 # Add client from a website (Slice 17d): team only, same locks as the others.
 [functions.scan-site]
 enabled = true

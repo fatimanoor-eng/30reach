@@ -16,6 +16,7 @@ import { AppShell } from "./AppShell";
 import { LastClientRedirect } from "./LastClientRedirect";
 import { AddClientPage } from "../features/clients/AddClientPage";
 import { ClientSettingsPage } from "../features/clients/ClientSettingsPage";
+import { UsagePage } from "../features/usage/UsagePage";
 
 /**
  * Dev-only routes. `import.meta.env.DEV` is replaced with `false` in production builds, so this
@@ -65,6 +66,7 @@ const appRoutes: RouteObject[] = [
       { path: "ideas", element: <IdeasPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "client-settings", element: <ClientSettingsPage /> },
+      { path: "usage", element: <UsagePage /> },
       { path: "more", element: <MorePage /> },
       ...devRoutes,
       { path: "*", element: <NotFoundPage /> },

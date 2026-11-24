@@ -5,6 +5,7 @@
 //
 // → { status: "preview" | "insufficient" | "started", estimate, credits, lastPullAt, brands, pullId? }
 // → 404 { error: "no_client" } · 409 { error: "client_archived" } (Slice 17c: archived clients aren't pulled)
+//   · 409 { error: "demo_client" } (Slice 17f: the Demo client's data is made up; pulls are off)
 // → 409 { status: "running", pullId } if a pull is already running for this client;
 //   409 { status: "other_running", clientName } if another client is pulling (one pull at a time, 17a).
 //
@@ -61,11 +62,13 @@ export default {
     // Archived clients aren't pulled (Slice 17c, 16b): restore first.
     const { data: clientRow } = await admin
       .from("clients")
-      .select("archived_at")
+      .select("archived_at, is_demo")
       .eq("id", clientId)
       .maybeSingle();
     if (!clientRow) return json({ error: "no_client" }, 404);
     if (clientRow.archived_at) return json({ error: "client_archived" }, 409);
+    // The Demo client's data is made up (Slice 17f): it's never pulled.
+    if (clientRow.is_demo) return json({ error: "demo_client" }, 409);
 
     // The client's tracked platforms (Slice 17b). Test pulls pick one platform by hand.
     let tracked: Platform[] = PLATFORMS;

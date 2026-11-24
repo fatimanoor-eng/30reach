@@ -77,7 +77,7 @@ export function ScanningStep({
       let s = latest.current;
       // 1. The client's own site (1 credit) + profile.
       if (!s.scan) {
-        const r = await once(`scan:${s.website}`, () => scanSite(s.website));
+        const r = await once(`scan:${s.website}`, () => scanSite(s.website, s.scanId));
         if (halted()) return;
         if (isFailure(r)) {
           if (r.kind === "unreadable")
@@ -95,7 +95,7 @@ export function ScanningStep({
       // 2. Competitor suggestions (≈ 4–5 credits).
       if (!s.suggestions) {
         setSearching(true);
-        const r = await once(`suggest:${s.website}`, () => suggestCompetitors(s.scan!));
+        const r = await once(`suggest:${s.website}`, () => suggestCompetitors(s.scanId, s.scan!));
         setSearching(false);
         if (halted()) return;
         const list = isFailure(r) ? [] : r.suggestions;
@@ -109,7 +109,9 @@ export function ScanningStep({
       for (let k = 0; k < todo.length; k += 2) {
         const batch = todo.slice(k, k + 2);
         const results = await Promise.all(
-          batch.map(([x]) => once(`accounts:${x.website}`, () => readAccounts(x.website))),
+          batch.map(([x]) =>
+            once(`accounts:${x.website}`, () => readAccounts(s.scanId, x.website)),
+          ),
         );
         if (halted()) return;
         update((p) => {

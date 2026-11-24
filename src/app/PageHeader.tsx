@@ -12,6 +12,7 @@ export function PageHeader({
   description,
   actions,
   titleLeading,
+  root,
 }: {
   title: string;
   /** Shorter title below 768 px (e.g. "Social" for the Instagram/TikTok pages, M05). */
@@ -24,10 +25,13 @@ export function PageHeader({
   /** Before the title, e.g. the calendar's month arrows + Today (08): fixed-width controls go first
    *  so they don't move when the title's width changes. */
   titleLeading?: ReactNode;
+  /** First breadcrumb instead of the client's name (team-wide pages: "Breakthirty / Usage", 17f). */
+  root?: string;
 }) {
   const client = useClient();
   // Client name from the database; left out of the trail until it has loaded.
-  const trail = [...(client.data ? [client.data.name] : []), ...(crumbs.length ? crumbs : [title])];
+  const first = root ?? client.data?.name;
+  const trail = [...(first ? [first] : []), ...(crumbs.length ? crumbs : [title])];
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4 md:mb-8">
       <div>

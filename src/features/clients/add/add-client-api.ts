@@ -11,10 +11,10 @@ export type ScanFailure =
   | { kind: "failed" };
 
 /** 15b → 15c: the client's own site (1 credit; 0 when it doesn't answer). */
-export async function scanSite(url: string): Promise<SiteScan | ScanFailure> {
+export async function scanSite(url: string, scanId: string): Promise<SiteScan | ScanFailure> {
   const res = await callFunction<
     SiteScan | { status: "unreadable"; credits: number; reason: "no_answer" | "error_page" }
-  >("scan-site", { url, mode: "client" });
+  >("scan-site", { url, mode: "client", scanId });
   if (res.ok) {
     return res.data.status === "ok"
       ? res.data
@@ -25,13 +25,14 @@ export async function scanSite(url: string): Promise<SiteScan | ScanFailure> {
 
 /** A competitor's home page → the accounts it links (1 credit). Null when it can't be read. */
 export async function readAccounts(
+  scanId: string,
   url: string,
 ): Promise<{ accounts: FoundAccount[] | null; credits: number } | ScanFailure> {
   const res = await callFunction<{
     status: "ok" | "unreadable";
     credits: number;
     accounts?: FoundAccount[];
-  }>("scan-site", { url, mode: "accounts" });
+  }>("scan-site", { url, mode: "accounts", scanId });
   if (res.ok)
     return {
       accounts: res.data.status === "ok" ? (res.data.accounts ?? []) : null,
@@ -42,6 +43,7 @@ export async function readAccounts(
 
 /** 2 searches (+ a listicle for national brands) → up to 6 suggestions, accounts not read yet. */
 export async function suggestCompetitors(
+  scanId: string,
   scan: SiteScan,
 ): Promise<{ suggestions: Suggestion[]; credits: number } | ScanFailure> {
   const res = await callFunction<{ suggestions: Omit<Suggestion, "accounts">[]; credits: number }>(
@@ -53,6 +55,7 @@ export async function suggestCompetitors(
       country: scan.country,
       queries: scan.queries,
       scope: scan.scope,
+      scanId,
     },
   );
   if (res.ok) {
@@ -112,7 +115,11 @@ export type CreateInput = {
  * Create client (15d): the client (slug from the name, "-2" if taken), its platforms and the ticked
  * competitors. If a later step fails the client is removed again, so nothing half-made is left.
  */
-export async function createScannedClient(input: CreateInput, userId: string | null) {
+export async function createScannedClient(
+  input: CreateInput,
+  userId: string | null,
+  scanId?: string,
+) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const { data: taken, error: slugError } = await supabase.from("clients").select("slug");
     if (slugError) throw slugError;
@@ -149,6 +156,8 @@ export async function createScannedClient(input: CreateInput, userId: string | n
         .insert(input.competitors.map((c) => ({ ...c, client_id: client.id })));
       if (ce) await undo(ce);
     }
+    // The scan's credits (spent before the client existed) now count for it on the Usage page.
+    if (scanId) await supabase.rpc("claim_scan_usage", { p_scan: scanId, p_client: client.id });
     return client;
   }
   throw new Error("slug_taken");

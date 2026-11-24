@@ -119,20 +119,26 @@ export function IconRail({
                 <span className="font-mono text-label">—</span>
               </button>
             ) : (
-              <div
-                tabIndex={0}
-                role="meter"
-                aria-label="Firecrawl credits left"
-                aria-valuemin={0}
-                aria-valuemax={ready ? Math.max(ready.plan, ready.remaining) : 0}
-                aria-valuenow={ready?.remaining ?? 0}
-                aria-valuetext={creditsSummary(credits)}
-                aria-busy={credits.status === "loading" || undefined}
+              // 17: the rail's credits meter opens Usage.
+              <Link
+                to={path("/usage")}
+                aria-label={`${creditsSummary(credits)}. Open Usage`}
                 aria-describedby={t["aria-describedby"]}
-                className="flex flex-col items-center gap-1.5 rounded-control px-2 py-1"
+                className="flex flex-col items-center gap-1.5 rounded-control px-2 py-1 hover:bg-sidebar-2"
               >
-                {meter}
-              </div>
+                <div
+                  role="meter"
+                  aria-label="Firecrawl credits left"
+                  aria-valuemin={0}
+                  aria-valuemax={ready ? Math.max(ready.plan, ready.remaining) : 0}
+                  aria-valuenow={ready?.remaining ?? 0}
+                  aria-valuetext={creditsSummary(credits)}
+                  aria-busy={credits.status === "loading" || undefined}
+                  className="flex flex-col items-center gap-1.5"
+                >
+                  {meter}
+                </div>
+              </Link>
             );
           }}
         </Tooltip>

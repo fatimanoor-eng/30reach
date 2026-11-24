@@ -321,3 +321,17 @@ export async function createClient(input: NewClient, userId: string | null) {
   }
   throw new Error("slug_taken");
 }
+
+/** The Demo client (Slice 17f): create it, or replace its made-up data with fresh data dated from today. */
+export function useResetDemo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await callFunction<{ slug: string; created: boolean }>("reset-demo", {});
+      if (!res.ok) throw new Error("demo_failed");
+      return res.data;
+    },
+    // Everything about the demo changed: clients, its pulls, posts, ideas, cards.
+    onSuccess: () => void queryClient.invalidateQueries(),
+  });
+}

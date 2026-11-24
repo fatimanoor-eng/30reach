@@ -8,6 +8,8 @@ export type FlowStep = "website" | "scanning" | "manual" | "unreadable" | "revie
 
 export type FlowState = {
   step: FlowStep;
+  /** One id per Add client run (Slice 17f): the scan's usage rows are claimed by the new client. */
+  scanId: string;
   website: string;
   scan: SiteScan | null;
   suggestions: Suggestion[] | null;
@@ -27,6 +29,7 @@ export type FlowState = {
 
 export const START: FlowState = {
   step: "website",
+  scanId: "",
   website: "",
   scan: null,
   suggestions: null,

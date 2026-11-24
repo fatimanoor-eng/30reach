@@ -10,7 +10,7 @@ import { expect, type Page } from "@playwright/test";
  *  Going there directly skips the last-client redirect (covered in clients.spec.ts). Other paths
  *  (sign-in, welcome, /c/…) are left as they are. */
 export function appUrl(path: string, slug = "obu-health"): string {
-  return /^\/(overview|instagram|tiktok|linkedin|facebook|competitors|calendar|ideas|settings|client-settings|more|dev)\b/.test(
+  return /^\/(overview|instagram|tiktok|linkedin|facebook|competitors|calendar|ideas|settings|client-settings|usage|more|dev)\b/.test(
     path,
   )
     ? `/c/${slug}${path}`

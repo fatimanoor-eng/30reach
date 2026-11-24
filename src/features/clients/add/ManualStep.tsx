@@ -106,19 +106,20 @@ export function ManualStep({
         <div className="flex flex-col items-center text-center">
           <BlipError className="h-auto w-20 md:w-24" />
           <h1 className="mt-4 text-title">We couldn’t read {site}</h1>
-          <p className="mt-3 text-body-sm text-muted">
+          <p className="mt-3 max-w-120 text-body-sm text-muted">
             {unreadable.reason === "error_page"
               ? "The site answered with an error page (1 credit). Add the basics by hand; you can scan again later from client settings."
               : "The site didn’t answer, or it blocks automated visits. Nothing was charged. Add the basics by hand; you can scan again later from client settings."}
           </p>
         </div>
       ) : (
-        <>
-          <h1 className="text-title md:text-display">Which client are we adding?</h1>
-          <p className="mt-3 text-body text-muted">
+        // Centred like the website step (15b), Fatima 25 Nov.
+        <div className="mx-auto flex max-w-120 flex-col items-center text-center">
+          <h1 className="text-title">Which client are we adding?</h1>
+          <p className="mt-3 text-body-sm text-muted">
             Add the basics by hand. Their competitors come next, in Competitors.
           </p>
-        </>
+        </div>
       )}
 
       <form
@@ -182,9 +183,13 @@ export function ManualStep({
             Their social accounts · optional
           </legend>
           <div className="grid gap-4 md:grid-cols-2">
-            {FIELDS.map((f) => (
+            {FIELDS.map((f, i) => (
               <TextField
                 key={f.key}
+                // An odd last field (X) takes the whole row instead of sitting alone on half of it.
+                className={
+                  i === FIELDS.length - 1 && FIELDS.length % 2 === 1 ? "md:col-span-2" : ""
+                }
                 label={f.label}
                 icon={f.icon}
                 value={accounts[f.key]}

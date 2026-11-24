@@ -42,6 +42,7 @@ import {
 } from "./clients-api";
 import { EditBrandDrawer } from "./EditBrandDrawer";
 import { RuleForm } from "./RuleForm";
+import { DemoClientCard } from "../settings/DemoClientCard";
 
 /**
  * 16 Client settings (desktop: two columns) / M19 (phones: stacked cards), Slice 17c. Opened from the
@@ -95,6 +96,7 @@ export function ClientSettingsPage() {
           <div className="flex flex-col gap-4 xl:w-110 xl:shrink-0">
             <CalendarCard client={d} save={save} />
             <CompetitorsCard />
+            {d.is_demo && <DemoClientCard here />}
             <ArchiveCard client={d} />
           </div>
         </div>

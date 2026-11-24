@@ -75,9 +75,20 @@ export function Sidebar({
           <kbd className="font-mono text-label text-sidebar-text">/</kbd>
         </button>
 
-        <div className="px-1">
-          <CreditsMeter state={credits} />
-        </div>
+        {/* 17: the credits meter opens Usage (a failed reading keeps its own Retry instead). */}
+        {credits.status === "error" ? (
+          <div className="px-1">
+            <CreditsMeter state={credits} />
+          </div>
+        ) : (
+          <Link
+            to={path("/usage")}
+            aria-label="Usage: free-tier meters and what each client costs"
+            className="-mx-1 block rounded-control px-2 py-1.5 hover:bg-sidebar-2"
+          >
+            <CreditsMeter state={credits} />
+          </Link>
+        )}
 
         <div className="flex items-center gap-3 border-t border-sidebar-line px-1 pt-4">
           <Avatar initials={me.initials} tone="user" size="md" />
