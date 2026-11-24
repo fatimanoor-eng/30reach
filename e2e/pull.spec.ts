@@ -436,3 +436,69 @@ test("05d offers “See what’s new” once a previous real pull exists", async
   await toast.getByRole("button", { name: "See what’s new" }).click();
   await expect(page).toHaveURL(/\/overview$/);
 });
+
+test("nothing to pull: first run says why and offers Add competitors", async ({ page }, info) => {
+  await setup(page);
+  await page.route("**/rest/v1/competitors**", (r) => r.fulfill(json([])));
+  await page.goto(appUrl("/overview"));
+  await expect(page.getByText("No competitors yet")).toBeVisible();
+  await expect(page.getByText("Competitors set")).toHaveCount(0);
+  const pull = page.getByRole("button", { name: "Pull data now" });
+  await expect(pull).toBeDisabled();
+  await expect(pull).toHaveAccessibleDescription(
+    "OBU Health has no competitors with accounts yet. Add one to run a pull.",
+  );
+  await expect(page.getByRole("link", { name: "Add competitors" })).toHaveAttribute(
+    "href",
+    "/c/obu-health/competitors?add=1",
+  );
+  await page.evaluate(() => document.fonts.ready);
+  await noSidewaysScroll(page);
+  if (info.project.name === "mobile-390") await tapTargetsOk(page);
+  await expect(page).toHaveScreenshot(`first-run-no-competitors-${info.project.name}.png`, {
+    fullPage: true,
+  });
+});
+
+test("nothing to pull: competitors without accounts on tracked platforms", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  await setup(page);
+  await page.route("**/rest/v1/competitors**", (r) =>
+    r.fulfill(
+      json([
+        {
+          id: "c-ro",
+          name: "Ro",
+          initials: "Ro",
+          instagram_handle: null,
+          tiktok_handle: null,
+          linkedin_url: null,
+          facebook_url: null,
+        },
+      ]),
+    ),
+  );
+  await page.goto(appUrl("/overview"));
+  await expect(page.getByText("No competitor accounts yet")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pull data now" })).toBeDisabled();
+});
+
+test("nothing to pull: the Refresh dialog explains (pull-start no_accounts)", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  await setup(page);
+  await page.route("**/functions/v1/pull-start**", (r) =>
+    r.fulfill(json({ error: "no_accounts" }, 400)),
+  );
+  await openRefresh(page);
+  const dialog = page.getByRole("dialog", { name: "Refresh competitor data?" });
+  await expect(dialog).toContainText(
+    "OBU Health has no competitors with accounts yet. Add one to run a pull.",
+  );
+  await expect(dialog).not.toContainText("Couldn’t estimate the cost.");
+  await dialog.getByRole("button", { name: "Add competitors" }).click();
+  await expect(page).toHaveURL(/\/c\/obu-health\/competitors\?add=1$/);
+});

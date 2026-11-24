@@ -303,9 +303,9 @@ test("manual Add client (15f): checks, then the new client's Overview", async ({
     await route.fulfill({ status: 201, body: "" });
   });
   await ready(page, "/add-client");
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Which client are we adding?" }),
-  ).toBeVisible();
+  // 17d: the website step comes first; the manual form is behind "No website?".
+  await page.getByRole("button", { name: "No website? Add the details by hand" }).click();
+  await expect(page.getByLabel("Name")).toBeFocused();
   await noSidewaysScroll(page);
   if (isMobile(page)) await tapTargetsOk(page);
   await expect(page).toHaveScreenshot(`add-client-${info.project.name}.png`, { fullPage: true });
@@ -374,8 +374,9 @@ test("Close asks before leaving a started form", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
   await ready(page, "/overview");
   await page.goto("/add-client");
+  await page.getByRole("button", { name: "No website? Add the details by hand" }).click();
   await page.getByLabel("Name").fill("Half done");
-  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: "Close" }).filter({ visible: true }).click();
   const dialog = page.getByRole("dialog", { name: "Leave Add client?" });
   await expect(dialog).toContainText("Nothing is saved.");
   await dialog.getByRole("button", { name: "Leave" }).click();
