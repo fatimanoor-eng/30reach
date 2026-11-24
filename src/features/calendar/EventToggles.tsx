@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 import { EVENT_BG, EVENT_TOGGLE_LABEL, TOGGLE_ORDER } from "./calendar-ui";
 import type { EventKind } from "./events";
 import type { EventToggles as Toggles } from "./event-toggles";
+import { useEventRules } from "./useEventRules";
 
 /**
  * Holidays / Health / Marketing checkbox chips (Figma 08 "SHOW", M07). The visible chip is 24 px; the
@@ -14,9 +15,11 @@ export function EventToggles({
   toggles: Toggles;
   onToggle: (kind: EventKind) => void;
 }) {
+  // Health months only for clients that have them on (Slice 17e): no toggle for nothing.
+  const { healthMonths } = useEventRules();
   return (
     <>
-      {TOGGLE_ORDER.map((kind) => {
+      {TOGGLE_ORDER.filter((kind) => kind !== "health" || healthMonths).map((kind) => {
         const on = toggles[kind];
         return (
           <button

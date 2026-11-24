@@ -6,6 +6,8 @@ import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 import { useToast } from "../../components/toast-context";
 import { appPathOf } from "../../lib/client-path";
 import { formatShortDate } from "../../lib/format";
+import { clientShort } from "../blip/blip-rules";
+import { possessive } from "../pulls/pull-text";
 import { useClient, useClientPath } from "../../lib/useClient";
 import { PLATFORM_LABEL } from "../calendar/calendar-ui";
 import { formatLabel, type SourceSnapshot } from "../ideas/idea-rules";
@@ -144,7 +146,7 @@ export function SaveAsIdeaProvider({ children }: { children: ReactNode }) {
                 value={note}
                 maxLength={NOTE_MAX}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="What would OBU’s version be?"
+                placeholder={`What would ${possessive(clientShort(client.data?.name ?? "the client"))} version be?`}
                 className="w-full resize-y rounded-control border border-ink bg-surface p-3 text-body-sm outline-none placeholder:text-muted"
               />
             </div>

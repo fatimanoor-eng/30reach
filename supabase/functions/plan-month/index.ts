@@ -23,7 +23,14 @@ import {
   validatePlan,
 } from "../_shared/ai-logic.ts";
 import { planSystem, planUser } from "../_shared/ai-prompts.ts";
-import { aiFailure, groqJson, loadFailure, loadPull, sourcePost } from "../_shared/ai-server.ts";
+import {
+  aiFailure,
+  groqJson,
+  loadFailure,
+  loadPull,
+  sourcePost,
+  loadClientContext,
+} from "../_shared/ai-server.ts";
 import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
 
 const MONTH_NAME = new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" });
@@ -66,7 +73,13 @@ export default {
       fn: "plan-month",
       clientId: input.clientId,
       actor: ctx.userClaims?.sub ?? null,
-      system: planSystem({ client: loaded.data.clientName, monthName, year, today: todayLabel }),
+      system: planSystem({
+        client: loaded.data.clientName,
+        monthName,
+        year,
+        today: todayLabel,
+        ctx: (await loadClientContext(ctx.supabase, input.clientId)) ?? undefined,
+      }),
       user: planUser({ summaryJson, events: input.events, boardIdeas }),
       schema: PLAN_SCHEMA,
       maxTokens: 2500,

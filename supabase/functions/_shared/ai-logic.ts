@@ -1046,7 +1046,11 @@ export type ClaimsResult = { status: "clear" | "flagged"; issues: Issue[] };
  * the issues, not from what the model said. Null (→ retry) if the model flagged something but none
  * of its quotes are in the draft and code found nothing either.
  */
-export function validateClaims(raw: unknown, draft: string): ClaimsResult | null {
+export function validateClaims(
+  raw: unknown,
+  draft: string,
+  { health = true }: { health?: boolean } = {},
+): ClaimsResult | null {
   if (!isObj(raw)) return null;
   // Lenient shape: a clear answer often leaves out "issues", or "status". The status is worked out
   // from the issues anyway; only an answer with neither key is rejected.
@@ -1064,8 +1068,10 @@ export function validateClaims(raw: unknown, draft: string): ClaimsResult | null
   };
   for (const i of rawIssues)
     if (isObj(i) && isStr(i.quote)) add(i.quote, isStr(i.why) ? i.why : "");
-  for (const f of healthRedFlags(draft.replace(/^(Title|Hook|Caption|Visual idea): /gm, "")))
-    add(f.quote, f.why);
+  // The code list is about health claims: only for clients whose health check is on (Slice 17e).
+  if (health)
+    for (const f of healthRedFlags(draft.replace(/^(Title|Hook|Caption|Visual idea): /gm, "")))
+      add(f.quote, f.why);
   if (raw.status !== "clear" && rawIssues.length > 0 && issues.length === 0) return null;
   return { status: issues.length ? "flagged" : "clear", issues: issues.slice(0, 8) };
 }

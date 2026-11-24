@@ -9,6 +9,7 @@ import {
   type IsoDay,
 } from "../calendar/events/dates";
 import { dayLabel, monthYear } from "../calendar/format";
+import { useEventRules } from "../calendar/useEventRules";
 import { useHolidays } from "../calendar/useHolidays";
 import { eventStarts } from "./plan-rules";
 
@@ -36,9 +37,10 @@ export function PlanCalendar({
   const month = shown.getUTCMonth();
   const weeks = useMemo(() => monthGrid(year, month), [year, month]);
   const holidays = useHolidays([year]);
+  const rules = useEventRules();
   const starts = useMemo(
-    () => eventStarts(year, month, holidays.byYear),
-    [year, month, holidays.byYear],
+    () => eventStarts(year, month, holidays.byYear, rules),
+    [year, month, holidays.byYear, rules],
   );
   const grid = useRef<HTMLDivElement>(null);
   const moved = useRef(autoFocus);

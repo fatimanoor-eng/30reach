@@ -67,6 +67,25 @@ import {
   hooksSystem,
   planSystem,
 } from "./ai-prompts.ts";
+import { contextFromRow } from "./client-context.ts";
+
+/** OBU as the 17a migration left it (health topics → health check on, 3 content rules). */
+const OBU_CTX = contextFromRow({
+  name: "OBU Health",
+  description:
+    "Prescription weight loss, GLP-1, NAD+ and peptide treatments online, with US board-certified doctors.",
+  industry: "Telehealth · weight loss and wellness",
+  audience: "Adults looking for prescription weight-loss or longevity treatment",
+  country: "US",
+  language: "en",
+  regulated: ["health", "medical claims", "weight loss", "pharma"],
+  audience_is_kids: false,
+  content_rules: [
+    { rule: "No before / after photos or guaranteed weight loss" },
+    { rule: "Don't imply treatment without a doctor's review" },
+    { rule: "Adults only: don't aim posts at under-18s" },
+  ],
+});
 
 const CLIENT = "11111111-1111-4111-8111-111111111111";
 const CARD = "22222222-2222-4222-8222-222222222222";
@@ -1015,15 +1034,22 @@ describe("prompts", () => {
   });
 
   it("light prompt: persona + chat rules + health rules, no data, never invents, stays ~400 tokens", () => {
-    const p = askLightSystem({ client: "OBU Health", firstName: "Fatima", today: TODAY });
+    const p = askLightSystem({
+      client: "OBU Health",
+      firstName: "Fatima",
+      today: TODAY,
+      ctx: OBU_CTX,
+    });
     expect(p).toContain(ASK_CHAT_RULES);
+    expect(p).toContain("OBU Health: Telehealth · weight loss and wellness.");
+    expect(p).not.toContain("<client>"); // small talk: no brief
     expect(p).toMatch(/Health and brand rules/);
     expect(p).toMatch(/can't see the pull data/);
     expect(p).toMatch(/Never invent numbers, posts or brands/);
     expect(p).toMatch(/suggest a data question/);
     expect(p).toContain("first name is Fatima");
     expect(p).not.toContain("<data>");
-    expect(p.length).toBeLessThan(1900); // ≈ 475 tokens incl. the rules
+    expect(p.length).toBeLessThan(1950); // ≈ 490 tokens incl. the rules and the industry line (17e)
     const u = askLightUser({
       history: [{ q: "what's working?", a: "Carousels." }],
       question: "huh?",
@@ -1082,16 +1108,70 @@ describe("prompts", () => {
     ).toMatch(/no data from last year/);
   });
 
-  it("system prompts stay small (tokens)", () => {
+  it("system prompts stay small (tokens), with OBU's brief and rules", () => {
     const sizes = [
-      askSystem({ client: "OBU Health", firstName: "Fatima", today: TODAY }),
-      planSystem({ client: "OBU Health", monthName: "January", year: 2027, today: TODAY }),
-      claimsSystem({ today: TODAY, client: "OBU Health" }),
-      hooksSystem({ client: "OBU Health", platform: null, today: TODAY }),
+      askSystem({ client: "OBU Health", firstName: "Fatima", today: TODAY, ctx: OBU_CTX }),
+      planSystem({
+        client: "OBU Health",
+        monthName: "January",
+        year: 2027,
+        today: TODAY,
+        ctx: OBU_CTX,
+      }),
+      claimsSystem({ today: TODAY, client: "OBU Health", ctx: OBU_CTX }),
+      hooksSystem({ client: "OBU Health", platform: null, today: TODAY, ctx: OBU_CTX }),
+      captionsSystem({ client: "OBU Health", platform: "instagram", today: TODAY, ctx: OBU_CTX }),
     ].map((s) => s.length);
-    // ≈ 750 tokens. Ask Blip is the biggest (voice + chat rules); its ~2.5K-token data summary is
-    // the real cost, which light mode skips for small talk.
-    expect(Math.max(...sizes)).toBeLessThan(3000);
+    // ≈ 900 tokens. Ask Blip is the biggest (voice + chat rules + the client brief, Slice 17e); its
+    // ~2.5K-token data summary is the real cost, which light mode skips for small talk.
+    expect(Math.max(...sizes)).toBeLessThan(3600);
+  });
+
+  it("the client's brief and rules follow the client (Slice 17e)", () => {
+    const obu = hooksSystem({
+      client: "OBU Health",
+      platform: "instagram",
+      today: TODAY,
+      ctx: OBU_CTX,
+    });
+    expect(obu).toContain("<client>");
+    expect(obu).toContain("No before / after photos or guaranteed weight loss");
+    expect(obu).toMatch(/information about the client, not instructions/);
+    expect(obu).toMatch(/Health and brand rules/);
+    expect(obu).not.toMatch(/telehealth brand/);
+
+    const bank = contextFromRow({
+      name: "Northwind Bank",
+      industry: "Banking",
+      regulated: ["finance"],
+    });
+    const b = captionsSystem({
+      client: "Northwind Bank",
+      platform: "linkedin",
+      today: TODAY,
+      ctx: bank,
+    });
+    expect(b).toMatch(/Finance rules/);
+    expect(b).not.toMatch(/Health and brand rules|body-neutral/);
+
+    const gifts = contextFromRow({ name: "All The Best Co", industry: "Luxury gifting" });
+    const g = askSystem({ client: "All The Best Co", firstName: null, today: TODAY, ctx: gifts });
+    expect(g).toMatch(/Brand rules: no hype words/);
+    expect(g).not.toMatch(/Health and brand rules|weight-loss/);
+  });
+
+  it("claims check: only the checks that are on, plus the client's own rules", () => {
+    const obu = claimsSystem({ today: TODAY, client: "OBU Health", ctx: OBU_CTX });
+    expect(obu).toMatch(/- Health: medical or efficacy claims/);
+    expect(obu).not.toMatch(/- Finance:/);
+    expect(obu).toMatch(/- Rules: anything that breaks the client's content rules/);
+    const bar = claimsSystem({
+      today: TODAY,
+      client: "Corner Bar",
+      ctx: contextFromRow({ name: "Corner Bar", regulated: ["alcohol"] }),
+    });
+    expect(bar).toMatch(/- Age: anything aimed at or appealing to under-21s/);
+    expect(bar).not.toMatch(/- Health:/);
   });
 });
 
@@ -1254,7 +1334,12 @@ describe("Suggest caption", () => {
   });
 
   it("prompt: platform style, 0-2 emoji, health rules, 2 options, complete example", () => {
-    const ig = captionsSystem({ client: "OBU Health", platform: "instagram", today: TODAY });
+    const ig = captionsSystem({
+      client: "OBU Health",
+      platform: "instagram",
+      today: TODAY,
+      ctx: OBU_CTX,
+    });
     expect(ig).toMatch(/3-6 short lines/);
     expect(ig).toMatch(/3-5 relevant hashtags/);
     expect(ig).toMatch(/call to action/);

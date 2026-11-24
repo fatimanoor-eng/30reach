@@ -195,3 +195,39 @@ describe("month grid and bars", () => {
     expect(diabetesMonth.lane).not.toBe(blackFri.lane);
   });
 });
+
+describe("per client (Slice 17e)", () => {
+  const names = (es: { name: string }[]) => es.map((e) => e.name);
+  it("marketing dates: the full US list; elsewhere only dates that work there too", () => {
+    expect(names(marketingEvents(2026, "US"))).toContain("Giving Tuesday");
+    const gb = names(marketingEvents(2026, "GB"));
+    expect(gb).toEqual([
+      "Valentine's Day",
+      "Easter Sunday",
+      "Halloween",
+      "Black Friday",
+      "Cyber Monday",
+      "Christmas Eve",
+      "Resolution season",
+      "New Year's Eve",
+    ]);
+  });
+  it("holiday names: US spellings only for US clients", () => {
+    const rows = [{ date: "2026-09-07", name: "Labour Day", global: true }];
+    expect(names(holidayEvents(2026, rows, "US"))).toEqual(["Labor Day"]);
+    expect(names(holidayEvents(2026, rows, "CA"))).toEqual(["Labour Day"]);
+  });
+  it("health months only when the client has them on", () => {
+    const on = eventsInRange("2026-05-01", "2026-05-31", new Map(), {
+      country: "US",
+      healthMonths: true,
+    });
+    const off = eventsInRange("2026-05-01", "2026-05-31", new Map(), {
+      country: "US",
+      healthMonths: false,
+    });
+    expect(on.some((e) => e.kind === "health")).toBe(true);
+    expect(off.some((e) => e.kind === "health")).toBe(false);
+    expect(off.some((e) => e.kind === "marketing")).toBe(true); // Mother's Day
+  });
+});

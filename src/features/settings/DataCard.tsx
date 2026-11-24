@@ -8,6 +8,7 @@ import { useClient } from "../../lib/useClient";
 import { useCompetitors } from "../../lib/useCompetitors";
 import { eventsInRange } from "../calendar/events";
 import { todayIso } from "../calendar/events/dates";
+import { useEventRules } from "../calendar/useEventRules";
 import { useHolidays } from "../calendar/useHolidays";
 import { useSavedPulls } from "../overview/useOverviewData";
 import { csvFileName, downloadCsv } from "./csv";
@@ -209,6 +210,7 @@ function ExportList({ onDone }: { onDone: () => void }) {
   const win = eventsWindow(today);
   // Holidays load when the menu opens (code rules + Nager; never AI). Without Nager: export the rest.
   const holidays = useHolidays(win.years);
+  const rules = useEventRules();
   const holidaysReady = win.years.every(
     (y) => holidays.byYear.has(y) || holidays.failedYears.includes(y),
   );
@@ -240,7 +242,7 @@ function ExportList({ onDone }: { onDone: () => void }) {
       } else {
         downloadCsv(
           file("calendar-events"),
-          eventsCsv(eventsInRange(win.from, win.to, holidays.byYear)),
+          eventsCsv(eventsInRange(win.from, win.to, holidays.byYear, rules)),
         );
       }
       onDone();

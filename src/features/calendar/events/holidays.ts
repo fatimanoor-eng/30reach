@@ -28,7 +28,7 @@ const US_NAME: Record<string, string> = { "Labour Day": "Labor Day" };
  * days like Lincoln's Birthday are dropped), moves fixed-date holidays to their real date and
  * removes duplicates (Nager lists some days twice). Names use US spelling ("Labor Day").
  */
-export function holidayEvents(year: number, rows: HolidayRow[]): CalendarEvent[] {
+export function holidayEvents(year: number, rows: HolidayRow[], country = "US"): CalendarEvent[] {
   const seen = new Set<string>();
   const events: CalendarEvent[] = [];
   for (const row of rows) {
@@ -36,7 +36,7 @@ export function holidayEvents(year: number, rows: HolidayRow[]): CalendarEvent[]
       continue;
     const fixed = FIXED_DATE.find((f) => f.match.test(row.name.trim()));
     const date = fixed ? isoDay(year, fixed.month, fixed.day) : row.date;
-    const name = US_NAME[row.name.trim()] ?? row.name.trim();
+    const name = (country === "US" ? US_NAME[row.name.trim()] : undefined) ?? row.name.trim();
     const key = `${date}|${name}`;
     if (seen.has(key)) continue;
     seen.add(key);

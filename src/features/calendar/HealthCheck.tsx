@@ -1,6 +1,7 @@
 import { AlertTriangle, Check } from "lucide-react";
 import { BlipThinking } from "../../components/blip/BlipPoses";
 import { AI_COPY, type ClaimIssue } from "../../lib/ai/ai-api";
+import type { CheckCopy } from "../../lib/client-rules";
 
 export type HealthCheckState =
   | { state: "checking" }
@@ -13,7 +14,20 @@ export type HealthCheckState =
  * saved when this shows, and nothing here ever blocks saving. Green when clear, red with the flagged
  * phrases when not (no red variant in Figma: same shape, Spark tones).
  */
-export function HealthCheck({ value, onRetry }: { value: HealthCheckState; onRetry: () => void }) {
+export function HealthCheck({
+  value,
+  onRetry,
+  copy,
+}: {
+  value: HealthCheckState;
+  onRetry: () => void;
+  /** What this client's check looks for (Slice 17e). Defaults to the health-claim copy. */
+  copy?: CheckCopy | null;
+}) {
+  const text = copy ?? {
+    checking: "Blip’s checking for health claims…",
+    clear: "No health claims found. Supportive tone, no food guilt.",
+  };
   if (value.state === "checking")
     return (
       <p
@@ -21,7 +35,7 @@ export function HealthCheck({ value, onRetry }: { value: HealthCheckState; onRet
         className="flex items-center gap-2.5 rounded-tile bg-bg px-3 py-2.5 text-small text-muted"
       >
         <BlipThinking className="h-7 w-auto shrink-0" />
-        Blip’s checking for health claims…
+        {text.checking}
       </p>
     );
 
@@ -34,7 +48,7 @@ export function HealthCheck({ value, onRetry }: { value: HealthCheckState; onRet
         <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-fresh text-white">
           <Check size={12} strokeWidth={3} aria-hidden="true" />
         </span>
-        No health claims found. Supportive tone, no food guilt.
+        {text.clear}
       </p>
     );
 

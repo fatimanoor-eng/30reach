@@ -18,6 +18,7 @@ import {
   planEvents,
   planLoadingLines,
 } from "./plan-month";
+import { useEventRules } from "./useEventRules";
 import { useHolidays } from "./useHolidays";
 import { useClientPath } from "../../lib/useClient";
 
@@ -49,11 +50,12 @@ export function PlanMonthPanel({
   const [round, setRound] = useState(0);
   // Events need that year's holidays first (or the knowledge that they failed: plan without them).
   const holidays = useHolidays([year]);
+  const rules = useEventRules();
   const eventsReady = holidays.byYear.has(year) || holidays.failedYears.includes(year);
   const plan = useQuery({
     queryKey: ["plan-month", clientId, month, round],
     enabled: open && eventsReady,
-    queryFn: () => planMonth(clientId, month, planEvents(month, holidays.byYear)),
+    queryFn: () => planMonth(clientId, month, planEvents(month, holidays.byYear, rules)),
     retry: false,
     staleTime: Infinity,
     gcTime: 30 * 60_000,

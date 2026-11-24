@@ -11,6 +11,13 @@ export type { HolidayRow } from "./holidays";
 
 export const EVENT_KINDS: EventKind[] = ["holiday", "health", "marketing"];
 
+/**
+ * Whose calendar it is (Slice 17e): holidays and marketing dates for the client's country; health
+ * months only for clients that have them on (health brands). Defaults = OBU (US, health months on).
+ */
+export type EventRules = { country: string; healthMonths: boolean };
+export const DEFAULT_EVENT_RULES: EventRules = { country: "US", healthMonths: true };
+
 /** Years whose holidays a range needs (a December grid spills into January). */
 export function yearsIn(from: IsoDay, to: IsoDay): number[] {
   const years: number[] = [];
@@ -29,12 +36,17 @@ export function eventsInRange(
   from: IsoDay,
   to: IsoDay,
   holidays: ReadonlyMap<number, HolidayRow[]>,
+  rules: EventRules = DEFAULT_EVENT_RULES,
 ): CalendarEvent[] {
   const all: CalendarEvent[] = [];
   // Start a year early: Resolution season (26 Dec → 15 Jan) belongs to the year it starts in.
   const fromYear = Number(from.slice(0, 4)) - 1;
   for (let y = fromYear; y <= Number(to.slice(0, 4)); y++) {
-    all.push(...marketingEvents(y), ...healthEvents(y), ...holidayEvents(y, holidays.get(y) ?? []));
+    all.push(
+      ...marketingEvents(y, rules.country),
+      ...(rules.healthMonths ? healthEvents(y) : []),
+      ...holidayEvents(y, holidays.get(y) ?? [], rules.country),
+    );
   }
   return all
     .filter((e) => e.end >= from && e.start <= to)

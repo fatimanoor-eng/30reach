@@ -26,6 +26,7 @@ import { CalendarDnd } from "./CalendarDnd";
 import { formatFor } from "./platform-options";
 import { ideaCardTitle, plannedLabel, type Idea } from "../ideas/idea-rules";
 import { planIdea, useIdeas } from "../ideas/ideas-api";
+import { useEventRules } from "./useEventRules";
 import { useHolidays } from "./useHolidays";
 import { WeekView } from "./WeekView";
 import { PlanMonthPanel } from "./PlanMonthPanel";
@@ -58,7 +59,8 @@ export function CalendarPage() {
   const cards = useCalendarCards(from, to);
   const holidays = useHolidays(yearsIn(from, to));
   const { toggles, toggle } = useEventToggles();
-  const events = eventsInRange(from, to, holidays.byYear).filter((e) => toggles[e.kind]);
+  const rules = useEventRules();
+  const events = eventsInRange(from, to, holidays.byYear, rules).filter((e) => toggles[e.kind]);
   // ── ideas: the 08 panel lists them; dropping one on a day plans it (plan_idea, like Plan it)
   const queryClient = useQueryClient();
   const ideas = useIdeas();

@@ -459,7 +459,11 @@ function CalendarCard({
       />
       <div className="mt-4 flex flex-col gap-0.5">
         <p className="mono-label text-muted">Marketing</p>
-        <p className="text-body-sm">US dates (Black Friday, Giving Tuesday…)</p>
+        <p className="text-body-sm">
+          {client.country === "US"
+            ? "US dates (Black Friday, Giving Tuesday…)"
+            : "Shared dates (Valentine’s Day, Black Friday…)"}
+        </p>
       </div>
       <div className="mt-4 flex items-center justify-between gap-3">
         <div>

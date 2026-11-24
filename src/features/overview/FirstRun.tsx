@@ -11,6 +11,8 @@ import {
   type Platform,
 } from "../../lib/platforms";
 import { useTrackedPlatforms } from "../../lib/useClientPlatforms";
+import { countryName } from "../../lib/countries";
+import { useEventRules } from "../calendar/useEventRules";
 import type { Competitor } from "../../lib/useCompetitors";
 import { percentOf, usePull } from "../pulls/pull-context";
 import { noAccountsText } from "../pulls/pull-text";
@@ -31,6 +33,7 @@ export function FirstRun({
   const pull = usePull();
   const path = useClientPath();
   const tracked = useTrackedPlatforms();
+  const rules = useEventRules();
   const readiness = pullReadiness(competitors, tracked);
   const ready = readiness === "ok";
   const busy = pull.state.kind !== "idle"; // a pull already running / paused for this client
@@ -68,7 +71,8 @@ export function FirstRun({
           </Step>
         )}
         <Step done title="Calendar dates are ready">
-          Holidays, health months and marketing dates are added automatically
+          {/* 15g: "US holidays and marketing dates are added automatically" (health months: health brands only). */}
+          {`${rules.country === "US" ? "US" : countryName(rules.country)} holidays${rules.healthMonths ? ", health months" : ""} and marketing dates are added automatically`}
         </Step>
         <Step number={3} title={`Pull ${platformList(ready ? pulling : tracked)}`}>
           Saves the latest posts so they show every time you open 30reach

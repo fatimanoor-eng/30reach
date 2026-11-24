@@ -296,3 +296,34 @@ export function initialsFor(name: string): string {
   if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
   return (words[0] ?? name.trim()).slice(0, 2).toUpperCase();
 }
+
+export type CheckCopy = { checking: string; clear: string };
+
+/**
+ * The card's check note (09 / M08) for this client (Slice 17e), or null when there's nothing to check
+ * (no check on and no content rules: the check doesn't run). Health keeps its original copy.
+ */
+export function checkCopy(client: {
+  name: string;
+  regulated: readonly string[];
+  audience_is_kids: boolean;
+  content_rules: readonly unknown[];
+}): CheckCopy | null {
+  const c = checksFor(client.regulated, client.audience_is_kids);
+  if (c.health) {
+    return {
+      checking: "Blip’s checking for health claims…",
+      clear: "No health claims found. Supportive tone, no food guilt.",
+    };
+  }
+  const what = c.finance ? "finance claims" : c.age ? "age rules" : c.kids ? "kids rules" : null;
+  if (what)
+    return { checking: `Blip’s checking for ${what}…`, clear: `Nothing to flag for ${what}.` };
+  if (client.content_rules.length === 0) return null;
+  const name = client.name.trim() || "the client";
+  const who = /s$/i.test(name) ? `${name}’` : `${name}’s`;
+  return {
+    checking: `Blip’s checking against ${who} content rules…`,
+    clear: `Nothing breaks ${who} content rules.`,
+  };
+}

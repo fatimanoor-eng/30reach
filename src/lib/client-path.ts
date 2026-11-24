@@ -14,6 +14,9 @@ export type ClientSummary = {
   logo_path?: string | null;
   website?: string | null;
   archived_by?: string | null;
+  /** Slice 17e: holidays / marketing dates and health months follow the client. */
+  country?: string;
+  health_months?: boolean;
 };
 
 const PREFIX = /^\/c\/([^/?#]+)/;

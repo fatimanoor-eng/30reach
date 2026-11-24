@@ -21,6 +21,7 @@ import {
   type SummaryPost,
   tokenLog,
 } from "./ai-logic.ts";
+import { type ClientContext, contextFromRow, type ClientRow } from "./client-context.ts";
 import { clientName, json, recordUsage, type SupabaseClient } from "./server.ts";
 import { groqTokens } from "./usage.ts";
 
@@ -216,3 +217,22 @@ export function sourcePost(p: SummaryPost, brands: { id: string; name: string }[
 
 export const loadFailure = (error: "no_client" | "no_pull" | "load_failed") =>
   json({ error }, error === "no_pull" ? 409 : error === "no_client" ? 404 : 500);
+
+/**
+ * What the AI functions know about the client (Slice 17e): its brief (description, industry, audience,
+ * market, content rules) and the checks its regulated topics turn on. Read as the caller (RLS: team).
+ * Null when there's no such client.
+ */
+export async function loadClientContext(
+  db: SupabaseClient,
+  clientId: string,
+): Promise<ClientContext | null> {
+  const { data } = await db
+    .from("clients")
+    .select(
+      "name, description, industry, audience, country, language, regulated, audience_is_kids, content_rules",
+    )
+    .eq("id", clientId)
+    .maybeSingle();
+  return data ? contextFromRow(data as ClientRow) : null;
+}

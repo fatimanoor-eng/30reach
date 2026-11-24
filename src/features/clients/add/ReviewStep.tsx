@@ -265,7 +265,7 @@ function BrandCard({
             label="Brand colour"
             value={draft.color}
             onChange={(e) => set({ color: e.target.value })}
-            placeholder="#C8493F"
+            placeholder="#RRGGBB"
             maxLength={7}
             tone={colorError ? "error" : "default"}
             message={colorError ? "Use a hex colour like #C8493F." : undefined}
@@ -639,7 +639,7 @@ function AddCompetitorRow({
           label="Website"
           value={website}
           onChange={(e) => setWebsite(e.target.value)}
-          placeholder="theirsite.com"
+          placeholder="example.com"
           inputMode="url"
           autoCapitalize="none"
           tone={websiteError ? "error" : "default"}

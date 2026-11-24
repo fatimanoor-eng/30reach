@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const remove = vi.fn();
 vi.mock("../../lib/supabase", () => ({
@@ -11,6 +11,12 @@ const listed = () =>
   (JSON.parse(localStorage.getItem(KEY) ?? "[]") as { path: string }[]).map((p) => p.path);
 
 describe("pending image removals (Undo window)", () => {
+  // Compile the module once up front: each test re-imports it fresh (resetModules), and on a busy machine
+  // the first compile alone could pass the 5 s test timeout.
+  beforeAll(async () => {
+    await import("./pending-image-deletes");
+  }, 60_000);
+
   beforeEach(() => {
     localStorage.clear();
     remove.mockReset().mockResolvedValue({ error: null });

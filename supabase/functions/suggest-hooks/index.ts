@@ -20,7 +20,7 @@ import {
   validateHooks,
 } from "../_shared/ai-logic.ts";
 import { hooksSystem, hooksUser } from "../_shared/ai-prompts.ts";
-import { aiFailure, groqJson, loadPull } from "../_shared/ai-server.ts";
+import { aiFailure, groqJson, loadPull, loadClientContext } from "../_shared/ai-server.ts";
 import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
 
 export default {
@@ -37,11 +37,8 @@ export default {
     const works = loaded.ok
       ? hookContext(loaded.data, input.platform)
       : { note: "no competitor data yet" };
-    const { data: client } = await ctx.supabase
-      .from("clients")
-      .select("name")
-      .eq("id", input.clientId)
-      .maybeSingle();
+    // The client's brief and rules (Slice 17e).
+    const client = await loadClientContext(ctx.supabase, input.clientId);
 
     const result = await groqJson({
       admin: ctx.supabaseAdmin,
@@ -49,9 +46,10 @@ export default {
       clientId: input.clientId,
       actor: ctx.userClaims?.sub ?? null,
       system: hooksSystem({
-        client: (client as { name: string } | null)?.name ?? "the client",
+        client: client?.name ?? "the client",
         platform: input.platform,
         today: todayContext().label,
+        ctx: client ?? undefined,
       }),
       user: hooksUser({ title: input.title, caption: input.caption, format: input.format, works }),
       schema: HOOKS_SCHEMA,

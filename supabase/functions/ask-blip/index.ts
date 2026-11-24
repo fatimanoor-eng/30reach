@@ -30,7 +30,14 @@ import {
   validateLightAnswer,
 } from "../_shared/ai-logic.ts";
 import { askLightSystem, askLightUser, askSystem, askUser } from "../_shared/ai-prompts.ts";
-import { aiFailure, groqJson, loadFailure, loadPull, sourcePost } from "../_shared/ai-server.ts";
+import {
+  aiFailure,
+  groqJson,
+  loadClientContext,
+  loadFailure,
+  loadPull,
+  sourcePost,
+} from "../_shared/ai-server.ts";
 import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
 
 export default {
@@ -49,11 +56,11 @@ export default {
       : Promise.resolve({ data: null });
 
     if (input.light) {
-      const [clientRow, profile] = await Promise.all([
-        ctx.supabase.from("clients").select("name").eq("id", input.clientId).maybeSingle(),
+      const [client, profile] = await Promise.all([
+        loadClientContext(ctx.supabase, input.clientId),
         profileQuery,
       ]);
-      if (!clientRow.data) return loadFailure("no_client");
+      if (!client) return loadFailure("no_client");
       const who = profile.data as { full_name: string | null; email: string } | null;
       const result = await groqJson({
         admin: ctx.supabaseAdmin,
@@ -62,9 +69,10 @@ export default {
         actor: ctx.userClaims?.sub ?? null,
         label: "ask-blip light",
         system: askLightSystem({
-          client: (clientRow.data as { name: string }).name,
+          client: client.name,
           firstName: firstName(who?.full_name, who?.email),
           today,
+          ctx: client,
         }),
         user: askLightUser({ history: input.history, question: input.question }),
         schema: ASK_LIGHT_SCHEMA,
@@ -75,9 +83,10 @@ export default {
       return json(result.value);
     }
 
-    const [loaded, profile] = await Promise.all([
+    const [loaded, profile, clientCtx] = await Promise.all([
       loadPull(ctx.supabase, input.clientId, { previous: true }),
       profileQuery,
+      loadClientContext(ctx.supabase, input.clientId),
     ]);
     if (!loaded.ok) return loadFailure(loaded.error);
 
@@ -91,7 +100,12 @@ export default {
       clientId: input.clientId,
       actor: ctx.userClaims?.sub ?? null,
       label: "ask-blip full",
-      system: askSystem({ client, firstName: firstName(who?.full_name, who?.email), today }),
+      system: askSystem({
+        client,
+        firstName: firstName(who?.full_name, who?.email),
+        today,
+        ctx: clientCtx ?? undefined,
+      }),
       user: askUser({ summaryJson, history: input.history, question: input.question }),
       schema: ASK_SCHEMA,
       // Reasoning over the ~2.5K-token summary counts here too; 1,500 could run out before the JSON

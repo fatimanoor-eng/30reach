@@ -33,6 +33,8 @@ import {
 import { HealthCheck, type HealthCheckState } from "./HealthCheck";
 import { HookSuggestions, type HooksState } from "./HookSuggestions";
 import { useClientPath } from "../../lib/useClient";
+import { checkCopy } from "../../lib/client-rules";
+import { useClientDetails } from "../clients/clients-api";
 
 /**
  * 09 card detail (drawer from 768 px) / M08 (full-screen page with a back arrow and a sticky Save bar).
@@ -119,6 +121,9 @@ export function CardPanel({
   const [moveOpen, setMoveOpen] = useState(false);
   const navigate = useNavigate();
   const path = useClientPath();
+  // What the advisory check looks for, from the client (Slice 17e); null = nothing to check.
+  const details = useClientDetails(clientId);
+  const copy = details.data ? checkCopy(details.data) : null;
   // 09 "Move to idea board" (card_to_idea). Closes first so the toast and its Open are reachable.
   const move = useMutation({
     mutationFn: () => cardToIdea(card!.id),
@@ -190,7 +195,8 @@ export function CardPanel({
       check && (check.value.state === "clear" || check.value.state === "flagged")
         ? check.key
         : null;
-    if (!needsCheck(cleaned, lastChecked)) {
+    // Nothing to check for this client (no regulated topics, no content rules, Slice 17e): just close.
+    if (!copy || !needsCheck(cleaned, lastChecked)) {
       closeNow();
       return;
     }
@@ -571,6 +577,7 @@ export function CardPanel({
           {shownCheck && (
             <HealthCheck
               value={shownCheck}
+              copy={copy}
               onRetry={() => {
                 if (!savedId) return;
                 const clean = (v: string | null) => (v?.trim() ? v.trim() : null);

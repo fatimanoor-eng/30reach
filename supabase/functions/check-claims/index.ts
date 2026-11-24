@@ -21,7 +21,8 @@ import {
   validateClaims,
 } from "../_shared/ai-logic.ts";
 import { claimsSystem, claimsUser } from "../_shared/ai-prompts.ts";
-import { aiFailure, groqJson } from "../_shared/ai-server.ts";
+import { aiFailure, groqJson, loadClientContext } from "../_shared/ai-server.ts";
+import { anyCheck } from "../_shared/client-context.ts";
 import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
 
 export default {
@@ -35,24 +36,35 @@ export default {
 
     const { data: card } = await ctx.supabase
       .from("calendar_cards")
-      .select("id, client_id, clients(name)")
+      .select("id, client_id")
       .eq("id", input.cardId)
       .maybeSingle();
     if (!card) return json({ error: "no_card" }, 404);
 
+    const clientId = (card as { client_id: string }).client_id;
+    const client = await loadClientContext(ctx.supabase, clientId);
+    // Slice 17e: nothing to check for this client (no regulated topics, no content rules) → clear,
+    // without calling Groq. The browser doesn't ask in that case; this guards older tabs.
+    if (!client || (!anyCheck(client.checks) && client.rules === 0)) {
+      return json({
+        status: "clear",
+        issues: [],
+        hash: textHash(input.draft),
+        checkedAt: new Date().toISOString(),
+        skipped: true,
+      });
+    }
+
     const result = await groqJson({
       admin: ctx.supabaseAdmin,
       fn: "check-claims",
-      clientId: (card as { client_id: string }).client_id,
+      clientId,
       actor: ctx.userClaims?.sub ?? null,
-      system: claimsSystem({
-        today: todayContext().label,
-        client: (card as { clients?: { name?: string } | null }).clients?.name ?? "the client",
-      }),
+      system: claimsSystem({ today: todayContext().label, client: client.name, ctx: client }),
       user: claimsUser(input.draft),
       schema: CLAIMS_SCHEMA,
       maxTokens: 1200,
-      validate: (raw) => validateClaims(raw, input.draft),
+      validate: (raw) => validateClaims(raw, input.draft, { health: client.checks.health }),
     });
     if (!result.ok) return aiFailure(result);
 

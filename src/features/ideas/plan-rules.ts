@@ -1,6 +1,11 @@
 // Rules for the 14d Plan it calendar. Events come from the calendar's automatic sources only
 // (Nager.Date holidays, marketing rules, the health list — CALENDAR_EVENTS.md); never from AI.
-import { eventsInRange, type HolidayRow } from "../calendar/events";
+import {
+  DEFAULT_EVENT_RULES,
+  type EventRules,
+  eventsInRange,
+  type HolidayRow,
+} from "../calendar/events";
 import { isoDay, lastDayOfMonth, type IsoDay } from "../calendar/events/dates";
 
 /**
@@ -11,11 +16,12 @@ export function eventStarts(
   year: number,
   month: number,
   holidays: ReadonlyMap<number, HolidayRow[]>,
+  rules: EventRules = DEFAULT_EVENT_RULES,
 ): Map<IsoDay, string[]> {
   const first = isoDay(year, month, 1);
   const last = lastDayOfMonth(year, month);
   const map = new Map<IsoDay, string[]>();
-  for (const e of eventsInRange(first, last, holidays)) {
+  for (const e of eventsInRange(first, last, holidays, rules)) {
     if (e.start < first || e.start > last) continue;
     map.set(e.start, [...(map.get(e.start) ?? []), e.name]);
   }

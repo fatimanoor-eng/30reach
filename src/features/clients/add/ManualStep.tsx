@@ -134,7 +134,7 @@ export function ManualStep({
             label="Name"
             value={name}
             onChange={(e) => mark(() => setName(e.target.value))}
-            placeholder="All The Best Co"
+            placeholder="Client name"
             maxLength={80}
             autoFocus
             tone={tried && nameError ? "error" : "default"}
@@ -144,7 +144,7 @@ export function ManualStep({
             label="Website"
             value={website}
             onChange={(e) => mark(() => setWebsite(e.target.value))}
-            placeholder="all-the-best.co"
+            placeholder="example.com"
             inputMode="url"
             autoCapitalize="none"
             tone={(tried && websiteError) || takenBy ? "error" : "default"}
@@ -172,7 +172,7 @@ export function ManualStep({
             label="Industry"
             value={industry}
             onChange={(e) => mark(() => setIndustry(e.target.value))}
-            placeholder="e.g. luxury gifting"
+            placeholder="e.g. skincare, car detailing"
             maxLength={80}
           />
         </div>

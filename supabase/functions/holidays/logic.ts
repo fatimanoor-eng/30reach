@@ -1,8 +1,59 @@
 // Pure rules for the `holidays` Edge Function (Slice 9, INTEGRATIONS.md §5). Tested in logic.test.ts.
 
 export const COUNTRY = "US";
-export const nagerUrl = (year: number) =>
-  `https://date.nager.at/api/v3/PublicHolidays/${year}/${COUNTRY}`;
+/**
+ * Countries a client can pick (Slice 17e), all covered by Nager.Date. Same list as
+ * src/lib/countries.ts › COUNTRIES (a test keeps them equal).
+ */
+export const COUNTRIES = [
+  "US",
+  "GB",
+  "CA",
+  "AU",
+  "NZ",
+  "IE",
+  "DE",
+  "FR",
+  "ES",
+  "IT",
+  "NL",
+  "BE",
+  "CH",
+  "AT",
+  "SE",
+  "NO",
+  "DK",
+  "FI",
+  "PL",
+  "PT",
+  "BR",
+  "MX",
+  "AR",
+  "CO",
+  "CL",
+  "ZA",
+  "NG",
+  "EG",
+  "MA",
+  "JP",
+  "KR",
+  "CN",
+  "SG",
+  "PH",
+  "ID",
+  "VN",
+  "TR",
+] as const;
+
+/** Body → a supported country (default US: older browsers didn't send one). Null = not supported. */
+export function parseCountry(body: Record<string, unknown>): string | null {
+  if (body.country === undefined) return COUNTRY;
+  const c = typeof body.country === "string" ? body.country.toUpperCase() : "";
+  return (COUNTRIES as readonly string[]).includes(c) ? c : null;
+}
+
+export const nagerUrl = (year: number, country: string = COUNTRY) =>
+  `https://date.nager.at/api/v3/PublicHolidays/${year}/${country}`;
 
 /** Holidays rarely change; re-fetch a cached year after this long (only when someone opens it). */
 export const CACHE_MAX_AGE_DAYS = 90;

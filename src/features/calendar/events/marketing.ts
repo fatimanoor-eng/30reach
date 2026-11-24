@@ -48,7 +48,27 @@ export const backToSchool = (year: number): IsoDay => day(nthWeekday(year, 7, 1,
  * Every marketing date that *starts* in `year`. Resolution season starts on 26 Dec and runs to
  * 15 Jan of the next year, so the one shown in early January belongs to the year before.
  */
-export function marketingEvents(year: number): CalendarEvent[] {
+/**
+ * Dates that work outside the US too (Slice 17e). The rest are US-only (Small Business Saturday, Giving
+ * Tuesday, back to school in August) or fall on other dates elsewhere (Mother's / Father's Day).
+ */
+const GLOBAL = new Set([
+  "Valentine's Day",
+  "Easter Sunday",
+  "Halloween",
+  "Black Friday",
+  "Cyber Monday",
+  "Christmas Eve",
+  "Resolution season",
+  "New Year's Eve",
+]);
+
+export function marketingEvents(year: number, country = "US"): CalendarEvent[] {
+  const all = usMarketingEvents(year);
+  return country === "US" ? all : all.filter((e) => GLOBAL.has(e.name));
+}
+
+function usMarketingEvents(year: number): CalendarEvent[] {
   const m = (name: string, start: IsoDay, end?: IsoDay) => makeEvent("marketing", name, start, end);
   return [
     m("Valentine's Day", isoDay(year, 1, 14)),

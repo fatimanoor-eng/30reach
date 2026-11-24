@@ -65,7 +65,7 @@ export function WebsiteStep({
             id={fieldId}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="all-the-best.co"
+            placeholder="example.com"
             inputMode="url"
             enterKeyHint="go"
             autoCapitalize="none"

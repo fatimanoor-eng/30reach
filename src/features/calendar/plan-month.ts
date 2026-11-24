@@ -5,7 +5,7 @@
 
 import type { PlanEvent, PlanFacts, PlanSuggestion } from "../../lib/ai/ai-api";
 import type { NewIdea } from "../ideas/ideas-api";
-import { eventsInRange, type HolidayRow } from "./events";
+import { DEFAULT_EVENT_RULES, type EventRules, eventsInRange, type HolidayRow } from "./events";
 import { isoDay, lastDayOfMonth, type IsoDay } from "./events/dates";
 
 /** How far ahead Plan {month} works (the plan-month function allows this month … 3 ahead). */
@@ -39,11 +39,12 @@ export function planTarget(
 export function planEvents(
   month: string,
   holidays: ReadonlyMap<number, HolidayRow[]>,
+  rules: EventRules = DEFAULT_EVENT_RULES,
 ): PlanEvent[] {
   const [y, m] = month.split("-").map(Number);
   const from = isoDay(y, m - 1, 1);
   const to = lastDayOfMonth(y, m - 1);
-  return eventsInRange(from, to, holidays).map((e) => ({
+  return eventsInRange(from, to, holidays, rules).map((e) => ({
     date: e.start < from ? from : e.start,
     name: e.name,
     kind: e.kind,

@@ -3,6 +3,7 @@ import {
   archivedLabel,
   checksFor,
   checksSummary,
+  checkCopy,
   countsSentence,
   deleteConfirmMatches,
   firstNameFrom,
@@ -202,5 +203,32 @@ describe("initialsFor (new clients)", () => {
     expect(initialsFor("Carnaby & Vine")).toBe("CV");
     expect(initialsFor("Baskits")).toBe("BA");
     expect(initialsFor("The Co")).toBe("TH");
+  });
+});
+
+describe("checkCopy (card check note, Slice 17e)", () => {
+  const base = {
+    name: "OBU Health",
+    regulated: [] as string[],
+    audience_is_kids: false,
+    content_rules: [] as unknown[],
+  };
+  it("health keeps the original copy", () => {
+    expect(checkCopy({ ...base, regulated: ["health"] })).toEqual({
+      checking: "Blip’s checking for health claims…",
+      clear: "No health claims found. Supportive tone, no food guilt.",
+    });
+  });
+  it("other checks, content rules only, or nothing to check", () => {
+    expect(checkCopy({ ...base, regulated: ["finance"] })?.checking).toBe(
+      "Blip’s checking for finance claims…",
+    );
+    expect(checkCopy({ ...base, name: "All The Best Co", content_rules: [{ rule: "x" }] })).toEqual(
+      {
+        checking: "Blip’s checking against All The Best Co’s content rules…",
+        clear: "Nothing breaks All The Best Co’s content rules.",
+      },
+    );
+    expect(checkCopy(base)).toBeNull();
   });
 });

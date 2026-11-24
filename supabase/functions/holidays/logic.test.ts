@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import us2022 from "./fixtures/us-2022.json";
 import us2026 from "./fixtures/us-2026.json";
-import { isFresh, parseYear, slimNager } from "./logic";
+import { COUNTRIES, isFresh, nagerUrl, parseCountry, parseYear, slimNager } from "./logic";
 
 describe("parseYear", () => {
   it("accepts last year to two years ahead", () => {
@@ -43,5 +43,19 @@ describe("isFresh", () => {
     expect(isFresh("2026-09-01T00:00:00Z", now)).toBe(true);
     expect(isFresh("2026-08-01T00:00:00Z", now)).toBe(false);
     expect(isFresh(null, now)).toBe(false);
+  });
+});
+
+describe("country (Slice 17e)", () => {
+  it("supported countries only; US when none is sent", () => {
+    expect(parseCountry({})).toBe("US");
+    expect(parseCountry({ country: "gb" })).toBe("GB");
+    expect(parseCountry({ country: "XX" })).toBeNull();
+    expect(parseCountry({ country: 7 })).toBeNull();
+    expect(nagerUrl(2027, "GB")).toBe("https://date.nager.at/api/v3/PublicHolidays/2027/GB");
+  });
+  it("same list as the app's country picker", async () => {
+    const { COUNTRIES: app } = await import("../../../src/lib/countries");
+    expect([...COUNTRIES]).toEqual([...app]);
   });
 });

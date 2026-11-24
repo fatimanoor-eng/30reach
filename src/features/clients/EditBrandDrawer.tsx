@@ -171,7 +171,7 @@ export function EditBrandDrawer({
           label="Website"
           value={website}
           onChange={(e) => setWebsite(e.target.value)}
-          placeholder="all-the-best.co"
+          placeholder="example.com"
           inputMode="url"
           tone={websiteError || takenBy ? "error" : "default"}
           message={websiteError ?? (takenBy ? `${takenBy.name} already uses ${host}.` : undefined)}
@@ -196,7 +196,7 @@ export function EditBrandDrawer({
           label="Industry"
           value={industry}
           onChange={(e) => setIndustry(e.target.value)}
-          placeholder="e.g. luxury gifting"
+          placeholder="e.g. skincare, car detailing"
           maxLength={80}
         />
         <div>
@@ -204,7 +204,7 @@ export function EditBrandDrawer({
             label="Brand colour"
             value={color}
             onChange={(e) => setColor(e.target.value)}
-            placeholder="#C8493F · empty = initials on ink"
+            placeholder="#RRGGBB · empty = initials on ink"
             maxLength={7}
             tone={colorError ? "error" : "default"}
             message={colorError ?? "Black or white brand colours show the initials on ink."}
