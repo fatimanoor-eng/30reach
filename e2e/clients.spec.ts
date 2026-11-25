@@ -299,3 +299,81 @@ test("only tracked platforms show in the sidebar and switch", async ({ page }, i
   await expect(nav.getByRole("link", { name: "Instagram" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "LinkedIn" })).toHaveCount(0);
 });
+
+// ───────────── No active client (UI fixes, 25 Nov): every client archived
+
+test("no active clients — no loop; Restore, Add client (Close comes back), Settings and Sign out", async ({
+  page,
+}, info) => {
+  const archivedObu = { ...OBU, archived_at: "2026-11-20T00:00:00Z" };
+  let restored = false;
+  const patches: unknown[] = [];
+  await page.route("**/rest/v1/clients**", (route) => {
+    const req = route.request();
+    if (req.method() === "PATCH") {
+      patches.push(req.postDataJSON());
+      restored = true;
+      return route.fulfill({ status: 204, body: "" });
+    }
+    const obu = restored ? OBU : archivedObu;
+    const all = [obu, OLD].map((c) => ({ ...c, country: "US", language: "en" }));
+    const slug = new URL(req.url()).searchParams.get("slug");
+    const list = slug ? all.filter((c) => `eq.${c.slug}` === slug) : all;
+    const single = (req.headers()["accept"] ?? "").includes("vnd.pgrst.object");
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(single ? list[0] : list),
+    });
+  });
+  const urls: string[] = [];
+  page.on("framenavigated", (f) => {
+    if (f === page.mainFrame()) urls.push(new URL(f.url()).pathname);
+  });
+
+  // An archived client's link → its page path, which says there's no active client. No redirect loop.
+  await ready(page, "/c/obu-health/overview");
+  await expect(page.getByRole("heading", { level: 1, name: "No active clients" })).toBeVisible();
+  const settled = urls.length;
+  await page.waitForTimeout(1000);
+  expect(urls.length).toBe(settled); // nothing keeps redirecting
+  await expect(page).toHaveURL(/\/overview$/);
+  const archived = page.getByRole("list", { name: "Archived clients" });
+  await expect(archived.getByRole("listitem")).toHaveText([/OBU Health/, /Aardvark Labs/]);
+  await expect(page.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  await noSidewaysScroll(page);
+  if (info.project.name === "mobile-390") await tapTargetsOk(page);
+  await expect(page).toHaveScreenshot("no-active-clients.png", { fullPage: true });
+
+  // Add client: an archived client's site doesn't block (it offers Restore); Close comes back here.
+  await page.getByRole("link", { name: "Add client" }).click();
+  await expect(page).toHaveURL(/\/add-client$/);
+  await page.getByLabel("Website").fill("obuhealth.com");
+  await expect(
+    page.getByText("OBU Health (archived) uses obuhealth.com.", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Restore OBU Health" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Scan website" })).toBeEnabled();
+  await page.getByLabel("Website").fill("");
+  await page.getByRole("button", { name: /Close/ }).first().click();
+  await expect(page.getByRole("heading", { level: 1, name: "No active clients" })).toBeVisible();
+
+  // Settings without a client: team-wide cards and Sign out; "← Clients" goes back.
+  await page.getByRole("link", { name: "Settings" }).click();
+  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+  await expect(page.getByText("Data", { exact: true })).toHaveCount(0); // per-client cards left out
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot("no-client-settings.png");
+  await page.getByRole("link", { name: "Clients" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "No active clients" })).toBeVisible();
+
+  // Restore opens the client.
+  await page.getByRole("button", { name: "Restore OBU Health" }).click();
+  await expect(page).toHaveURL(/\/c\/obu-health\/overview$/);
+  expect(patches[0]).toEqual({ archived_at: null, archived_by: null });
+  await expect(page.getByText("OBU Health restored")).toBeVisible();
+});
