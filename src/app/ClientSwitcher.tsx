@@ -27,7 +27,8 @@ import { ClientMark } from "./ClientMark";
  * Archived (n) (16c), Slice 17c.
  */
 
-type MenuVariant = "popover" | "sheet";
+/** "page" = the Pick a client screen (17h): roomy rows, no Archived section, no current client. */
+type MenuVariant = "popover" | "sheet" | "page";
 
 /** Switching keeps the page you're on (Calendar → the other client's Calendar), without its query. */
 function useSwitchTarget() {
@@ -36,13 +37,24 @@ function useSwitchTarget() {
   return (slug: string) => clientPath(slug, page === "/" ? "/overview" : page);
 }
 
-function ClientMenu({ variant, onPick }: { variant: MenuVariant; onPick: () => void }) {
+export function ClientMenu({
+  variant,
+  onPick,
+  hrefFor,
+}: {
+  variant: MenuVariant;
+  onPick: () => void;
+  /** Where a client's row goes (default: the same page in that client). */
+  hrefFor?: (slug: string) => string;
+}) {
   const clients = useClients();
   const current = useClient().data;
   const lastPulls = useLastPulls();
-  const target = useSwitchTarget();
+  const switchTarget = useSwitchTarget();
+  const target = hrefFor ?? switchTarget;
   const [query, setQuery] = useState("");
-  const sheet = variant === "sheet";
+  const page = variant === "page";
+  const sheet = variant === "sheet" || page;
 
   const ordered = orderClients(clients.data ?? [], current?.id);
   const shown = filterClients(ordered, query);
@@ -141,12 +153,14 @@ function ClientMenu({ variant, onPick }: { variant: MenuVariant; onPick: () => v
         <Plus size={18} aria-hidden="true" className="shrink-0" />
         Add client
       </Link>
-      <ArchivedSection
-        clients={(clients.data ?? []).filter((c) => c.archived_at)}
-        row={row}
-        sheet={sheet}
-        onPick={onPick}
-      />
+      {!page && (
+        <ArchivedSection
+          clients={(clients.data ?? []).filter((c) => c.archived_at)}
+          row={row}
+          sheet={sheet}
+          onPick={onPick}
+        />
+      )}
     </div>
   );
 }

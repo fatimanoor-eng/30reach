@@ -14,6 +14,7 @@
   --blip-think: 2.4s;
   --blip-success: 1.8s;
   --blip-error: 5s;
+  --blip-wave: 5s;
 }
 
 .blip .b-body {
@@ -90,6 +91,34 @@
   }
   50% {
     transform: scaleY(0.12);
+  }
+}
+
+/* ───────────── Wave ("Pick a client", 17h): three rocks of the raised right arm, then a rest; breathing
+   and blinking like Idle. Frame 0 is the static raised-arm pose. */
+.blip-wave .b-body {
+  animation: blip-breathe var(--blip-wave) ease-in-out infinite;
+}
+.blip-wave .b-eye {
+  animation: blip-blink var(--blip-wave) linear infinite;
+}
+.blip-wave .b-arm-r {
+  animation: blip-wave-arm var(--blip-wave) ease-in-out infinite;
+}
+@keyframes blip-wave-arm {
+  0%,
+  36%,
+  100% {
+    transform: rotate(0deg);
+  }
+  6%,
+  18%,
+  30% {
+    transform: rotate(14deg);
+  }
+  12%,
+  24% {
+    transform: rotate(-8deg);
   }
 }
 

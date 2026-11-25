@@ -1,6 +1,13 @@
 import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BlipError, BlipIdle, BlipScanning, BlipSuccess, BlipThinking } from "./BlipPoses";
+import {
+  BlipError,
+  BlipIdle,
+  BlipScanning,
+  BlipSuccess,
+  BlipThinking,
+  BlipWave,
+} from "./BlipPoses";
 
 /** jsdom has no AnimationEvent: an "animationend" that carries animationName, like a browser's. */
 function animationEnd(el: Element, animationName: string) {
@@ -25,6 +32,7 @@ describe("Blip poses (Slice 13a)", () => {
       [BlipThinking, "blip-thinking", ["b-dot-1", "b-dot-2", "b-dot-3"]],
       [BlipSuccess, "blip-success", ["b-figure", "b-shadow", "b-spark-1"]],
       [BlipError, "blip-error", ["b-bulb", "b-bulb-dim", "b-sparks", "b-sweat"]],
+      [BlipWave, "blip-wave", ["b-body", "b-eye", "b-arm-r"]],
     ] as const;
     for (const [Pose, cls, parts] of poses) {
       const { container, unmount } = render(<Pose />);

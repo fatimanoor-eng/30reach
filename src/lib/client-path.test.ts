@@ -7,7 +7,7 @@ import {
   lastPullLabel,
   markColors,
   orderClients,
-  pickLastClient,
+  lastClientChoice,
   slugOf,
 } from "./client-path";
 
@@ -38,18 +38,38 @@ describe("client paths", () => {
   });
 });
 
-describe("pickLastClient", () => {
+describe("lastClientChoice (17b; Pick a client)", () => {
   const all = [obu, best, demo, old];
-  it("prefers your last client on any device, then this browser's, then A–Z", () => {
-    expect(pickLastClient(all, { profileClientId: "3", storedSlug: "obu-health" })).toBe(demo);
-    expect(pickLastClient(all, { profileClientId: null, storedSlug: "obu-health" })).toBe(obu);
-    expect(pickLastClient(all, { profileClientId: "gone", storedSlug: "gone" })).toBe(best);
+  it("opens your last client on any device, then this browser's", () => {
+    expect(lastClientChoice(all, { profileClientId: "3", storedSlug: "obu-health" })).toEqual({
+      kind: "open",
+      client: demo,
+    });
+    expect(lastClientChoice(all, { profileClientId: null, storedSlug: "obu-health" })).toEqual({
+      kind: "open",
+      client: obu,
+    });
   });
-  it("never picks an archived client, even your last one (17c)", () => {
-    expect(pickLastClient([old, obu], {})).toBe(obu);
-    expect(pickLastClient([old, obu], { profileClientId: "4" })).toBe(obu);
-    expect(pickLastClient([old], {})).toBeUndefined();
-    expect(pickLastClient([], {})).toBeUndefined();
+  it("first visit, or a deleted last client: the picker (no A–Z guess)", () => {
+    expect(lastClientChoice(all, {})).toEqual({ kind: "pick", archived: null });
+    expect(lastClientChoice(all, { profileClientId: "gone", storedSlug: "gone" })).toEqual({
+      kind: "pick",
+      archived: null,
+    });
+  });
+  it("an archived last client: the picker names it (17c: never opened)", () => {
+    expect(lastClientChoice([old, obu], { profileClientId: "4" })).toEqual({
+      kind: "pick",
+      archived: old,
+    });
+    expect(lastClientChoice([old, obu], { storedSlug: "aardvark-labs" })).toEqual({
+      kind: "pick",
+      archived: old,
+    });
+  });
+  it("no active client at all: Add client", () => {
+    expect(lastClientChoice([old], { profileClientId: "4" })).toEqual({ kind: "none" });
+    expect(lastClientChoice([], {})).toEqual({ kind: "none" });
   });
 });
 

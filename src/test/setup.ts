@@ -64,7 +64,11 @@ vi.mock("../lib/supabase", () => {
   // Per-table answers. Every query method chains; .single()/.maybeSingle() return the row,
   // awaiting the query itself returns the list.
   const tables: Record<string, { row: unknown; list: unknown[] }> = {
-    profiles: { row: { role: "admin", full_name: "Fatima Noor" }, list: [] },
+    // A returning user (Slice 17h): without a last client, "/" shows Pick a client instead.
+    profiles: {
+      row: { role: "admin", full_name: "Fatima Noor", last_client_id: "client-1" },
+      list: [],
+    },
     // Deliberately not "OBU Health": proves the shell shows the database name, not sample data.
     // Slice 17b: the client is in the URL (/c/northwind-clinic/…); "/" and old paths redirect there.
     clients: { row: northwind, list: [northwind] },

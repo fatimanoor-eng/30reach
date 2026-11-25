@@ -38,22 +38,31 @@ export function slugOf(pathname: string): string | undefined {
 }
 
 /**
- * Which client "/" and old links (/overview, /ideas?idea=…) open: your last client on any device
- * (profiles.last_client_id), else this browser's, else the first one A–Z. Archived clients are never
- * picked (Slice 17c: their links send you here).
+ * Where "/" and old links (/overview, /ideas?idea=…) go (Slice 17b; "Pick a client" since 17h):
+ * - `open`: your last client on any device (profiles.last_client_id), else this browser's, if still active;
+ * - `pick`: none remembered (first visit), or the remembered one was archived / deleted → the picker.
+ *   `archived` = that archived client, so the picker can name it;
+ * - `none`: no active client at all → Add client.
  */
-export function pickLastClient<
+export type LastClientChoice<T> =
+  { kind: "open"; client: T } | { kind: "pick"; archived: T | null } | { kind: "none" };
+
+export function lastClientChoice<
   T extends Pick<ClientSummary, "id" | "slug" | "name" | "archived_at">,
 >(
   clients: readonly T[],
   { profileClientId, storedSlug }: { profileClientId?: string | null; storedSlug?: string | null },
-): T | undefined {
+): LastClientChoice<T> {
   const active = clients.filter((c) => !c.archived_at);
-  return (
-    active.find((c) => c.id === profileClientId) ??
-    active.find((c) => c.slug === storedSlug) ??
-    [...active].sort(byName)[0]
-  );
+  if (active.length === 0) return { kind: "none" };
+  const remembered =
+    active.find((c) => c.id === profileClientId) ?? active.find((c) => c.slug === storedSlug);
+  if (remembered) return { kind: "open", client: remembered };
+  const archived =
+    clients.find((c) => c.archived_at && c.id === profileClientId) ??
+    clients.find((c) => c.archived_at && c.slug === storedSlug) ??
+    null;
+  return { kind: "pick", archived };
 }
 
 const byName = (a: { name: string }, b: { name: string }) =>

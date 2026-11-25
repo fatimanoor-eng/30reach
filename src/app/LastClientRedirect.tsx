@@ -2,12 +2,14 @@ import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router";
 import { LoadError } from "../components/LoadError";
 import { useProfile } from "../lib/auth/useProfile";
-import { clientPath, pickLastClient } from "../lib/client-path";
+import { clientPath, lastClientChoice } from "../lib/client-path";
 import { readStoredSlug, useClients } from "../lib/useClient";
+import { PickClientPage } from "./PickClientPage";
 
 /**
  * "/" and every address without a client (/overview, /ideas?idea=…, sign-in redirects, old bookmarks)
- * → the same page for your last client (Slice 17b): profile (any device) → this browser → first A–Z.
+ * → the same page for your last client (Slice 17b): profile (any device) → this browser. No last client
+ * (first visit), or it was archived / deleted → "Pick a client" (17h). No active client → Add client.
  */
 export function LastClientRedirect() {
   const location = useLocation();
@@ -26,12 +28,14 @@ export function LastClientRedirect() {
   if (!clients.data || profile.isPending)
     return <div className="min-h-dvh bg-bg" aria-busy="true" />;
 
-  const client = pickLastClient(clients.data, {
+  const choice = lastClientChoice(clients.data, {
     profileClientId: profile.data?.last_client_id,
     storedSlug: readStoredSlug(),
   });
   // No active client at all (all archived, or none yet): Add client (Slice 17c).
-  if (!client) return <Navigate to="/add-client" replace state={location.state} />;
+  if (choice.kind === "none") return <Navigate to="/add-client" replace state={location.state} />;
+  if (choice.kind === "pick") return <PickClientPage archivedName={choice.archived?.name} />;
+  const client = choice.client;
   const page = pathname === "/" ? "/overview" : pathname;
   // The state carries a notice along (e.g. "{Client} is archived…", LocationNotice).
   return (

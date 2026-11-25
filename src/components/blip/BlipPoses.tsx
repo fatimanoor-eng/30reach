@@ -1,5 +1,5 @@
 // Generated from Figma (Blip/Idle 6914:2607, Blip/Success 6916:2639, Blip/Error 6916:2671, Blip/Scanning 6916:2579,
-// Blip/Thinking 6916:2607). Illustration colours are part of the art.
+// Blip/Thinking 6916:2607). Illustration colours are part of the art. Wave (17h) is built from Idle + Scanning.
 //
 // Slice 13: the parts are grouped (b-body, b-antenna, b-arm-l, b-eye, …) and animated with CSS keyframes
 // in src/styles/blip.css (transform and opacity only; DESIGN_SYSTEM › Blip). Frame zero of every loop
@@ -116,6 +116,145 @@ export function BlipIdle({ title, still = false, className, ...props }: BlipProp
           />
           <path
             d="M204 203.5C209.247 203.5 213.5 199.247 213.5 194C213.5 188.753 209.247 184.5 204 184.5C198.753 184.5 194.5 188.753 194.5 194C194.5 199.247 198.753 203.5 204 203.5Z"
+            fill="#F4EB02"
+          />
+        </g>
+        <path
+          d="M130 96C176 96 192 108 194 146C196 190 184 222 130 222C76 222 64 190 66 146C68 108 84 96 130 96Z"
+          fill="#F4EB02"
+        />
+        <path
+          d="M79 203C83.8281 215.667 99.9219 222 130.5 222C161.078 222 177.172 215.667 182 203C154.641 212.5 106.359 212.5 79 203Z"
+          fill="#DCCB00"
+        />
+        <path d="M87 192H80V199H87V192Z" fill="#0B0B0C" />
+        <path d="M94 199H87V206H94V199Z" fill="#0B0B0C" />
+        <path
+          opacity="0.8"
+          d="M94 175C98.9706 175 103 170.971 103 166C103 161.029 98.9706 157 94 157C89.0294 157 85 161.029 85 166C85 170.971 89.0294 175 94 175Z"
+          fill="#F8678F"
+        />
+        <path
+          opacity="0.8"
+          d="M166 175C170.971 175 175 170.971 175 166C175 161.029 170.971 157 166 157C161.029 157 157 161.029 157 166C157 170.971 161.029 175 166 175Z"
+          fill="#F8678F"
+        />
+        <g className="b-eyes">
+          <g className="b-eye">
+            <path
+              d="M106 151C110.694 151 114.5 146.075 114.5 140C114.5 133.925 110.694 129 106 129C101.306 129 97.5 133.925 97.5 140C97.5 146.075 101.306 151 106 151Z"
+              fill="#0B0B0C"
+            />
+            <path
+              d="M109 139C110.657 139 112 137.657 112 136C112 134.343 110.657 133 109 133C107.343 133 106 134.343 106 136C106 137.657 107.343 139 109 139Z"
+              fill="white"
+            />
+          </g>
+          <g className="b-eye">
+            <path
+              d="M154 151C158.694 151 162.5 146.075 162.5 140C162.5 133.925 158.694 129 154 129C149.306 129 145.5 133.925 145.5 140C145.5 146.075 149.306 151 154 151Z"
+              fill="#0B0B0C"
+            />
+            <path
+              d="M157 139C158.657 139 160 137.657 160 136C160 134.343 158.657 133 157 133C155.343 133 154 134.343 154 136C154 137.657 155.343 139 157 139Z"
+              fill="white"
+            />
+          </g>
+        </g>
+        <g className="b-mouth">
+          <path
+            d="M120 170C126.667 176.667 133.333 176.667 140 170"
+            stroke="#0B0B0C"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+        </g>
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * Wave ("Pick a client", Slice 17h): Idle with the right arm raised. It rocks from the shoulder three times,
+ * then rests (breathing and blinking go on). No reference GIF: built from the Idle and Scanning art. Under
+ * reduced motion (or `still`) it's the static raised-arm pose.
+ */
+export function BlipWave({ title, still = false, className, ...props }: BlipProps) {
+  const ref = useOffscreenPause();
+  return (
+    <svg
+      ref={ref}
+      className={blipClass("wave", still, className)}
+      viewBox="0 0 260 280"
+      fill="none"
+      role={title ? "img" : undefined}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+      {...props}
+    >
+      <path
+        opacity="0.1"
+        d="M130 258C155.405 258 176 255.314 176 252C176 248.686 155.405 246 130 246C104.595 246 84 248.686 84 252C84 255.314 104.595 258 130 258Z"
+        fill="black"
+      />
+      <g className="b-legs">
+        <path
+          d="M110 214H104C100.686 214 98 216.686 98 220V238C98 241.314 100.686 244 104 244H110C113.314 244 116 241.314 116 238V220C116 216.686 113.314 214 110 214Z"
+          fill="#DCCB00"
+        />
+        <path
+          d="M156 214H150C146.686 214 144 216.686 144 220V238C144 241.314 146.686 244 150 244H156C159.314 244 162 241.314 162 238V220C162 216.686 159.314 214 156 214Z"
+          fill="#DCCB00"
+        />
+        <path
+          d="M114.5 236H99.5C95.9101 236 93 238.91 93 242.5C93 246.09 95.9101 249 99.5 249H114.5C118.09 249 121 246.09 121 242.5C121 238.91 118.09 236 114.5 236Z"
+          fill="#0B0B0C"
+        />
+        <path
+          d="M160.5 236H145.5C141.91 236 139 238.91 139 242.5C139 246.09 141.91 249 145.5 249H160.5C164.09 249 167 246.09 167 242.5C167 238.91 164.09 236 160.5 236Z"
+          fill="#0B0B0C"
+        />
+      </g>
+      <g className="b-body">
+        <g className="b-antenna">
+          <path
+            d="M130 98C130 86 130 74 130 62"
+            stroke="#0B0B0C"
+            strokeWidth="6"
+            strokeLinecap="round"
+          />
+          <path
+            d="M130 73C136.075 73 141 68.0751 141 62C141 55.9249 136.075 51 130 51C123.925 51 119 55.9249 119 62C119 68.0751 123.925 73 130 73Z"
+            fill="#F8678F"
+          />
+          <path
+            opacity="0.8"
+            d="M133.5 61.5C135.157 61.5 136.5 60.1569 136.5 58.5C136.5 56.8431 135.157 55.5 133.5 55.5C131.843 55.5 130.5 56.8431 130.5 58.5C130.5 60.1569 131.843 61.5 133.5 61.5Z"
+            fill="white"
+          />
+        </g>
+        <g className="b-arm-l">
+          <path
+            d="M72 160C60 168 54.6667 178.667 56 192"
+            stroke="#F4EB02"
+            strokeWidth="15"
+            strokeLinecap="round"
+          />
+          <path
+            d="M56 203.5C61.2467 203.5 65.5 199.247 65.5 194C65.5 188.753 61.2467 184.5 56 184.5C50.7533 184.5 46.5 188.753 46.5 194C46.5 199.247 50.7533 203.5 56 203.5Z"
+            fill="#F4EB02"
+          />
+        </g>
+        {/* Raised right arm: the Scanning pose's raised left arm, mirrored (x → 260 − x). */}
+        <g className="b-arm-r">
+          <path
+            d="M188 156C206 142 213.333 125.333 210 106"
+            stroke="#F4EB02"
+            strokeWidth="15"
+            strokeLinecap="round"
+          />
+          <path
+            d="M210 115.5C215.247 115.5 219.5 111.247 219.5 106C219.5 100.753 215.247 96.5 210 96.5C204.753 96.5 200.5 100.753 200.5 106C200.5 111.247 204.753 115.5 210 115.5Z"
             fill="#F4EB02"
           />
         </g>

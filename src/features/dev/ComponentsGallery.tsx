@@ -8,6 +8,7 @@ import {
   BlipScanning,
   BlipSuccess,
   BlipThinking,
+  BlipWave,
 } from "../../components/blip/BlipPoses";
 import { BottomSheet } from "../../components/BottomSheet";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -246,6 +247,7 @@ function BlipGallery() {
     ["Idle", <BlipIdle key="i" className="h-auto w-28" title="Blip idle" />],
     ["Scanning", <BlipScanning key="s" className="h-auto w-28" title="Blip scanning" />],
     ["Thinking", <BlipThinking key="t" className="h-auto w-28" title="Blip thinking" />],
+    ["Wave", <BlipWave key="w" className="h-auto w-28" title="Blip waving" />],
     [
       "Success (once)",
       <BlipSuccess key={`ok-${run}`} className="h-auto w-28" title="Blip success" />,
