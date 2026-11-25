@@ -13,6 +13,7 @@ import {
   makeFacebookPosts,
   makeLinkedInPosts,
   makePosts,
+  makeXPosts,
   NOW,
   solidPng,
 } from "./overview-fixtures";
@@ -34,7 +35,8 @@ async function setup(
   page: Page,
   pulls: (typeof LATEST)[] = [LATEST],
   /** Slice 16b: WeightWatchers and Ro have Facebook pages (and posts). Off = nobody has one. */
-  opts: { facebook?: boolean } = {},
+  /** Slice 17g: Ro and LifeMD have X handles (and posts). */
+  opts: { facebook?: boolean; x?: boolean } = {},
 ) {
   await page.clock.setFixedTime(NOW);
   await stubSupabase(page);
@@ -52,6 +54,7 @@ async function setup(
             opts.facebook && (b.id === "c-ww" || b.id === "c-ro")
               ? `https://www.facebook.com/${b.id}`
               : null,
+          x_handle: opts.x && (b.id === "c-ro" || b.id === "c-lifemd") ? b.id.slice(2) : null,
         })),
       ),
     ),
@@ -73,8 +76,9 @@ async function setup(
   const facebook = opts.facebook
     ? makeFacebookPosts(LATEST.id, new Date(LATEST.started_at), { withThumbs: true })
     : [];
+  const x = opts.x ? makeXPosts(LATEST.id, new Date(LATEST.started_at)) : [];
   await page.route("**/rest/v1/posts**", (r) =>
-    r.fulfill(json([...posts, ...linkedIn, ...facebook])),
+    r.fulfill(json([...posts, ...linkedIn, ...facebook, ...x])),
   );
   await page.route("**/storage/v1/object/sign/post-thumbs**", async (r) => {
     if (r.request().method() === "POST") {
@@ -258,6 +262,41 @@ test("Facebook page (Slice 16b) — reactions, shares, video views, 12-post cap 
   const dialog = page.getByRole("dialog", { name: "Save to idea board" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("Facebook", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+});
+
+test("X page (Slice 17g) — views, likes, replies, reposts; text posts are Posts; save as idea", async ({
+  page,
+}, info) => {
+  const mobile = info.project.name === "mobile-390";
+  await setup(page, [LATEST], { x: true });
+  await ready(page, "/x");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveAccessibleName(
+    mobile ? /Social/ : /X/,
+  );
+  await expect(page.getByRole("heading", { name: "Top posts on X" })).toBeVisible();
+  if (!mobile)
+    await expect(
+      page.getByText(/likes \+ replies \/ post · \d+ avg reposts/).filter({ visible: true }),
+    ).toBeVisible();
+  await expect(
+    page
+      .getByText(/views · .*likes · .*repl(y|ies) · .*reposts?/)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  await expect(currentPlatform(page, "X", mobile)).toBeVisible();
+  await checks(page, mobile, "social-x.png");
+
+  // X posts can be saved as ideas (platform + format from the post).
+  await page
+    .getByRole("button", { name: "Save as idea" })
+    .filter({ visible: true })
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Save to idea board" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("X", { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "Cancel" }).click();
 });
 

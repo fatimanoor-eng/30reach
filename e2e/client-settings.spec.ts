@@ -72,9 +72,10 @@ test("Client settings like 16 / M19", async ({ page }, info) => {
   const platforms = page
     .getByRole("region", { name: "Platforms" })
     .or(page.locator("section").filter({ has: page.getByRole("heading", { name: "Platforms" }) }));
-  await expect(platforms.getByText("Always on")).toHaveCount(2); // Instagram, TikTok
+  // Slice 17g: X is supported, so OBU's website-linked X is always on.
+  await expect(platforms.getByText("Always on")).toHaveCount(3); // Instagram, TikTok, X
   await expect(platforms.getByRole("switch")).toHaveCount(2); // LinkedIn, Facebook
-  await expect(platforms.getByText("Coming later")).toHaveCount(3); // X, Pinterest, YouTube
+  await expect(platforms.getByText("Coming later")).toHaveCount(2); // Pinterest, YouTube
   await expect(platforms.getByRole("switch", { name: "Track Instagram" })).toHaveCount(0);
   // Checks come from the regulated topics (code, not the model).
   await expect(page.getByText("Health claims · on")).toBeVisible();

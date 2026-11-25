@@ -307,6 +307,15 @@ test("15d / M16 review, then Create client and 15e first pull", async ({ page },
       account_url: null,
       client_id: "client-new",
     },
+    {
+      // Slice 17g: X is supported → an off team row like LinkedIn.
+      platform: "x",
+      state: "off",
+      source: "team",
+      account_handle: null,
+      account_url: null,
+      client_id: "client-new",
+    },
   ]);
   expect((calls.inserts.competitors[0] as { name: string }[]).map((c) => c.name)).toEqual([
     "Carnaby & Vine",

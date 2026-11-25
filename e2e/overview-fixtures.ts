@@ -184,6 +184,47 @@ export function makeFacebookPosts(
   );
 }
 
+const X_FORMATS = ["text", "image", "video", "carousel", "text"] as const;
+const X_CAPTIONS = [
+  "Your questions, answered: what to expect in week one",
+  "New: same-day visits in 12 more states",
+  "Myth: you need a perfect diet to start. Fact: start where you are",
+  "A doctor explains GLP-1s in plain words",
+];
+
+/** X posts (Slice 17g): Ro posts most, LifeMD a few. Replies / reposts are already dropped by the pull. */
+export function makeXPosts(pullId: string, pullStart: Date) {
+  const perBrand: [string, string, number][] = [
+    ["c-ro", "ro", 9],
+    ["c-lifemd", "lifemd", 4],
+  ];
+  return perBrand.flatMap(([brandId, handle, count], bi) =>
+    Array.from({ length: count }, (_, k) => {
+      const format = X_FORMATS[(k + bi) % X_FORMATS.length];
+      const base = 40 - bi * 15;
+      return {
+        id: `${pullId}-x${bi}-${k}`,
+        competitor_id: brandId,
+        platform: "x",
+        external_id: `x-${brandId}-${k}`,
+        url: `https://x.com/${handle}/status/19${bi}${k}000`,
+        posted_at: new Date(
+          pullStart.getTime() - (k * 3 + bi) * 86_400_000 - ((k * 7) % 9) * 3_600_000,
+        ).toISOString(),
+        format,
+        caption: X_CAPTIONS[(bi + k) % X_CAPTIONS.length],
+        hashtags: [],
+        likes: Math.round(base * (1 + ((k * 3) % 5) / 2)),
+        comments: 2 + (k % 4),
+        views: 1_500 + k * 700,
+        shares: 1 + ((k * 2) % 5),
+        counts_hidden: false,
+        thumbnail_path: null,
+      };
+    }),
+  );
+}
+
 /** Tiny solid-colour PNG for stubbed thumbnails. */
 export function solidPng(
   width: number,
