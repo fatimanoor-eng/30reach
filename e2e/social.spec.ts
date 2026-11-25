@@ -414,7 +414,7 @@ test("platforms nobody has an account on are hidden; a direct link keeps its emp
   if (desktop) await expect(page).toHaveScreenshot("social-facebook-nobody.png");
 });
 
-test("platform switch with Facebook: All + icons on tablet / desktop, phone sheet", async ({
+test("platform switch with Facebook: names on desktop, icons on tablet, phone sheet", async ({
   page,
 }, info) => {
   const mobile = info.project.name === "mobile-390";
@@ -432,7 +432,9 @@ test("platform switch with Facebook: All + icons on tablet / desktop, phone shee
     await sheet.getByRole("button", { name: "Facebook" }).click();
   } else {
     const fb = page.getByRole("radio", { name: "Facebook" });
-    // Polish: "All" + icon-only segments at every width (the name is the aria-label and a tooltip).
+    // Polish 2: desktop = icon + full name; tablet = icon only (aria-label + tooltip).
+    if (info.project.name === "desktop-1440") await expect(fb.getByText("Facebook")).toBeVisible();
+    else await expect(fb.getByText("Facebook")).toBeHidden();
     await expect(fb.getByText("FB")).toHaveCount(0);
     await expect(page.getByRole("radio", { name: "All" })).toBeVisible();
     const nav = page.getByRole("navigation", { name: "Main" }).filter({ visible: true });

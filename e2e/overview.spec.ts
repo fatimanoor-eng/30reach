@@ -534,3 +534,52 @@ test("carried platforms (18b): the Last pulled line, What's new and the platform
     page.getByText(/^Last pulled 16 Nov, 16:20$/).filter({ visible: true }),
   ).toBeVisible();
 });
+
+test("pointer cursor on clickables, not-allowed when disabled (polish 2)", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-1440", "a mouse check, once");
+  await setup(page, [LATEST, PREVIOUS]);
+  await ready(page);
+  const cursor = (l: import("@playwright/test").Locator) =>
+    l.evaluate((el) => getComputedStyle(el).cursor);
+  const pointer = [
+    page.getByRole("button", { name: "Refresh" }).filter({ visible: true }).first(), // button
+    page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Calendar" }), // link
+    page.getByRole("group", { name: "Brands" }).getByRole("button", { name: "Hims" }), // pill
+    page.getByRole("radio", { name: "Instagram" }).first(), // platform segment
+    page.getByRole("radio", { name: "7 days" }), // range segment
+    page.getByRole("button", { name: /^Client: OBU Health/ }).first(), // the client card
+    page.getByRole("button", { name: "See all" }), // a text link button
+    page.getByRole("button", { name: "Ask Blip what changed" }),
+  ];
+  // poll: a button can re-render while the page settles (a detached node has no computed style).
+  for (const l of pointer) await expect.poll(() => cursor(l)).toBe("pointer");
+  // Disabled: the 90-day segment.
+  await expect.poll(() => cursor(page.getByRole("radio", { name: "90 days" }))).toBe("not-allowed");
+
+  // Checkboxes (the shared one in Refresh): the input and its row.
+  await page.route("**/functions/v1/pull-start**", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "preview",
+        estimate: {
+          perPlatform: { instagram: { tasks: 6, expected: 36, max: 48 } },
+          expected: 36,
+          max: 48,
+        },
+        credits: { remaining: 500, plan: 1000, periodStart: null, resetsAt: null },
+        lastPullAt: LATEST.started_at,
+        brands: 6,
+        pageCap: 4,
+        windowDays: 30,
+        isTest: false,
+      }),
+    }),
+  );
+  await page.getByRole("button", { name: "Refresh" }).filter({ visible: true }).first().click();
+  const box = page.getByRole("dialog").getByRole("checkbox", { name: /Instagram/ });
+  await expect.poll(() => cursor(box)).toBe("pointer");
+});
