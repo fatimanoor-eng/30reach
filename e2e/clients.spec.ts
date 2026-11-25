@@ -69,7 +69,8 @@ test.beforeEach(async ({ page }) => {
   await stubSupabase(page);
   await stubClients(page, [OBU, BEST, DEMO, OLD]);
   await stubPulls(page);
-  await signInAs(page);
+  // Nothing remembered in this browser (Pick a client tests); the other tests open /c/… or set the profile.
+  await signInAs(page, { lastClient: null });
 });
 
 /** The switcher's trigger at this size (sidebar card, rail mark or app-bar pill). */
@@ -91,10 +92,107 @@ test("old links go to your last client, keeping the page and its query", async (
   await expect(page).toHaveURL(/\/c\/all-the-best-co\/overview$/);
 });
 
-test("without a last client, the first active client A–Z opens", async ({ page }) => {
+// ───────────── Pick a client (17h): only when there's no last client to open
+
+const pickHeading = (page: Page) => page.getByRole("heading", { name: "Pick a client", level: 1 });
+
+test("Pick a client — a first visit picks, saves and opens that client's Overview", async ({
+  page,
+}, info) => {
+  const remembered: unknown[] = [];
+  await page.route("**/rest/v1/rpc/set_last_client", async (route) => {
+    remembered.push(route.request().postDataJSON());
+    await route.fulfill({ status: 204, body: "" });
+  });
   await ready(page, "/");
-  // Aardvark Labs is archived, so All The Best Co comes first.
+  await expect(pickHeading(page)).toBeVisible();
+  await expect(page).toHaveURL(/\/$/); // nothing guessed: no A–Z client opened
+  await expect(
+    page.getByText("Choose who you’re working on. You can switch any time from the client menu."),
+  ).toBeVisible();
+  const list = page.getByRole("list", { name: "Clients" });
+  await expect(list.getByRole("link")).toHaveText([
+    /All The Best Co.*2 days ago/,
+    /Demo Wellness Co.*Demo/i,
+    /OBU Health.*Today/,
+  ]);
+  // Archived clients aren't offered; fewer than 6 clients → no search.
+  await expect(page.getByText("Aardvark Labs")).toHaveCount(0);
+  await expect(page.getByPlaceholder("Search clients")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Add client" })).toHaveAttribute(
+    "href",
+    "/add-client",
+  );
+  await noSidewaysScroll(page);
+  if (info.project.name === "mobile-390") await tapTargetsOk(page);
+  await expect(page).toHaveScreenshot("pick-client.png", { fullPage: true });
+
+  await list.getByRole("link", { name: /All The Best Co/ }).click();
   await expect(page).toHaveURL(/\/c\/all-the-best-co\/overview$/);
+  await expect.poll(() => remembered).toContainEqual({ p_client: BEST.id });
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("30reach:last-client")))
+    .toBe("all-the-best-co");
+});
+
+test("Pick a client — archived last client is named; an old link keeps its page", async ({
+  page,
+}) => {
+  await page.route("**/rest/v1/profiles**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([{ role: "admin", full_name: "Fatima Noor", last_client_id: OLD.id }]),
+    }),
+  );
+  // A raw old link (ready() would put OBU's /c/… in front of it).
+  await page.goto("/calendar?date=2026-12-04");
+  await expect(pickHeading(page)).toBeVisible();
+  await expect(
+    page.getByText("Aardvark Labs is archived. Choose another client to carry on."),
+  ).toBeVisible();
+  await page.getByRole("link", { name: /OBU Health/ }).click();
+  await expect(page).toHaveURL(/\/c\/obu-health\/calendar\?date=2026-12-04$/);
+});
+
+test("Pick a client — a deleted last client, and search from 6 clients", async ({ page }) => {
+  const more = ["Bluebird", "Cedar Dental", "Elm Pharmacy"].map((name, i): TestClient => ({
+    ...BEST,
+    id: `client-x${i}`,
+    slug: name.toLowerCase().replace(/\s+/g, "-"),
+    name,
+    initials: null,
+    brand_color: null,
+  }));
+  await stubClients(page, [OBU, BEST, DEMO, ...more]);
+  await page.route("**/rest/v1/profiles**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      // A client that no longer exists: same as a first visit.
+      body: JSON.stringify([{ role: "admin", full_name: "Fatima Noor", last_client_id: "gone" }]),
+    }),
+  );
+  await ready(page, "/");
+  await expect(pickHeading(page)).toBeVisible();
+  await expect(page.getByText(/Choose who you’re working on/)).toBeVisible();
+  const search = page.getByPlaceholder("Search clients");
+  await search.fill("dent");
+  await expect(page.getByRole("link", { name: /Cedar Dental/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /All The Best Co/ })).toHaveCount(0);
+});
+
+test("returning users never see the picker (last client opens straight away)", async ({ page }) => {
+  await page.route("**/rest/v1/profiles**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([{ role: "admin", full_name: "Fatima Noor", last_client_id: OBU.id }]),
+    }),
+  );
+  await ready(page, "/");
+  await expect(page).toHaveURL(/\/c\/obu-health\/overview$/);
+  await expect(pickHeading(page)).toHaveCount(0);
 });
 
 test("switching keeps the page, drops its query and remembers the client", async ({ page }) => {

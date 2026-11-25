@@ -307,7 +307,18 @@ export async function signInAs(
     email = "fatima.noor@breakthirty.com",
     name = "Fatima Noor",
     fresh = false,
-  }: { email?: string; name?: string; fresh?: boolean } = {},
+    lastClient = "obu-health",
+  }: {
+    email?: string;
+    name?: string;
+    fresh?: boolean;
+    /**
+     * This browser's last client (Slice 17h: without one, "/" and client-less links show "Pick a client").
+     * Default: a returning user of OBU Health. Set once (a later switch in the test isn't overwritten);
+     * null = a first visit.
+     */
+    lastClient?: string | null;
+  } = {},
 ) {
   const exp = Math.floor(Date.now() / 1000) + 24 * 3600;
   const user = {
@@ -333,11 +344,13 @@ export async function signInAs(
     user,
   };
   await page.addInitScript(
-    ([value, isFresh]) => {
+    ([value, isFresh, last]) => {
       localStorage.setItem("30reach-auth", value as string);
       if (isFresh) sessionStorage.setItem("30reach:fresh-sign-in", "1");
+      if (last && !localStorage.getItem("30reach:last-client"))
+        localStorage.setItem("30reach:last-client", last as string);
     },
-    [JSON.stringify(session), fresh] as const,
+    [JSON.stringify(session), fresh, lastClient] as const,
   );
 }
 
