@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { parseHandle } from "../../competitors/competitor-rules";
-import { parseXHandle } from "../../../lib/client-rules";
 import {
   checklistRows,
   competitorMeta,
@@ -16,10 +15,6 @@ import {
 } from "./add-client-rules";
 
 const parse: ParseAccount = (p, v) => {
-  if (p === "x") {
-    const h = parseXHandle(v);
-    return h ? { value: h } : { value: null, error: "bad" };
-  }
   const r = parseHandle(p, v);
   return r.kind === "ok"
     ? { value: r.handle }
@@ -185,6 +180,8 @@ describe("Create rows", () => {
         account_handle: null,
         account_url: null,
       },
+      // Slice 17g: X is supported, so a site without an X link gets an off team row like the others.
+      { platform: "x", state: "off", source: "team", account_handle: null, account_url: null },
     ]);
   });
   it("competitors: ticked ones, found or typed accounts, no duplicate names", () => {

@@ -140,6 +140,9 @@ describe("links", () => {
       "linkedin",
     );
     expect(platformFromUrl("https://notlinkedin.com/x")).toBeNull();
+    expect(platformFromUrl("https://x.com/ro/status/1")).toBe("x");
+    expect(platformFromUrl("https://twitter.com/ro/status/1")).toBe("x");
+    expect(platformFromUrl("https://notx.com/ro")).toBeNull();
     expect(platformFromUrl("https://example.com")).toBeNull();
   });
 });

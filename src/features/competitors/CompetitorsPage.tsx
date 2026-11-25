@@ -214,7 +214,7 @@ export function CompetitorsPage() {
           <EmptyState
             label="No brands yet"
             title="Add the competitors to follow"
-            text="Each brand needs an Instagram or TikTok handle or a LinkedIn or Facebook page. 30reach checks it when you save."
+            text="Each brand needs an Instagram, TikTok or X handle or a LinkedIn or Facebook page. 30reach checks it when you save."
             actions={<Button onClick={() => openPanel({ add: "1" })}>Add competitor</Button>}
           />
         </Card>
@@ -240,6 +240,9 @@ export function CompetitorsPage() {
                   <th scope="col" className="py-4 font-normal">
                     Facebook
                   </th>
+                  <th scope="col" className="py-4 font-normal">
+                    X
+                  </th>
                   <th scope="col" className="py-4 pr-4 font-normal">
                     Posts · 30 days
                   </th>
@@ -264,6 +267,7 @@ export function CompetitorsPage() {
                     <td className="max-w-56 py-4 pr-4">{handleCell(c, "tiktok")}</td>
                     <td className="max-w-56 py-4 pr-4">{handleCell(c, "linkedin")}</td>
                     <td className="max-w-56 py-4 pr-4">{handleCell(c, "facebook")}</td>
+                    <td className="max-w-56 py-4 pr-4">{handleCell(c, "x")}</td>
                     <td className="py-4 pr-4 text-body">{posts(c)}</td>
                     <td className="py-4">{statusChip(c)}</td>
                     <td className="py-4 pr-6">{actions(c)}</td>

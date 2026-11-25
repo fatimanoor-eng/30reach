@@ -10,7 +10,6 @@ import {
   initialsFor,
   landingAfterArchive,
   manualPlatformRows,
-  parseXHandle,
   normaliseWebsite,
   platformRows,
   siteHost,
@@ -140,14 +139,19 @@ describe("platformRows (16 / M19)", () => {
     },
   ];
   it("website = always on, team = toggle, unsupported = coming later; missing supported = off", () => {
+    // Slice 17g: X is supported, so the site's X link is always on.
     expect(platformRows(rows).map((r) => [r.platform, r.kind, r.on, r.meta])).toEqual([
       ["instagram", "always", true, "@obuhealth · from the website"],
       ["tiktok", "toggle", false, "Not tracked"],
       ["linkedin", "toggle", true, "Added by the team · competitors’ pages only"],
       ["facebook", "toggle", false, "Added by the team · competitors’ pages only"],
+      ["x", "always", true, "@obuhealth · from the website"],
       ["pinterest", "later", true, "pinterest.com/obuhealth · from the website"],
-      ["x", "later", true, "@obuhealth · from the website"],
     ]);
+    // A client without an X row can switch it on.
+    expect(
+      platformRows(rows.filter((r) => r.platform !== "x")).find((r) => r.platform === "x"),
+    ).toMatchObject({ kind: "toggle", on: false, meta: "Not tracked" });
   });
 });
 
@@ -167,12 +171,6 @@ describe("landingAfterArchive (16b)", () => {
 });
 
 describe("manual Add client (15f)", () => {
-  it("X handles", () => {
-    expect(parseXHandle("")).toBeUndefined();
-    expect(parseXHandle("@OBUhealth")).toBe("obuhealth");
-    expect(parseXHandle("https://x.com/obuhealth?s=20")).toBe("obuhealth");
-    expect(parseXHandle("not a handle!")).toBeNull();
-  });
   it("tracks the four supported platforms; X only with a handle", () => {
     const rows = manualPlatformRows({
       instagram: "allthebest",

@@ -51,7 +51,9 @@ export function SocialTopPosts({
             ? "Ranked by reactions + comments. Reposts are shown but don’t change the order."
             : platform === "facebook"
               ? "Ranked by reactions + comments. Shares, and views on videos and reels, are shown but don’t change the order."
-              : "Ranked by likes + comments."
+              : platform === "x"
+                ? "Ranked by likes + replies. Views and reposts are shown but don’t change the order."
+                : "Ranked by likes + comments."
       }
       posts={posts}
       brands={brands}
@@ -72,7 +74,7 @@ export function FormatsCard({ stats, platform }: { stats: FormatStat[]; platform
   return (
     <Card
       title="Formats"
-      info={`Avg ${platform === "linkedin" || platform === "facebook" ? "reactions" : "likes"} + comments per post, by format. A format needs at least 3 posts to count as best.`}
+      info={`Avg ${platform === "linkedin" || platform === "facebook" ? "reactions + comments" : platform === "x" ? "likes + replies" : "likes + comments"} per post, by format. A format needs at least 3 posts to count as best.`}
     >
       {stats.length === 0 ? (
         <p className="text-body-sm text-muted">No formats to compare yet.</p>

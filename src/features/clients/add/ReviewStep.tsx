@@ -19,7 +19,6 @@ import { Switch } from "../../../components/Switch";
 import { TextField } from "../../../components/TextField";
 import { checksSummary, initialsFor, normaliseWebsite, siteHost } from "../../../lib/client-rules";
 import { COUNTRIES, countryName, LANGUAGES, languageName } from "../../../lib/countries";
-import type { Platform } from "../../../lib/platforms";
 import { MQ_TABLET_UP, useMediaQuery } from "../../../lib/useMediaQuery";
 import { suggestInitials } from "../../competitors/competitor-rules";
 import { RuleForm } from "../RuleForm";
@@ -420,10 +419,9 @@ function PlatformsCard({
       <ul>
         {draft.platforms.map((p) => {
           const Icon = ICON[p.platform];
-          const later = !isSupported(p.platform) && p.platform !== "x";
-          const parsed = p.input.trim()
-            ? parseAccount(p.platform as Platform | "x", p.input)
-            : null;
+          const later = !isSupported(p.platform);
+          const parsed =
+            p.input.trim() && isSupported(p.platform) ? parseAccount(p.platform, p.input) : null;
           const meta =
             p.source === "website"
               ? `${accountLabel(p.account!)} · ${tabletUp ? "from the website" : "website"}`
@@ -431,9 +429,7 @@ function PlatformsCard({
                 ? "Not on their site"
                 : p.platform === "linkedin"
                   ? "Not on their site · add a company page"
-                  : p.platform === "x"
-                    ? "Not on their site · add a handle"
-                    : "Not on their site · add a handle to track it";
+                  : "Not on their site · add a handle to track it";
           return (
             <li key={p.platform} className="border-t border-line py-3 first:border-t-0">
               <div className="flex min-h-11 items-center gap-3">
@@ -466,17 +462,13 @@ function PlatformsCard({
                   label={`Their ${PLATFORM_LABEL[p.platform]} · optional`}
                   value={p.input}
                   onChange={(e) => update(p, { input: e.target.value })}
-                  placeholder={ACCOUNT_PLACEHOLDER[p.platform as Platform | "x"]}
+                  placeholder={
+                    isSupported(p.platform) ? ACCOUNT_PLACEHOLDER[p.platform] : undefined
+                  }
                   autoCapitalize="none"
                   className="mt-2 pl-8"
                   tone={tried && parsed?.error ? "error" : "default"}
-                  message={
-                    tried && parsed?.error
-                      ? parsed.error
-                      : p.platform === "x"
-                        ? "X is tracked once it ships in 30reach."
-                        : undefined
-                  }
+                  message={tried && parsed?.error ? parsed.error : undefined}
                 />
               )}
             </li>

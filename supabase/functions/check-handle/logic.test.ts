@@ -15,7 +15,17 @@ describe("parseCheckRequest", () => {
     });
   });
   it("rejects unknown platforms and malformed handles", () => {
-    expect(parseCheckRequest({ platform: "x", handle: "ro" })).toEqual({ error: "bad_platform" });
+    expect(parseCheckRequest({ platform: "youtube", handle: "ro" })).toEqual({
+      error: "bad_platform",
+    });
+    // X (17g): handles, links, case
+    expect(parseCheckRequest({ platform: "x", handle: "x.com/@Ro" })).toEqual({
+      platform: "x",
+      handle: "ro",
+    });
+    expect(parseCheckRequest({ platform: "x", handle: "not a handle" })).toEqual({
+      error: "bad_handle",
+    });
     expect(parseCheckRequest({ platform: "tiktok", handle: "a" })).toEqual({ error: "bad_handle" }); // < 2
     expect(parseCheckRequest({ platform: "instagram", handle: "has space" })).toEqual({
       error: "bad_handle",
@@ -103,7 +113,7 @@ describe("Facebook (16a): page link → AnyAPI profile with followers", () => {
     });
   });
   it("costs up to 5 (the 402 check), the others up to 2", () => {
-    expect(CHECK_COST).toEqual({ instagram: 2, tiktok: 2, linkedin: 2, facebook: 5 });
+    expect(CHECK_COST).toEqual({ instagram: 2, tiktok: 2, linkedin: 2, facebook: 5, x: 1 });
   });
   it("found → ok with followers; made-up page → not_found at 0 credits", () => {
     expect(profileOutcome(parseFacebookProfile(fbProfile))).toEqual({

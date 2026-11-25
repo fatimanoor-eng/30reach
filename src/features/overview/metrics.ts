@@ -312,13 +312,17 @@ export function topPosts(posts: OverviewPost[], n = 3): OverviewPost[] {
 /**
  * "18.4K likes · 1.1K comments" (Instagram) / "212K views · 9.8K likes" (TikTok) /
  * "1.2K reactions · 48 comments · 12 reposts" (LinkedIn) /
- * "2.8K views · 12 reactions · 3 comments · 3 shares" (Facebook; views on videos / reels only).
+ * "2.8K views · 12 reactions · 3 comments · 3 shares" (Facebook; views on videos / reels only) /
+ * "4.1K views · 120 likes · 8 replies · 12 reposts" (X; reposts = reposts + quotes).
  */
 export function postStats(p: OverviewPost): string {
   // LinkedIn's and Facebook's 3–4 parts wrap on cards: keep each number with its word ("12\u00a0reposts").
-  const gap = p.platform === "linkedin" || p.platform === "facebook" ? "\u00a0" : " ";
+  const gap =
+    p.platform === "linkedin" || p.platform === "facebook" || p.platform === "x" ? "\u00a0" : " ";
   const part = (n: number | null, word: string) =>
-    n === null ? null : `${formatCompact(n)}${gap}${n === 1 ? word : `${word}s`}`;
+    n === null
+      ? null
+      : `${formatCompact(n)}${gap}${n === 1 ? word : word === "reply" ? "replies" : `${word}s`}`;
   const parts =
     p.platform === "tiktok"
       ? [part(p.views, "view"), part(p.likes, "like")]
@@ -331,7 +335,17 @@ export function postStats(p: OverviewPost): string {
               part(p.comments, "comment"),
               part(p.shares, "share"),
             ]
-          : [p.counts_hidden ? "likes hidden" : part(p.likes, "like"), part(p.comments, "comment")];
+          : p.platform === "x"
+            ? [
+                part(p.views, "view"),
+                part(p.likes, "like"),
+                part(p.comments, "reply"),
+                part(p.shares, "repost"),
+              ]
+            : [
+                p.counts_hidden ? "likes hidden" : part(p.likes, "like"),
+                part(p.comments, "comment"),
+              ];
   return parts.filter(Boolean).join(" · ");
 }
 

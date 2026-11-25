@@ -103,7 +103,7 @@ export default {
     // One task per competitor × platform that has a handle.
     let query = admin
       .from("competitors")
-      .select("id, name, instagram_handle, tiktok_handle, linkedin_url, facebook_url")
+      .select("id, name, instagram_handle, tiktok_handle, linkedin_url, facebook_url, x_handle")
       .eq("client_id", clientId)
       .order("name");
     if (isTest) query = query.eq("id", test.competitorId as string);

@@ -115,6 +115,13 @@ function pageRequest(platform: Platform, target: string, cursor: string | null) 
         ...(cursor ? { max_cursor: cursor } : {}),
       },
     };
+  // X (17g): `target` is the whole search query (xQuery: every brand's handle, since:, no replies / reposts).
+  if (platform === "x")
+    return {
+      provider: "anyapi",
+      capability: "twitter/search",
+      options: { query: target, queryType: "Latest", ...(cursor ? { cursor } : {}) },
+    };
   if (platform === "facebook")
     return {
       provider: "scrapecreators",
@@ -150,6 +157,15 @@ export function scrapePage(platform: Platform, target: string, cursor: string | 
  */
 export function scrapeFacebookProfile(url: string) {
   return alexandria({ provider: "anyapi", capability: "facebook/profile", options: { url } });
+}
+
+/** X handle check (17g): ScrapeCreators x/user-posts, 1 credit (also for a missing account). */
+export function scrapeXUserPosts(handle: string) {
+  return alexandria({
+    provider: "scrapecreators",
+    capability: "x/user-posts",
+    options: { handle, trim: true },
+  });
 }
 
 /** One Alexandria call through Firecrawl /v2/scrape. 429 → FirecrawlRateLimited, other non-2xx → FirecrawlHttpError. */

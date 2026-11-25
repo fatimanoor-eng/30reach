@@ -19,7 +19,7 @@ import { useClients } from "../../../lib/useClient";
 import { ACCOUNT_PLACEHOLDER, parseAccount } from "./account-input";
 import type { NewClient } from "../clients-api";
 
-type Key = Platform | "x";
+type Key = Platform;
 const FIELDS: { key: Key; label: string; icon: ReactNode }[] = [
   { key: "instagram", label: "Instagram", icon: <InstagramIcon size={16} /> },
   { key: "tiktok", label: "TikTok", icon: <TikTokIcon size={16} /> },

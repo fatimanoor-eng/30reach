@@ -447,7 +447,7 @@ describe("inputs from the browser", () => {
       format: null,
     });
     expect(
-      parseHooksInput({ clientId: CLIENT, title: "Q&A", platform: "x", format: "reel" }),
+      parseHooksInput({ clientId: CLIENT, title: "Q&A", platform: "youtube", format: "reel" }),
     ).toMatchObject({
       platform: null,
       format: null,

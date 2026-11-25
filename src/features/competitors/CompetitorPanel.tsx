@@ -207,10 +207,12 @@ export function CompetitorPanel({
       tiktok_handle: null,
       linkedin_url: null,
       facebook_url: null,
+      x_handle: null,
       instagram_status: "unchecked",
       tiktok_status: "unchecked",
       linkedin_status: "unchecked",
       facebook_status: "unchecked",
+      x_status: "unchecked",
       // Kept while the page stays the same; replaced when a new / changed page is found.
       facebook_followers: saved?.facebook_followers ?? null,
       facebook_followers_at: saved?.facebook_followers_at ?? null,
@@ -283,7 +285,7 @@ export function CompetitorPanel({
         placeholder={
           p === "instagram"
             ? "@handle or profile link"
-            : p === "tiktok"
+            : p === "tiktok" || p === "x"
               ? "@handle (optional)"
               : p === "linkedin"
                 ? "Company page link (optional)"

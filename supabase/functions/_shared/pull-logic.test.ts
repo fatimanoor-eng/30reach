@@ -9,6 +9,10 @@ import fbProfile from "./fixtures/facebook-profile-weightwatchers.json";
 import fbProfileNotFound from "./fixtures/facebook-profile-not-found.json";
 import notFound from "./fixtures/instagram-not-found.json";
 import ttPage from "./fixtures/tiktok-hims.json";
+import xSince from "./fixtures/x-search-ro-since.json";
+import xCombined from "./fixtures/x-search-combined.json";
+import xUserMissing from "./fixtures/x-user-missing.json";
+import xUserPosts from "./fixtures/x-user-posts.json";
 import {
   cutoffFor,
   decideNextPage,
@@ -26,6 +30,7 @@ import {
   browserImage,
   instagramThumbnail,
   LINKEDIN_PAGE_CAP,
+  PAGE_CAP,
   linkedInNextCursor,
   linkedInSlug,
   linkedInUrl,
@@ -33,6 +38,13 @@ import {
   parseRetryAfter,
   runningConflict,
   trackedPlatforms,
+  mapXItem,
+  splitByAuthor,
+  xFormat,
+  xHandle,
+  xNeedsFallback,
+  xQuery,
+  parseXUserPosts,
   type MappedPost,
   parsePage,
   postColumns,
@@ -702,11 +714,96 @@ describe("trackedPlatforms — per-client platforms (Slice 17b)", () => {
         { platform: "linkedin", state: "off" },
         { platform: "instagram", state: "on" },
       ]),
-    ).toEqual(["instagram", "facebook"]);
+    ).toEqual(["instagram", "facebook", "x"]);
   });
   it("a client without rows tracks everything; all off tracks nothing", () => {
-    expect(trackedPlatforms([])).toEqual(["instagram", "tiktok", "linkedin", "facebook"]);
-    expect(trackedPlatforms(null)).toEqual(["instagram", "tiktok", "linkedin", "facebook"]);
+    expect(trackedPlatforms([])).toEqual(["instagram", "tiktok", "linkedin", "facebook", "x"]);
+    expect(trackedPlatforms(null)).toEqual(["instagram", "tiktok", "linkedin", "facebook", "x"]);
     expect(trackedPlatforms([{ platform: "tiktok", state: "off" }])).toEqual([]);
+  });
+});
+
+describe("X (Slice 17g)", () => {
+  it("handles: @, links, case; refuses non-handles", () => {
+    expect(xHandle("@Ro")).toBe("ro");
+    expect(xHandle("https://x.com/LifeMD?s=20")).toBe("lifemd");
+    expect(xHandle("twitter.com/joinfound")).toBe("joinfound");
+    expect(xHandle("not a handle")).toBeNull();
+    expect(xHandle("x.com/home")).toBeNull();
+  });
+  it("one combined query with since: and no replies / reposts", () => {
+    const since = Date.parse("2026-10-25T12:00:00Z");
+    expect(xQuery(["ro", "lifemd"], since)).toBe(
+      "(from:ro OR from:lifemd) since:2026-10-25 -filter:replies -filter:retweets",
+    );
+    expect(xQuery(["ro"], since)).toBe("from:ro since:2026-10-25 -filter:replies -filter:retweets");
+  });
+  it("reposts ('RT @…') and replies are dropped (spike: 5 of 6 Ro results were reposts)", () => {
+    const page = parsePage("x", xSince, 0);
+    expect(page.kind).toBe("ok");
+    if (page.kind !== "ok") return;
+    expect(page.creditsCost).toBe(5);
+    expect(page.posts.map((p) => p.caption?.slice(0, 20))).toEqual(["@ZReitano sat down w"]);
+    expect(page.followersBy).toEqual({ ro: 19221 });
+  });
+  it("a combined page: posts, formats, numbers, split by author", () => {
+    const page = parsePage("x", xCombined, 0);
+    if (page.kind !== "ok") throw new Error("expected ok");
+    expect(page.nextCursor).toBeTruthy();
+    const p = page.posts[0];
+    expect(p).toMatchObject({ platform: "x", posted_by: "ro", counts_hidden: false });
+    expect(p.url).toMatch(/^https:\/\/x\.com\/ro\/status\//);
+    const first = (
+      xCombined as {
+        data: {
+          alexandria: {
+            data: { output: { data: { items: { retweetCount: number; quoteCount: number }[] } } };
+          }[];
+        };
+      }
+    ).data.alexandria[0].data.output.data.items[0];
+    expect(p.shares).toBe(first.retweetCount + first.quoteCount);
+    const by = splitByAuthor(
+      page.posts,
+      new Map([
+        ["ro", "c-ro"],
+        ["lifemd", "c-lifemd"],
+      ]),
+    );
+    expect([...by.keys()].sort()).toEqual(["c-lifemd", "c-ro"]);
+    expect((by.get("c-ro") ?? []).length + (by.get("c-lifemd") ?? []).length).toBe(
+      page.posts.length,
+    );
+  });
+  it("formats from media", () => {
+    expect(xFormat([])).toBe("text");
+    expect(xFormat([{ type: "photo" }])).toBe("image");
+    expect(xFormat([{ type: "photo" }, { type: "photo" }])).toBe("carousel");
+    expect(xFormat([{ type: "video" }])).toBe("video");
+    expect(mapXItem({ id: "1", text: "hi", isReply: true })).toBeNull();
+  });
+  it("estimate: one combined search, or one page per brand if it times out", () => {
+    const tasks = ["a", "b", "c", "d", "e", "f"].map((id) => ({
+      competitorId: id,
+      platform: "x" as const,
+    }));
+    const e = estimate(tasks, new Map(), PAGE_CAP);
+    expect(e.perPlatform.x).toEqual({ tasks: 6, expected: 5, max: 30 });
+    expect(estimate(tasks.slice(0, 2), new Map(), PAGE_CAP).perPlatform.x.max).toBe(15);
+    expect(xNeedsFallback(null, 504)).toBe(true);
+    expect(xNeedsFallback("deadline_exceeded")).toBe(true);
+    expect(xNeedsFallback("not_found")).toBe(false);
+  });
+});
+
+describe("X handle check (Slice 17g)", () => {
+  it("a missing account is not_found and still costs 1; a real one gives followers", () => {
+    expect(parseXUserPosts(xUserMissing)).toEqual({
+      kind: "error",
+      code: "not_found",
+      message: "Account doesn't exist",
+      creditsCost: 1,
+    });
+    expect(parseXUserPosts(xUserPosts)).toEqual({ kind: "ok", followers: 269014, creditsCost: 1 });
   });
 });

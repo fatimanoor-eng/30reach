@@ -51,7 +51,7 @@ export function TestPullPage() {
       const { data, error } = await supabase
         .from("competitors")
         .select(
-          "id, name, instagram_handle, tiktok_handle, linkedin_url, facebook_url, instagram_status, tiktok_status, linkedin_status, facebook_status",
+          "id, name, instagram_handle, tiktok_handle, linkedin_url, facebook_url, x_handle, instagram_status, tiktok_status, linkedin_status, facebook_status, x_status",
         )
         .eq("client_id", client.data!.id)
         .order("name");

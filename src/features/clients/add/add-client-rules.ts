@@ -5,7 +5,7 @@ import { plural } from "../../../lib/format";
 import { PLATFORM_NAME, PLATFORMS, type Platform } from "../../../lib/platforms";
 import { suggestInitials } from "../../competitors/competitor-rules";
 
-export type FoundPlatform = Platform | "x" | "youtube" | "pinterest" | "threads";
+export type FoundPlatform = Platform | "youtube" | "pinterest" | "threads";
 export type FoundAccount = { platform: FoundPlatform; handle: string | null; url: string | null };
 
 /** scan-site (client mode) answer. */
@@ -104,11 +104,11 @@ export function checklistRows(
       rows.push({
         key: `acc-${a.platform}`,
         label: `${PLATFORM_LABEL[a.platform]} · ${accountLabel(a)}`,
-        meta: isSupported(a.platform) || a.platform === "x" ? "FOUND" : "COMING LATER",
+        meta: isSupported(a.platform) ? "FOUND" : "COMING LATER",
         state: "done",
       });
     }
-    const missing = ([...PLATFORMS, "x"] as FoundPlatform[]).filter(
+    const missing = (PLATFORMS as FoundPlatform[]).filter(
       (p) => !s.accounts.some((a) => a.platform === p),
     );
     if (missing.length) {
@@ -211,7 +211,7 @@ export function reviewDefaults(scan: SiteScan, suggestions: readonly Suggestion[
     input: "",
     account: a,
   }));
-  const team = ([...PLATFORMS, "x"] as FoundPlatform[])
+  const team = (PLATFORMS as FoundPlatform[])
     .filter((p) => !scan.accounts.some((a) => a.platform === p))
     .map((p): PlatformDraft => ({
       platform: p,
@@ -279,7 +279,7 @@ export function competitorMeta(c: CompetitorDraft, { short = false } = {}): stri
 
 // ───────────────────────────────────────────── Create (rows)
 export type ParsedInput = { value: string | null; error?: string };
-export type ParseAccount = (platform: Platform | "x", input: string) => ParsedInput;
+export type ParseAccount = (platform: Platform, input: string) => ParsedInput;
 
 /** client_platforms rows: site links (website, on); team platforms (on with their typed account, or off). */
 export function platformRowsForCreate(d: ReviewDraft, parse: ParseAccount) {
@@ -288,11 +288,8 @@ export function platformRowsForCreate(d: ReviewDraft, parse: ParseAccount) {
     .map((p) => {
       const isUrl = p.platform === "facebook" || p.platform === "linkedin";
       const typed =
-        p.source === "team" &&
-        p.on &&
-        p.input.trim() &&
-        (isSupported(p.platform) || p.platform === "x")
-          ? parse(p.platform as Platform | "x", p.input).value
+        p.source === "team" && p.on && p.input.trim() && isSupported(p.platform)
+          ? parse(p.platform, p.input).value
           : null;
       const handle = p.account?.handle ?? (!isUrl ? typed : null);
       const url = p.account?.url ?? (isUrl ? typed : null);
@@ -316,6 +313,7 @@ export function competitorRowsForCreate(d: ReviewDraft, parse: ParseAccount) {
     tiktok_handle: string | null;
     linkedin_url: string | null;
     facebook_url: string | null;
+    x_handle: string | null;
   }[] = [];
   for (const c of d.competitors) {
     if (!c.ticked) continue;
@@ -331,6 +329,7 @@ export function competitorRowsForCreate(d: ReviewDraft, parse: ParseAccount) {
       tiktok_handle: found("tiktok")?.handle ?? typed("tiktok"),
       linkedin_url: found("linkedin")?.url ?? typed("linkedin"),
       facebook_url: found("facebook")?.url ?? typed("facebook"),
+      x_handle: found("x")?.handle ?? typed("x"),
     });
   }
   return rows;
@@ -346,7 +345,8 @@ export function reviewErrors(d: ReviewDraft, parse: ParseAccount): string[] {
       p.source === "team" &&
       p.on &&
       p.input.trim() &&
-      parse(p.platform as Platform | "x", p.input).error
+      isSupported(p.platform) &&
+      parse(p.platform, p.input).error
     )
       errs.push(`platform-${p.platform}`);
   }

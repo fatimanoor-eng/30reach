@@ -7,6 +7,7 @@ import {
   type Platform,
   PLATFORMS,
   type ProfileResult,
+  xHandle,
 } from "../_shared/pull-logic.ts";
 
 /** Handles are stored lowercase without "@". Instagram 1–30 chars, TikTok 2–24; letters, digits, . and _. */
@@ -24,6 +25,7 @@ export const CHECK_COST: Record<Platform, number> = {
   tiktok: 2,
   linkedin: 2,
   facebook: 5,
+  x: 1, // ScrapeCreators x/user-posts (17g): 1, also when the account doesn't exist
 };
 
 /** `handle` = the Instagram/TikTok handle, or the LinkedIn / Facebook page URL (canonical). */
@@ -47,8 +49,12 @@ export function parseCheckRequest(body: Record<string, unknown>): CheckRequest |
     const url = facebookPageUrl(input);
     return url ? { platform, handle: url } : { error: "bad_handle" };
   }
+  if (platform === "x") {
+    const h = xHandle(input);
+    return h ? { platform, handle: h } : { error: "bad_handle" };
+  }
   const raw = input.trim().replace(/^@/, "").toLowerCase();
-  if (!HANDLE_PATTERN[platform].test(raw)) return { error: "bad_handle" };
+  if (!HANDLE_PATTERN[platform as "instagram" | "tiktok"].test(raw)) return { error: "bad_handle" };
   return { platform, handle: raw };
 }
 

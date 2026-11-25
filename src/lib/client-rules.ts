@@ -150,7 +150,6 @@ export type PlatformRow = {
 };
 
 const LATER_NAME: Record<string, string> = {
-  x: "X",
   pinterest: "Pinterest",
   youtube: "YouTube",
   threads: "Threads",
@@ -243,23 +242,14 @@ export function countsSentence(c: {
   return `This deletes its ${plural(c.competitors, "competitor")}, ${plural(c.pulls, "saved pull")} (${plural(c.posts, "post")}), ${plural(c.ideas, "idea")} and ${plural(c.cards, "calendar card")}, and removes their images from storage. Usage history keeps the name. This can’t be undone.`;
 }
 
-/** X handle: 1–15 letters, numbers or underscores (accepts "@name" or an x.com / twitter.com link). */
-export function parseXHandle(input: string): string | null | undefined {
-  let v = input.trim();
-  if (!v) return undefined; // empty
-  const link = v.match(/^(?:https?:\/\/)?(?:www\.)?(?:x|twitter)\.com\/@?([^/?#]+)/i);
-  if (link) v = link[1];
-  v = v.replace(/^@/, "");
-  return /^[A-Za-z0-9_]{1,15}$/.test(v) ? v.toLowerCase() : null;
-}
-
 /**
- * Manual Add client (15f): the client's platforms. The four supported ones are tracked (team rows, on),
- * with the client's own account where one was given; X only when a handle was given (coming later until
- * Slice 17g). Instagram / TikTok / X are handles; Facebook / LinkedIn are page URLs.
+ * Manual Add client (15f): the client's platforms. Instagram, TikTok, LinkedIn and Facebook are tracked
+ * (team rows, on), with the client's own account where one was given; X only when a handle was given
+ * (Slice 17g: X is on for clients that use it). Instagram / TikTok / X are handles; Facebook / LinkedIn are
+ * page URLs.
  */
-export function manualPlatformRows(accounts: Partial<Record<Platform | "x", string | null>>) {
-  const rows = PLATFORMS.map((p) => {
+export function manualPlatformRows(accounts: Partial<Record<Platform, string | null>>) {
+  return PLATFORMS.filter((p) => p !== "x" || !!accounts.x).map((p) => {
     const v = accounts[p] ?? null;
     const isUrl = p === "facebook" || p === "linkedin";
     return {
@@ -270,16 +260,6 @@ export function manualPlatformRows(accounts: Partial<Record<Platform | "x", stri
       account_handle: isUrl ? null : v,
     };
   });
-  if (accounts.x) {
-    rows.push({
-      platform: "x",
-      state: "on",
-      source: "team",
-      account_url: null,
-      account_handle: accounts.x,
-    });
-  }
-  return rows;
 }
 
 const FILLER = new Set(["the", "and", "of", "a", "an", "co", "inc", "llc", "ltd", "&", "+"]);

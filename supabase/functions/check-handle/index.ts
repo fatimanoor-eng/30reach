@@ -33,10 +33,11 @@ import {
   requireTeam,
   saveCreditsCache,
   scrapeFacebookProfile,
+  scrapeXUserPosts,
   scrapePage,
   withSupabase,
 } from "../_shared/server.ts";
-import { parseFacebookProfile, parsePage } from "../_shared/pull-logic.ts";
+import { parseFacebookProfile, parsePage, parseXUserPosts } from "../_shared/pull-logic.ts";
 import { CHECK_COST, checkOutcome, parseCheckRequest, profileOutcome } from "./logic.ts";
 
 export default {
@@ -73,7 +74,9 @@ export default {
       body =
         platform === "facebook"
           ? await scrapeFacebookProfile(handle)
-          : await scrapePage(platform, handle, null);
+          : platform === "x"
+            ? await scrapeXUserPosts(handle)
+            : await scrapePage(platform, handle, null);
     } catch (err) {
       if (err instanceof FirecrawlRateLimited) {
         console.error(
@@ -89,7 +92,9 @@ export default {
     const outcome =
       platform === "facebook"
         ? profileOutcome(parseFacebookProfile(body))
-        : checkOutcome(parsePage(platform, body, 0));
+        : platform === "x"
+          ? profileOutcome(parseXUserPosts(body))
+          : checkOutcome(parsePage(platform, body, 0));
 
     await recordUsage(admin, {
       kind: "handle_check",

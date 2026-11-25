@@ -60,14 +60,20 @@ export const likesWord = (platform: IdeaPlatform | null) =>
   platform === "linkedin" || platform === "facebook" ? "reactions" : "likes";
 
 /**
- * "reel" → "Reel", "article" → "Link"; on Facebook "carousel" → "Album". Unknown formats are shown as
+ * "reel" → "Reel", "article" → "Link"; on Facebook "carousel" → "Album"; on X "text" → "Post". Unknown formats are shown as
  * stored.
  */
 export const formatLabel = (
   f: string | null | undefined,
   platform?: IdeaPlatform | null,
 ): string | null =>
-  f ? (platform === "facebook" && f === "carousel" ? "Album" : (FORMAT_LABEL[f] ?? f)) : null;
+  f
+    ? platform === "facebook" && f === "carousel"
+      ? "Album"
+      : platform === "x" && f === "text"
+        ? "Post"
+        : (FORMAT_LABEL[f] ?? f)
+    : null;
 
 // ───────────────────────────── tabs + search
 
@@ -171,7 +177,7 @@ export function linkLabel(url: string): string {
   }
 }
 
-/** Platform from a link's host (instagram.com / tiktok.com / linkedin.com / facebook.com / fb.com), else null. */
+/** Platform from a link's host (instagram.com / tiktok.com / linkedin.com / facebook.com / fb.com / x.com), else null. */
 export function platformFromUrl(url: string): IdeaPlatform | null {
   try {
     const host = new URL(url).hostname.replace(/^www\./, "");
@@ -180,6 +186,7 @@ export function platformFromUrl(url: string): IdeaPlatform | null {
     if (host === "linkedin.com" || host.endsWith(".linkedin.com")) return "linkedin";
     if (["facebook.com", "fb.com", "fb.watch"].includes(host) || host.endsWith(".facebook.com"))
       return "facebook";
+    if (["x.com", "twitter.com", "mobile.twitter.com", "mobile.x.com"].includes(host)) return "x";
   } catch {
     /* not a URL */
   }
@@ -252,6 +259,7 @@ const PLATFORM_SHORT: Record<IdeaPlatform, string> = {
   tiktok: "TT",
   linkedin: "LI",
   facebook: "FB",
+  x: "X",
 };
 
 /**

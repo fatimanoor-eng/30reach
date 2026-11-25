@@ -39,6 +39,7 @@
   --color-tint-tiktok: #e9f8fe; /* 09 card header, TikTok card */
   --color-tint-linkedin: #e3e8f5; /* LinkedIn tint (Slice 15; 09 card header in 15c) */
   --color-tint-facebook: #eef6f2; /* Facebook tint (09 card header, Slice 16c). Lighter than #e6efea so the Approved / Posted pills stay visible on it. Colour = fresh */
+  --color-tint-x: #f5f5f2; /* X tint (09 card header, Slice 17g): neutral, X's colour is ink. Light enough for the Posted pill */
   --color-status-idea: #fbe6fe; /* soft status pills (09) */
   --color-status-drafting: #ddf3fc;
   --color-status-approved: #e1eee6;

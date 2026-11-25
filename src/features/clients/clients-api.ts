@@ -278,7 +278,7 @@ export type NewClient = {
   website: string;
   country: string;
   industry: string | null;
-  accounts: Partial<Record<Platform | "x", string | null>>;
+  accounts: Partial<Record<Platform, string | null>>;
 };
 
 /**

@@ -175,6 +175,10 @@ describe("top posts and stats", () => {
       "212K views · 9.8K likes",
     );
     expect(postStats(post({ likes: 1, comments: 1 }))).toBe("1 like · 1 comment");
+    // X (17g): views · likes · replies · reposts (reposts + quotes).
+    expect(
+      postStats(post({ platform: "x", views: 4100, likes: 120, comments: 8, shares: 1 })),
+    ).toBe("4.1K\u00a0views · 120\u00a0likes · 8\u00a0replies · 1\u00a0repost");
     expect(postStats(post({ platform: "linkedin", likes: 1240, comments: 48, shares: 12 }))).toBe(
       "1.2K\u00a0reactions · 48\u00a0comments · 12\u00a0reposts",
     );

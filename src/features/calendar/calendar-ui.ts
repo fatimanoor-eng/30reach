@@ -59,10 +59,11 @@ export const PLATFORM_TINT: Record<CardPlatform | "none", string> = {
   tiktok: "bg-tint-tiktok",
   linkedin: "bg-tint-linkedin",
   facebook: "bg-tint-facebook",
+  x: "bg-tint-x",
   none: "bg-soft",
 };
 
-/** 3 px bar on the card's left edge: Instagram pop, TikTok breeze, LinkedIn blue, Facebook fresh, none = line. */
+/** 3 px bar on the card's left edge: Instagram pop, TikTok breeze, LinkedIn blue, Facebook fresh, X ink, none = line. */
 export const PLATFORM_BAR: Record<CardPlatform | "none", string> = {
   ...PLATFORM_FILL,
   none: "bg-line",
@@ -74,6 +75,7 @@ export const PLATFORM_SHORT: Record<CardPlatform, string> = {
   tiktok: "TT",
   linkedin: "LI",
   facebook: "FB",
+  x: "X",
 };
 
 /** Formats each platform supports (the same names the pulls use). */
@@ -84,6 +86,8 @@ export const FORMATS: Record<CardPlatform, string[]> = {
   linkedin: ["text", "image", "document", "video", "article", "poll"],
   // Slice 16c: Facebook ("carousel" is shown as "Album", "article" as "Link").
   facebook: ["reel", "video", "image", "carousel", "article", "text"],
+  // Slice 17g: X ("text" is shown as "Post": most X posts are just words).
+  x: ["text", "image", "video", "carousel"],
 };
 export const FORMAT_NAME: Record<string, string> = {
   reel: "Reel",
@@ -99,6 +103,7 @@ export const FORMAT_NAME: Record<string, string> = {
 /** A format's name on a platform: Facebook's multi-image posts are albums ("Album"). */
 export function formatName(platform: CardPlatform | null | undefined, format: string): string {
   if (platform === "facebook" && format === "carousel") return "Album";
+  if (platform === "x" && format === "text") return "Post";
   return FORMAT_NAME[format] ?? format;
 }
 

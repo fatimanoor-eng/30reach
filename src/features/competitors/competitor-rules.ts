@@ -16,7 +16,8 @@ export { targetNoun };
 export { PLATFORM_NAME, PLATFORMS };
 /**
  * Most a check can cost for a handle / page that exists; not found = 0. Instagram / TikTok: a first page
- * of posts (2); LinkedIn: 1–2; Facebook: AnyAPI's page profile with the followers (5, spike 24 Nov).
+ * of posts (2); LinkedIn: 1–2; Facebook: AnyAPI's page profile with the followers (5, spike 24 Nov);
+ * X: ScrapeCreators x/user-posts (1, also when the account doesn't exist; Slice 17g).
  * Same numbers as check-handle (CHECK_COST there).
  */
 export const CHECK_COST: Record<Platform, number> = {
@@ -24,6 +25,7 @@ export const CHECK_COST: Record<Platform, number> = {
   tiktok: 2,
   linkedin: 2,
   facebook: 5,
+  x: 1,
 };
 
 // ───────────────────────────────────────────── initials
@@ -44,10 +46,14 @@ export function suggestInitials(name: string): string {
 export const MAX_INITIALS = 3;
 
 // ───────────────────────────────────────────── handles
-const PATTERN: Record<"instagram" | "tiktok", RegExp> = {
+const PATTERN: Record<"instagram" | "tiktok" | "x", RegExp> = {
   instagram: /^[a-z0-9._]{1,30}$/,
   tiktok: /^[a-z0-9._]{2,24}$/,
+  // Same rule as xHandle() in supabase/functions/_shared/pull-logic.ts.
+  x: /^[a-z0-9_]{1,15}$/,
 };
+/** x.com pages that aren't accounts. */
+const X_RESERVED = ["home", "search", "intent", "share", "i"];
 
 // ───────────────────────────────────────────── LinkedIn company page
 // Same rule as supabase/functions/_shared/pull-logic.ts (linkedInSlug); kept in sync by hand.
@@ -163,7 +169,7 @@ export type HandleInput =
   { kind: "empty" } | { kind: "ok"; handle: string } | { kind: "invalid"; message: string };
 
 /**
- * What someone typed → what's stored. Instagram/TikTok: the handle (lowercase, no "@"); accepts "@noom",
+ * What someone typed → what's stored. Instagram/TikTok/X: the handle (lowercase, no "@"); accepts "@noom",
  * "noom" or a profile link ("instagram.com/noom/", "https://www.tiktok.com/@noom?lang=en"). LinkedIn:
  * the canonical company page URL; accepts a page link or its slug. Facebook: the canonical page URL;
  * accepts a page link or its username. Invalid input never costs credits.
@@ -183,17 +189,27 @@ export function parseHandle(platform: Platform, input: string): HandleInput {
       ? { kind: "ok", handle: url }
       : { kind: "invalid", message: "Use a Facebook page link (facebook.com/…)." };
   }
-  const host = platform === "instagram" ? "instagram\\.com" : "tiktok\\.com";
-  const link = v.match(new RegExp(`^(?:https?://)?(?:www\\.|m\\.)?${host}/@?([^/?#]+)`, "i"));
+  const host =
+    platform === "instagram"
+      ? "instagram\\.com"
+      : platform === "x"
+        ? "(?:x|twitter)\\.com"
+        : "tiktok\\.com";
+  const link = v.match(
+    new RegExp(`^(?:https?://)?(?:www\\.|m\\.|mobile\\.)?${host}/@?([^/?#]+)`, "i"),
+  );
   if (link) v = link[1];
   v = v.replace(/^@/, "").toLowerCase();
-  if (PATTERN[platform].test(v)) return { kind: "ok", handle: v };
+  if (PATTERN[platform].test(v) && !(platform === "x" && X_RESERVED.includes(v)))
+    return { kind: "ok", handle: v };
   return {
     kind: "invalid",
     message:
       platform === "instagram"
         ? "Use letters, numbers, dots or underscores (up to 30)."
-        : "Use 2–24 letters, numbers, dots or underscores.",
+        : platform === "x"
+          ? "Use letters, numbers or underscores (up to 15)."
+          : "Use 2–24 letters, numbers, dots or underscores.",
   };
 }
 
@@ -260,11 +276,16 @@ export function foundMessage(
 
 /**
  * Cost line above Save (07b). Instagram / TikTok / LinkedIn checks cost up to 2 each; Facebook up to 5
- * (it also reads the followers). "Checking costs up to 5 credits" when only a Facebook page is checked.
+ * (it also reads the followers); X 1. "Checking costs up to 5 credits" when only a Facebook page is checked.
  */
 export function checkCostNote(toCheck: Platform[]): string {
   if (toCheck.length === 0) return "No handle to check · no credits";
   const total = toCheck.reduce((n, p) => n + CHECK_COST[p], 0);
+  // X (17g): always 1 credit, also when the account doesn't exist.
+  const xs = toCheck.filter((p) => p === "x").length;
+  if (xs && xs === toCheck.length)
+    return xs === 1 ? "Checking costs 1 credit" : `Checking costs ${total} credits`;
+  if (xs) return `Checking costs up to ${total} credits (1 for X)`;
   const others = toCheck.filter((p) => p !== "facebook");
   if (others.length === 0) return `Checking costs up to ${total} credits`;
   if (others.length === toCheck.length)

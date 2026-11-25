@@ -1,8 +1,8 @@
 // Pure pull-pipeline logic (no Deno APIs) — shared by pull-start / pull-task / pull-finish and
 // tested by Vitest with trimmed Slice 1 spike fixtures (./fixtures). See docs/INTEGRATIONS.md §2a, §3.
 
-export type Platform = "instagram" | "tiktok" | "linkedin" | "facebook";
-export const PLATFORMS: Platform[] = ["instagram", "tiktok", "linkedin", "facebook"];
+export type Platform = "instagram" | "tiktok" | "linkedin" | "facebook" | "x";
+export const PLATFORMS: Platform[] = ["instagram", "tiktok", "linkedin", "facebook", "x"];
 
 /** The competitors column that says where to pull each platform from. */
 export const TARGET_COLUMN = {
@@ -10,12 +10,14 @@ export const TARGET_COLUMN = {
   tiktok: "tiktok_handle",
   linkedin: "linkedin_url",
   facebook: "facebook_url",
+  x: "x_handle",
 } as const satisfies Record<Platform, string>;
 export const STATUS_COLUMN = {
   instagram: "instagram_status",
   tiktok: "tiktok_status",
   linkedin: "linkedin_status",
   facebook: "facebook_status",
+  x: "x_status",
 } as const satisfies Record<Platform, string>;
 
 /**
@@ -24,6 +26,16 @@ export const STATUS_COLUMN = {
  * (Facebook / X spike). 2 stays the safe maximum for all of them.
  */
 export const CREDITS_PER_PAGE = 2;
+/**
+ * X (Slice 17g): AnyAPI twitter/search costs 5 per page, also for an empty page (Facebook / X spike). One
+ * combined search covers every brand's X handle (`from:a OR from:b`), ~20 posts a page, up to 3 pages; if the
+ * combined search fails on its first call (it can time out: free), each brand gets one page of its own.
+ */
+export const X_CREDITS_PER_PAGE = 5;
+export const X_PAGE_CAP = 3;
+export const X_SOLO_PAGE_CAP = 1;
+export const pageCredits = (platform: Platform) =>
+  platform === "x" ? X_CREDITS_PER_PAGE : CREDITS_PER_PAGE;
 export const PAGE_CAP = 4; // per brand × platform task
 export const TEST_PAGE_CAP = 2;
 /** LinkedIn pages hold up to 50 posts (~a year for Hims & Hers), so 2 pages always cover 30 days. */
@@ -43,13 +55,18 @@ export const DEFAULT_TASK_CREDITS: Record<Platform, number> = {
   tiktok: 4,
   linkedin: 2,
   facebook: 4,
+  x: 5,
 };
 /** Instagram allows up to 3 pinned posts; they sit at the top of page 1 and carry no flag. */
 export const IG_MAX_PINNED = 3;
 
 /** Page cap for one task: the pull's cap, lowered for LinkedIn. */
 export const taskPageCap = (platform: Platform, pullPageCap: number) =>
-  platform === "linkedin" ? Math.min(pullPageCap, LINKEDIN_PAGE_CAP) : pullPageCap;
+  platform === "linkedin"
+    ? Math.min(pullPageCap, LINKEDIN_PAGE_CAP)
+    : platform === "x"
+      ? Math.min(pullPageCap, X_PAGE_CAP)
+      : pullPageCap;
 
 export type PostFormat =
   "reel" | "carousel" | "image" | "video" | "text" | "document" | "article" | "poll";
@@ -86,6 +103,8 @@ export type PageResult =
       nextCursor: string | null;
       creditsCost: number;
       followers: number | null;
+      /** X (17g): one search covers several brands; followers per author handle (lowercase). */
+      followersBy?: Record<string, number>;
     }
   | { kind: "error"; code: string; message: string; creditsCost: number };
 
@@ -592,6 +611,25 @@ export function parsePage(platform: Platform, body: unknown, pageIndex: number):
     };
   }
   const page = obj(item.data);
+  if (platform === "x") {
+    const out = obj(obj(page.output).data);
+    const list = Array.isArray(out.items) ? out.items : [];
+    const followersBy: Record<string, number> = {};
+    for (const it of list) {
+      const o = obj(it);
+      const who = str(o.authorUsername)?.toLowerCase();
+      const f = num(o.authorFollowers);
+      if (who && f !== null) followersBy[who] = f;
+    }
+    return {
+      kind: "ok",
+      posts: list.map(mapXItem).filter((p): p is MappedPost => p !== null),
+      nextCursor: list.length ? str(out.nextCursor) : null,
+      creditsCost,
+      followers: null,
+      followersBy,
+    };
+  }
   if (platform === "facebook") {
     const list = Array.isArray(page.posts) ? page.posts : [];
     return {
@@ -694,12 +732,18 @@ export function decideNextPage(args: {
   pagesDone: number;
   pageCap: number;
   budgetLeft: number;
+  /** Credits the next page would cost (X: 5). */
+  pageCost?: number;
+  /** X: results aren't date-ordered, so the oldest post says nothing about the next page. */
+  unordered?: boolean;
 }): { more: true } | { more: false; reason: StopReason } {
   const { posts, nextCursor, cutoffMs, pagesDone, pageCap, budgetLeft } = args;
   if (!nextCursor) return { more: false, reason: "no_more" };
   if (posts.length === 0) return { more: false, reason: "empty" };
   if (pagesDone >= pageCap) return { more: false, reason: "page_cap" };
-  if (budgetLeft < CREDITS_PER_PAGE) return { more: false, reason: "budget" };
+  if (budgetLeft < (args.pageCost ?? CREDITS_PER_PAGE)) return { more: false, reason: "budget" };
+  // X "Latest" isn't strictly date-ordered, and the query already says since: — keep paging on the cursor.
+  if (args.unordered) return { more: true };
   const dated = posts
     .filter((p) => !p.pinned && p.posted_at !== null)
     .map((p) => Date.parse(p.posted_at!));
@@ -728,6 +772,7 @@ export function estimate(
     PLATFORMS.map((p) => [p, { tasks: 0, expected: 0, max: 0 }]),
   ) as Estimate["perPlatform"];
   for (const t of tasks) {
+    if (t.platform === "x") continue; // one combined search for all X brands: below
     const ceiling = taskPageCap(t.platform, pageCap) * CREDITS_PER_PAGE;
     const p = perPlatform[t.platform];
     p.tasks += 1;
@@ -736,6 +781,19 @@ export function estimate(
       ceiling,
     );
     p.max += ceiling;
+  }
+  // X (17g): one combined search (≤ 3 pages × 5) or, if it times out, one page per brand (5 each):
+  // the ceiling is the larger of the two; expected = last time's X credits, else one page.
+  const xTasks = tasks.filter((t) => t.platform === "x");
+  if (xTasks.length) {
+    const last = xTasks.reduce((n, t) => n + (lastCredits.get(taskKey(t)) ?? 0), 0);
+    const max =
+      Math.max(taskPageCap("x", pageCap), xTasks.length * X_SOLO_PAGE_CAP) * X_CREDITS_PER_PAGE;
+    perPlatform.x = {
+      tasks: xTasks.length,
+      expected: Math.min(last || DEFAULT_TASK_CREDITS.x, max),
+      max,
+    };
   }
   const sum = (k: "expected" | "max") => PLATFORMS.reduce((n, p) => n + perPlatform[p][k], 0);
   return { perPlatform, expected: sum("expected"), max: sum("max") };
@@ -838,4 +896,129 @@ export function trackedPlatforms(
   if (!rows || rows.length === 0) return PLATFORMS;
   const on = new Set(rows.filter((r) => r.state === "on").map((r) => r.platform));
   return PLATFORMS.filter((p) => on.has(p));
+}
+
+// ───────────────────────────────────────────── X (Slice 17g)
+export const X_HANDLE = /^[a-z0-9_]{1,15}$/;
+
+/** "@Ro", "x.com/ro", "twitter.com/ro?s=20" → "ro"; null when it isn't a handle. */
+export function xHandle(input: string): string | null {
+  let v = input.trim();
+  const link = v.match(/^(?:https?:\/\/)?(?:www\.|mobile\.)?(?:x|twitter)\.com\/@?([^/?#]+)/i);
+  if (link) v = link[1];
+  v = v.replace(/^@/, "").toLowerCase();
+  return X_HANDLE.test(v) && !["home", "search", "intent", "share", "i"].includes(v) ? v : null;
+}
+
+/**
+ * The search for a pull: every brand's handle in one query, the window's first day, no replies, no reposts.
+ * `(from:a OR from:b) since:2026-10-25 -filter:replies -filter:retweets`.
+ */
+export function xQuery(handles: readonly string[], sinceMs: number): string {
+  const since = new Date(sinceMs).toISOString().slice(0, 10);
+  const who =
+    handles.length === 1
+      ? `from:${handles[0]}`
+      : `(${handles.map((h) => `from:${h}`).join(" OR ")})`;
+  return `${who} since:${since} -filter:replies -filter:retweets`;
+}
+
+/** text, image, carousel (several photos) or video, from the post's media. */
+export function xFormat(media: unknown): PostFormat {
+  const list = Array.isArray(media) ? media.map(obj) : [];
+  if (list.some((m) => m.type === "video" || m.type === "animated_gif")) return "video";
+  const photos = list.filter((m) => m.type === "photo").length;
+  return photos > 1 ? "carousel" : photos === 1 ? "image" : "text";
+}
+
+/** One AnyAPI twitter/search item → a post; replies and reposts ("RT @…") are dropped. */
+export function mapXItem(item: unknown): MappedPost | null {
+  const it = obj(item);
+  const id = str(it.id);
+  const text = typeof it.text === "string" ? it.text : "";
+  if (!id || it.isReply === true || /^RT @/.test(text)) return null;
+  const handle = str(it.authorUsername)?.toLowerCase() ?? null;
+  const media = Array.isArray(it.media) ? it.media.map(obj) : [];
+  const reposts = (num(it.retweetCount) ?? 0) + (num(it.quoteCount) ?? 0);
+  return {
+    platform: "x",
+    external_id: id,
+    // AnyAPI gives "x.com/i/web/status/<id>"; the author's link reads better and opens the same post.
+    url: handle
+      ? `https://x.com/${handle}/status/${id}`
+      : (str(it.url) ?? `https://x.com/i/status/${id}`),
+    posted_at: isoFromSeconds(it.createdUtc),
+    posted_by: handle,
+    format: xFormat(media),
+    caption: text || null,
+    hashtags: extractHashtags(text),
+    likes: num(it.likeCount),
+    comments: num(it.replyCount),
+    views: num(it.viewCount),
+    shares: reposts,
+    saves: num(it.bookmarkCount),
+    counts_hidden: false,
+    is_paid: false,
+    is_collab: false,
+    raw: {
+      lang: it.lang ?? null,
+      quoteCount: it.quoteCount ?? null,
+      authorVerified: it.authorVerified ?? null,
+    },
+    thumbnail_source: str(media[0]?.url),
+    pinned: false,
+  };
+}
+
+/** A combined search's posts, split by author handle (lowercase) → each brand's posts. Others are dropped. */
+export function splitByAuthor(posts: readonly MappedPost[], handles: ReadonlyMap<string, string>) {
+  const out = new Map<string, MappedPost[]>();
+  for (const p of posts) {
+    const competitorId = p.posted_by ? handles.get(p.posted_by) : undefined;
+    if (!competitorId) continue;
+    out.set(competitorId, [...(out.get(competitorId) ?? []), p]);
+  }
+  return out;
+}
+
+/**
+ * X search failures worth falling back to one search per brand: the combined OR query can time out
+ * (504 deadline_exceeded, not charged; spike 24 Nov) or be refused for its length.
+ */
+export const xNeedsFallback = (code: string | null | undefined, httpStatus?: number) =>
+  httpStatus === 504 ||
+  httpStatus === 408 ||
+  ["deadline_exceeded", "timeout", "query_too_long", "invalid_option"].includes(code ?? "");
+
+/**
+ * Competitors' X check (Slice 17g): ScrapeCreators x/user-posts (1 credit, also when the account doesn't
+ * exist). A missing account answers `{ success: true, userId: null, message: "Account doesn't exist" }`
+ * with no error object; an existing one answers with tweets (followers on each). The search can't tell a
+ * missing account from a silent one, so the check uses this.
+ */
+export function parseXUserPosts(body: unknown): ProfileResult {
+  const data = obj(obj(body).data);
+  const item = Array.isArray(data.alexandria) ? obj(data.alexandria[0]) : null;
+  const creditsCost = num(item?.creditsCost) ?? 0;
+  if (!item)
+    return { kind: "error", code: "bad_response", message: "No result in response", creditsCost };
+  if (item.error) {
+    const e = obj(item.error);
+    return {
+      kind: "error",
+      code: str(e.code) ?? "provider_error",
+      message: str(e.message) ?? "Provider error",
+      creditsCost,
+    };
+  }
+  const page = obj(item.data);
+  const missing =
+    ("userId" in page && page.userId === null) || /doesn.?t exist/i.test(str(page.message) ?? "");
+  if (missing)
+    return { kind: "error", code: "not_found", message: "Account doesn't exist", creditsCost };
+  const tweets = Array.isArray(page.tweets) ? page.tweets : [];
+  const followers = num(
+    obj(obj(obj(obj(obj(tweets[0]).core).user_results).result).legacy).followers_count,
+  );
+  return { kind: "ok", followers, creditsCost };
 }

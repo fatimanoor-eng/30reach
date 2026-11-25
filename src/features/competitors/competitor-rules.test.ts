@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Competitor } from "../../lib/useCompetitors";
 import {
+  CHECK_COST,
   checkCostNote,
   competitorStatus,
   duplicateOf,
@@ -22,10 +23,12 @@ const comp = (o: Partial<Competitor>): Competitor => ({
   tiktok_handle: "joinfound",
   linkedin_url: null,
   facebook_url: null,
+  x_handle: null,
   instagram_status: "ok",
   tiktok_status: "ok",
   linkedin_status: "unchecked",
   facebook_status: "unchecked",
+  x_status: "unchecked",
   facebook_followers: null,
   facebook_followers_at: null,
   ...o,
@@ -88,29 +91,51 @@ describe("parseHandle", () => {
   });
 });
 
+describe("X handle field (17g, validated before any credits)", () => {
+  it("accepts @handle, a handle or an x.com / twitter.com link", () => {
+    expect(parseHandle("x", "@Ro")).toEqual({ kind: "ok", handle: "ro" });
+    expect(parseHandle("x", "https://x.com/LifeMD?s=20")).toEqual({ kind: "ok", handle: "lifemd" });
+    expect(parseHandle("x", "twitter.com/hims_hers")).toEqual({ kind: "ok", handle: "hims_hers" });
+  });
+  it("refuses dots, more than 15 characters and x.com pages that aren't accounts", () => {
+    expect(parseHandle("x", "hims.hers").kind).toBe("invalid");
+    expect(parseHandle("x", "a".repeat(16)).kind).toBe("invalid");
+    expect(parseHandle("x", "x.com/home").kind).toBe("invalid");
+    expect(parseHandle("x", "   ")).toEqual({ kind: "empty" });
+  });
+  it("a check costs 1 credit", () => {
+    expect(CHECK_COST.x).toBe(1);
+    expect(checkCostNote(["x"])).toBe("Checking costs 1 credit");
+    expect(checkCostNote(["instagram", "x"])).toBe("Checking costs up to 3 credits (1 for X)");
+  });
+});
+
 describe("handlesToCheck", () => {
   it("only new or changed, never empty", () => {
     const li = "https://www.linkedin.com/company/noom/";
     const fb = "https://www.facebook.com/noom";
     expect(
-      handlesToCheck({}, { instagram: "noom", tiktok: null, linkedin: null, facebook: null }),
+      handlesToCheck(
+        {},
+        { instagram: "noom", tiktok: null, linkedin: null, facebook: null, x: null },
+      ),
     ).toEqual(["instagram"]);
     expect(
       handlesToCheck(
         { instagram: "noom", tiktok: "noom" },
-        { instagram: "noom", tiktok: "noomofficial", linkedin: li, facebook: fb },
+        { instagram: "noom", tiktok: "noomofficial", linkedin: li, facebook: fb, x: null },
       ),
     ).toEqual(["tiktok", "linkedin", "facebook"]);
     expect(
       handlesToCheck(
-        { instagram: "noom", tiktok: "noom", linkedin: li, facebook: fb },
-        { instagram: "noom", tiktok: null, linkedin: null, facebook: null },
+        { instagram: "noom", tiktok: "noom", linkedin: li, facebook: fb, x: null },
+        { instagram: "noom", tiktok: null, linkedin: null, facebook: null, x: null },
       ),
     ).toEqual([]); // removing a handle or page costs nothing
     expect(
       handlesToCheck(
-        { instagram: "noom", facebook: fb },
-        { instagram: "noom", tiktok: null, linkedin: null, facebook: fb },
+        { instagram: "noom", facebook: fb, x: null },
+        { instagram: "noom", tiktok: null, linkedin: null, facebook: fb, x: null },
       ),
     ).toEqual([]); // an unchanged Facebook page isn't checked again (no 5 credits for followers)
   });

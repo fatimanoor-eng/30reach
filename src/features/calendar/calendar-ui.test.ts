@@ -25,7 +25,12 @@ describe("calendar platforms (LinkedIn, Slice 15c)", () => {
       "tiktok",
       "linkedin",
       "facebook",
+      "x",
     ]);
+    // Slice 17g: X formats; a text post is a "Post".
+    expect(formatOptions("x").map((o) => o.label)).toEqual(["Post", "Image", "Video", "Carousel"]);
+    expect(cardMeta({ platform: "x", format: "text" })).toBe("X · Post");
+    expect(PLATFORM_TINT.x).toBe("bg-tint-x");
     expect(formatOptions("linkedin").map((o) => o.label)).toEqual([
       "Text",
       "Image",

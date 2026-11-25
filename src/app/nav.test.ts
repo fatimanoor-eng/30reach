@@ -21,7 +21,13 @@ describe("platforms with accounts (Slice 16b)", () => {
     expect(platformsWithAccounts([])).toEqual([]);
   });
   it("not loaded (or failed) → everything, so nothing disappears", () => {
-    expect(platformsWithAccounts(null)).toEqual(["instagram", "tiktok", "linkedin", "facebook"]);
+    expect(platformsWithAccounts(null)).toEqual([
+      "instagram",
+      "tiktok",
+      "linkedin",
+      "facebook",
+      "x",
+    ]);
   });
 });
 

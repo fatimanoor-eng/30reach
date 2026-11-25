@@ -53,6 +53,8 @@ export const FORMATS_BY_PLATFORM: Record<Platform, Format[]> = {
   tiktok: ["video", "carousel"],
   linkedin: ["text", "image", "document", "video", "article", "poll"],
   facebook: ["reel", "video", "image", "carousel", "article", "text"],
+  // X (17g): a post with no media, one photo, several photos or a video.
+  x: ["text", "image", "video", "carousel"],
 };
 /** Every format any platform has (Plan {month}'s JSON schema enum). */
 export const ALL_FORMATS: Format[] = [...new Set(Object.values(FORMATS_BY_PLATFORM).flat())];
@@ -71,6 +73,7 @@ const PLATFORM_LABEL: Record<Platform, string> = {
   tiktok: "TikTok",
   linkedin: "LinkedIn",
   facebook: "Facebook",
+  x: "X",
 };
 
 // ───────────────────────────────────────────── small helpers
@@ -368,6 +371,7 @@ export function buildSummary(
       avg_views: s.avg_views,
       ...(platform === "linkedin" && { avg_reposts: s.avg_shares }),
       ...(platform === "facebook" && { avg_shares: s.avg_shares }),
+      ...(platform === "x" && { avg_reposts: s.avg_shares }),
       followers:
         data.followers.find((f) => f.competitor_id === competitorId && f.platform === platform)
           ?.followers ?? null,
@@ -433,6 +437,7 @@ export function buildSummary(
       views: p.views,
       ...(p.platform === "linkedin" && { reposts: p.shares ?? 0 }),
       ...(p.platform === "facebook" && { shares: p.shares ?? 0 }),
+      ...(p.platform === "x" && { reposts: p.shares ?? 0 }),
       caption: clip(stripEmoji(p.caption ?? ""), captionChars),
     })),
     top_hashtags,
@@ -1154,6 +1159,8 @@ export const CAPTION_STYLE: Record<
   tiktok: { lines: [1, 2], tags: [2, 4], chars: 300, emoji: 2 },
   linkedin: { lines: [3, 8], tags: [2, 3], chars: 1300, emoji: 1 },
   facebook: { lines: [1, 4], tags: [0, 2], chars: 500, emoji: 2 },
+  // X (17g): one post under 280 characters, plain and punchy, 0–2 hashtags, no emoji.
+  x: { lines: [1, 3], tags: [0, 2], chars: 280, emoji: 0 },
   any: { lines: [2, 4], tags: [3, 5], chars: 600, emoji: 2 },
 };
 const HASHTAG = /#[\p{L}\p{N}_]+/gu;

@@ -108,6 +108,7 @@ export type CreateInput = {
     tiktok_handle: string | null;
     linkedin_url: string | null;
     facebook_url: string | null;
+    x_handle: string | null;
   }[];
 };
 

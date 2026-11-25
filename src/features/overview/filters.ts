@@ -35,10 +35,11 @@ const PATH: Record<PlatformPage, string> = {
   tiktok: "/tiktok",
   linkedin: "/linkedin",
   facebook: "/facebook",
+  x: "/x",
 };
 
 /**
- * All / Instagram / TikTok / LinkedIn / Facebook switch = navigation. Keeps the date range (query string); the brand
+ * All / Instagram / TikTok / LinkedIn / Facebook / X switch = navigation. Keeps the date range (query string); the brand
  * selection lives in context, so it carries over on its own.
  */
 export function usePlatformNav() {

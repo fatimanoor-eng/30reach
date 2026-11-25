@@ -185,7 +185,9 @@ export function socialKpis(args: {
   let engCaption =
     platform === "linkedin" || platform === "facebook"
       ? "reactions + comments / post"
-      : "likes + comments / post";
+      : platform === "x"
+        ? "likes + replies / post"
+        : "likes + comments / post";
   if (single) {
     const rows = leaderboard(allBrandPosts, brands).filter((r) => r.posts > 0);
     const rank = rows.find((r) => r.brand.id === selected[0])?.rank;
@@ -198,6 +200,8 @@ export function socialKpis(args: {
     engCaption += ` · ${formatCompact(avg(reposts))} avg reposts`;
   if (platform === "facebook" && reposts.length)
     engCaption += ` · ${formatCompact(avg(reposts))} avg shares`;
+  if (platform === "x" && reposts.length)
+    engCaption += ` · ${formatCompact(avg(reposts))} avg reposts`;
   const engKpi: Kpi = {
     label: "Avg engagement",
     value: counted.length ? formatCompact(avgEng) : "—",
