@@ -82,7 +82,7 @@ export function XIcon(props: IconProps) {
   );
 }
 
-/** YouTube line icon (Slice 17d; "coming later" platform). */
+/** YouTube line icon (Slice 17d; a supported platform since Slice 18). */
 export function YouTubeIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

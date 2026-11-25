@@ -193,7 +193,7 @@ export function socialKpis(args: {
     const rank = rows.find((r) => r.brand.id === selected[0])?.rank;
     engCaption = rank ? `#${rank} of ${plural(rows.length, "brand")}` : "No posts in this range";
   }
-  if (platform === "tiktok" && views.length)
+  if ((platform === "tiktok" || platform === "youtube") && views.length)
     engCaption += ` · ${formatCompact(avg(views))} avg views`;
   const reposts = counted.map((p) => p.shares).filter((v): v is number => v !== null);
   if (platform === "linkedin" && reposts.length)

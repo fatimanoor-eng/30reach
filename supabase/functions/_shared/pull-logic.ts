@@ -1,8 +1,15 @@
 // Pure pull-pipeline logic (no Deno APIs) — shared by pull-start / pull-task / pull-finish and
 // tested by Vitest with trimmed Slice 1 spike fixtures (./fixtures). See docs/INTEGRATIONS.md §2a, §3.
 
-export type Platform = "instagram" | "tiktok" | "linkedin" | "facebook" | "x";
-export const PLATFORMS: Platform[] = ["instagram", "tiktok", "linkedin", "facebook", "x"];
+export type Platform = "instagram" | "tiktok" | "linkedin" | "facebook" | "x" | "youtube";
+export const PLATFORMS: Platform[] = [
+  "instagram",
+  "tiktok",
+  "linkedin",
+  "facebook",
+  "x",
+  "youtube",
+];
 
 /** The competitors column that says where to pull each platform from. */
 export const TARGET_COLUMN = {
@@ -11,6 +18,8 @@ export const TARGET_COLUMN = {
   linkedin: "linkedin_url",
   facebook: "facebook_url",
   x: "x_handle",
+  // YouTube (18): the @handle without "@", or a channel id (UC…) from a /channel/ link.
+  youtube: "youtube_handle",
 } as const satisfies Record<Platform, string>;
 export const STATUS_COLUMN = {
   instagram: "instagram_status",
@@ -18,6 +27,7 @@ export const STATUS_COLUMN = {
   linkedin: "linkedin_status",
   facebook: "facebook_status",
   x: "x_status",
+  youtube: "youtube_status",
 } as const satisfies Record<Platform, string>;
 
 /**
@@ -34,8 +44,9 @@ export const CREDITS_PER_PAGE = 2;
 export const X_CREDITS_PER_PAGE = 5;
 export const X_PAGE_CAP = 3;
 export const X_SOLO_PAGE_CAP = 1;
+/** YouTube (18): the official Data API, free (quota units, not Firecrawl credits). */
 export const pageCredits = (platform: Platform) =>
-  platform === "x" ? X_CREDITS_PER_PAGE : CREDITS_PER_PAGE;
+  platform === "x" ? X_CREDITS_PER_PAGE : platform === "youtube" ? 0 : CREDITS_PER_PAGE;
 export const PAGE_CAP = 4; // per brand × platform task
 export const TEST_PAGE_CAP = 2;
 /** LinkedIn pages hold up to 50 posts (~a year for Hims & Hers), so 2 pages always cover 30 days. */
@@ -56,6 +67,7 @@ export const DEFAULT_TASK_CREDITS: Record<Platform, number> = {
   linkedin: 2,
   facebook: 4,
   x: 5,
+  youtube: 0,
 };
 /** Instagram allows up to 3 pinned posts; they sit at the top of page 1 and carry no flag. */
 export const IG_MAX_PINNED = 3;
@@ -69,7 +81,7 @@ export const taskPageCap = (platform: Platform, pullPageCap: number) =>
       : pullPageCap;
 
 export type PostFormat =
-  "reel" | "carousel" | "image" | "video" | "text" | "document" | "article" | "poll";
+  "reel" | "carousel" | "image" | "video" | "text" | "document" | "article" | "poll" | "short"; // YouTube Shorts (18)
 
 /** A post ready for public.posts (minus pull/client/competitor ids). */
 export type MappedPost = {
@@ -89,6 +101,8 @@ export type MappedPost = {
   counts_hidden: boolean;
   is_paid: boolean;
   is_collab: boolean;
+  /** YouTube (18): the video's length; null elsewhere. */
+  duration_seconds?: number | null;
   raw: Record<string, unknown>;
   /** Not stored: where to download the thumbnail from (links expire in days). */
   thumbnail_source: string | null;
@@ -706,6 +720,7 @@ export function postColumns(p: MappedPost) {
     counts_hidden: p.counts_hidden,
     is_paid: p.is_paid,
     is_collab: p.is_collab,
+    duration_seconds: p.duration_seconds ?? null,
     raw: p.raw,
   };
 }
@@ -773,7 +788,7 @@ export function estimate(
   ) as Estimate["perPlatform"];
   for (const t of tasks) {
     if (t.platform === "x") continue; // one combined search for all X brands: below
-    const ceiling = taskPageCap(t.platform, pageCap) * CREDITS_PER_PAGE;
+    const ceiling = taskPageCap(t.platform, pageCap) * pageCredits(t.platform); // YouTube: 0
     const p = perPlatform[t.platform];
     p.tasks += 1;
     p.expected += Math.min(
@@ -886,7 +901,7 @@ export function runningConflict(running: RunningPull, clientId: string) {
 
 /**
  * Platforms a client tracks (Slice 17b): its `client_platforms` rows that are on AND supported here.
- * Rows for platforms 30reach can't pull yet (x, pinterest, youtube…) show "coming later" in the app and
+ * Rows for platforms 30reach can't pull yet (pinterest, threads…) show "coming later" in the app and
  * count once supported. A client with no rows at all (shouldn't happen after 17a) tracks every platform,
  * so an older client never silently stops pulling.
  */

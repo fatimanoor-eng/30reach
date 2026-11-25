@@ -146,6 +146,8 @@ describe("platformRows (16 / M19)", () => {
       ["linkedin", "toggle", true, "Added by the team · competitors’ pages only"],
       ["facebook", "toggle", false, "Added by the team · competitors’ pages only"],
       ["x", "always", true, "@obuhealth · from the website"],
+      // Slice 18: YouTube is supported; without a row it's a team toggle, off.
+      ["youtube", "toggle", false, "Not tracked"],
       ["pinterest", "later", true, "pinterest.com/obuhealth · from the website"],
     ]);
     // A client without an X row can switch it on.

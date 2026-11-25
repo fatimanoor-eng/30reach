@@ -3,8 +3,9 @@
 import { facebookPageUrl, linkedInSlug } from "./pull-logic.ts";
 
 /** Platforms 30reach pulls today (the rest are "found, coming later"). */
-export const SUPPORTED = ["instagram", "tiktok", "linkedin", "facebook", "x"] as const;
-export const LATER = ["youtube", "pinterest", "threads"] as const;
+// YouTube is supported since Slice 18.
+export const SUPPORTED = ["instagram", "tiktok", "linkedin", "facebook", "x", "youtube"] as const;
+export const LATER = ["pinterest", "threads"] as const;
 export type FoundPlatform = (typeof SUPPORTED)[number] | (typeof LATER)[number];
 
 /** An account linked on a site: handle (Instagram / TikTok / X / YouTube / Pinterest / Threads) or page URL. */

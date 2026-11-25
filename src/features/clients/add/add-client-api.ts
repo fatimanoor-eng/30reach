@@ -109,6 +109,7 @@ export type CreateInput = {
     linkedin_url: string | null;
     facebook_url: string | null;
     x_handle: string | null;
+    youtube_handle: string | null;
   }[];
 };
 

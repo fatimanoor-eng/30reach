@@ -60,10 +60,11 @@ export const PLATFORM_TINT: Record<CardPlatform | "none", string> = {
   linkedin: "bg-tint-linkedin",
   facebook: "bg-tint-facebook",
   x: "bg-tint-x",
+  youtube: "bg-tint-youtube",
   none: "bg-soft",
 };
 
-/** 3 px bar on the card's left edge: Instagram pop, TikTok breeze, LinkedIn blue, Facebook fresh, X ink, none = line. */
+/** 3 px bar on the card's left edge: Instagram pop, TikTok breeze, LinkedIn blue, Facebook fresh, X ink, YouTube red, none = line. */
 export const PLATFORM_BAR: Record<CardPlatform | "none", string> = {
   ...PLATFORM_FILL,
   none: "bg-line",
@@ -76,6 +77,7 @@ export const PLATFORM_SHORT: Record<CardPlatform, string> = {
   linkedin: "LI",
   facebook: "FB",
   x: "X",
+  youtube: "YT",
 };
 
 /** Formats each platform supports (the same names the pulls use). */
@@ -88,6 +90,8 @@ export const FORMATS: Record<CardPlatform, string[]> = {
   facebook: ["reel", "video", "image", "carousel", "article", "text"],
   // Slice 17g: X ("text" is shown as "Post": most X posts are just words).
   x: ["text", "image", "video", "carousel"],
+  // Slice 18: YouTube, a regular video or a Short.
+  youtube: ["video", "short"],
 };
 export const FORMAT_NAME: Record<string, string> = {
   reel: "Reel",
@@ -98,6 +102,7 @@ export const FORMAT_NAME: Record<string, string> = {
   document: "Document",
   article: "Link",
   poll: "Poll",
+  short: "Short",
 };
 
 /** A format's name on a platform: Facebook's multi-image posts are albums ("Album"). */

@@ -15,9 +15,19 @@ describe("parseCheckRequest", () => {
     });
   });
   it("rejects unknown platforms and malformed handles", () => {
-    expect(parseCheckRequest({ platform: "youtube", handle: "ro" })).toEqual({
+    expect(parseCheckRequest({ platform: "pinterest", handle: "ro" })).toEqual({
       error: "bad_platform",
     });
+    // YouTube (18): @handles and channel links; video links are refused.
+    expect(
+      parseCheckRequest({ platform: "youtube", handle: "youtube.com/@WeightWatchers" }),
+    ).toEqual({
+      platform: "youtube",
+      handle: "weightwatchers",
+    });
+    expect(
+      parseCheckRequest({ platform: "youtube", handle: "youtube.com/watch?v=Hm3jtqHt8tM" }),
+    ).toEqual({ error: "bad_handle" });
     // X (17g): handles, links, case
     expect(parseCheckRequest({ platform: "x", handle: "x.com/@Ro" })).toEqual({
       platform: "x",
@@ -113,7 +123,14 @@ describe("Facebook (16a): page link → AnyAPI profile with followers", () => {
     });
   });
   it("costs up to 5 (the 402 check), the others up to 2", () => {
-    expect(CHECK_COST).toEqual({ instagram: 2, tiktok: 2, linkedin: 2, facebook: 5, x: 1 });
+    expect(CHECK_COST).toEqual({
+      instagram: 2,
+      tiktok: 2,
+      linkedin: 2,
+      facebook: 5,
+      x: 1,
+      youtube: 0,
+    });
   });
   it("found → ok with followers; made-up page → not_found at 0 credits", () => {
     expect(profileOutcome(parseFacebookProfile(fbProfile))).toEqual({

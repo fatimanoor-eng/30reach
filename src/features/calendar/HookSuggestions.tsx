@@ -19,7 +19,8 @@ export function HookSuggestions({
   onHide,
   noun = "hook",
 }: {
-  noun?: "hook" | "caption";
+  /** YouTube cards (18): "title" / "description". */
+  noun?: "hook" | "caption" | "title" | "description";
   value: HooksState;
   onPick: (hook: string) => void;
   onRetry: () => void;

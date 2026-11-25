@@ -1,5 +1,9 @@
 // `check-handle` Edge Function — is this Instagram / TikTok handle, LinkedIn company page or Facebook
-// page real and public? (Slice 8, 07b; LinkedIn Slice 15a; Facebook Slice 16a)
+// page real and public? (Slice 8, 07b; LinkedIn Slice 15a; Facebook Slice 16a; YouTube Slice 18)
+//
+// YouTube: one channels.list call to the official Data API (0 credits, 1 of the free daily quota units):
+// `handle` = the @handle (no "@") or a UC… channel id; the answer adds `channelId` and `followers`
+// (subscribers, rounded by YouTube). A handle that doesn't exist answers 200 with no items → not_found.
 //
 // POST { platform: "instagram" | "tiktok" | "linkedin" | "facebook", handle, clientId? } →   (LinkedIn / Facebook:
 //       page URL or slug)
@@ -32,13 +36,22 @@ import {
   clientName,
   requireTeam,
   saveCreditsCache,
+  fetchYouTubeChannel,
   scrapeFacebookProfile,
   scrapeXUserPosts,
   scrapePage,
   withSupabase,
+  YouTubeApiError,
 } from "../_shared/server.ts";
+import { parseChannel } from "../_shared/youtube-logic.ts";
 import { parseFacebookProfile, parsePage, parseXUserPosts } from "../_shared/pull-logic.ts";
-import { CHECK_COST, checkOutcome, parseCheckRequest, profileOutcome } from "./logic.ts";
+import {
+  CHECK_COST,
+  channelOutcome,
+  checkOutcome,
+  parseCheckRequest,
+  profileOutcome,
+} from "./logic.ts";
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
@@ -53,6 +66,27 @@ export default {
     if ("error" in parsed) return json(parsed, 400);
     const { platform, handle } = parsed;
     const admin = ctx.supabaseAdmin;
+
+    // YouTube (18): the official API, no Firecrawl credits, so no balance check and no clash with a pull.
+    if (platform === "youtube") {
+      let outcome: ReturnType<typeof channelOutcome>;
+      try {
+        outcome = channelOutcome(parseChannel(await fetchYouTubeChannel(handle)));
+      } catch (err) {
+        const code = err instanceof YouTubeApiError ? err.code : "youtube_unavailable";
+        console.error(`check-handle: YouTube API failed (${code})`);
+        return json({ error: code, creditsUsed: 0, credits: null }, 502);
+      }
+      if ("error" in outcome) return json({ ...outcome, credits: null }, 502);
+      return json({
+        status: outcome.status,
+        handle,
+        creditsUsed: 0,
+        credits: null,
+        followers: outcome.status === "ok" ? outcome.followers : null,
+        channelId: "channelId" in outcome ? (outcome.channelId ?? null) : null,
+      });
+    }
 
     // A running pull is already calling Firecrawl one page at a time; don't race it (free-plan 429s).
     const { data: running } = await admin

@@ -30,6 +30,7 @@
   --color-fresh: #0c5238; /* B30 Fresh */
   --color-spark: #f95050; /* B30 Spark */
   --color-blue: #3457ba; /* B30 Blue */
+  --color-youtube: #c4302b; /* YouTube (Slice 18): a deeper, muted red, clearly not Spark (#f95050, errors). Dark: ink text on a surface chip on top, never on it */
   --color-amber: #e39a00; /* stale data dot */
   --color-amber-text: #b26b00; /* stale data text */
   --color-line-strong: #d6d6d0; /* select chips (09 card header) */
@@ -39,6 +40,7 @@
   --color-tint-tiktok: #e9f8fe; /* 09 card header, TikTok card */
   --color-tint-linkedin: #e3e8f5; /* LinkedIn tint (Slice 15; 09 card header in 15c) */
   --color-tint-facebook: #eef6f2; /* Facebook tint (09 card header, Slice 16c). Lighter than #e6efea so the Approved / Posted pills stay visible on it. Colour = fresh */
+  --color-tint-youtube: #fbf1f0; /* YouTube tint (09 card header, Slice 18). Very pale so the status pills stay visible on it */
   --color-tint-x: #f5f5f2; /* X tint (09 card header, Slice 17g): neutral, X's colour is ink. Light enough for the Posted pill */
   --color-status-idea: #fbe6fe; /* soft status pills (09) */
   --color-status-drafting: #ddf3fc;

@@ -33,13 +33,16 @@ export function mobileProgressLine(tasks: TaskProgress[]): string {
 }
 
 /** 05g sentence: "Found’s TikTok handle wasn’t found." / "Ro’s LinkedIn page wasn’t found." /
- * "Ro’s Instagram pull failed." */
+ * "Ro’s Instagram pull failed." / YouTube's daily limit (18). */
 export function problemSentence(problems: PullProblem[]): string {
   if (problems.length === 0) return "";
   const one = (p: PullProblem) =>
     p.code === "not_found"
       ? `${possessive(p.brand)} ${PLATFORM_LABEL[p.platform]} ${targetNoun(p.platform)} wasn’t found.`
       : `${possessive(p.brand)} ${PLATFORM_LABEL[p.platform]} pull failed.`;
+  // YouTube (18): the free daily API quota ran out (resets at midnight Pacific). Say so once.
+  if (problems.length && problems.every((p) => p.code === "quota"))
+    return "YouTube’s free daily limit ran out, so some YouTube channels weren’t pulled. Try again tomorrow.";
   if (problems.length === 1) return one(problems[0]);
   const names = problems.map((p) => `${p.brand} ${PLATFORM_LABEL[p.platform]}`);
   return `${names.slice(0, -1).join(", ")} and ${names.at(-1)} couldn’t be pulled.`;

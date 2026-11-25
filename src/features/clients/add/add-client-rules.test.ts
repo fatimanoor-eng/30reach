@@ -101,7 +101,7 @@ describe("15c checklist", () => {
       ["Logo and brand colour", "FOUND", "done"],
       ["Instagram · @shop_allthebest", "FOUND", "done"],
       ["Facebook · shop.at.atb", "FOUND", "done"],
-      ["TikTok, LinkedIn, X", "NOT ON THEIR SITE", "muted"],
+      ["TikTok, LinkedIn, X, YouTube", "NOT ON THEIR SITE", "muted"],
       ["Content profile · Luxury gifting / florist, US", "DONE", "done"],
       ["Competitors · searching “luxury gift boxes Los Angeles”", "SEARCHING", "active"],
       ["Competitors’ social accounts", "NEXT", "next"],
@@ -127,6 +127,7 @@ describe("15d review defaults", () => {
       ["tiktok", "team", false],
       ["linkedin", "team", false],
       ["x", "team", false],
+      ["youtube", "team", false], // Slice 18
     ]);
   });
   it("pre-ticks the first 4 with an account 30reach pulls", () => {
@@ -182,6 +183,13 @@ describe("Create rows", () => {
       },
       // Slice 17g: X is supported, so a site without an X link gets an off team row like the others.
       { platform: "x", state: "off", source: "team", account_handle: null, account_url: null },
+      {
+        platform: "youtube",
+        state: "off",
+        source: "team",
+        account_handle: null,
+        account_url: null,
+      },
     ]);
   });
   it("competitors: ticked ones, found or typed accounts, no duplicate names", () => {

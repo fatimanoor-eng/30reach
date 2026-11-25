@@ -12,7 +12,9 @@ import {
   linkedInDisplay,
   parseHandle,
   suggestInitials,
+  handleLabel,
   targetDisplay,
+  youtubeTarget,
 } from "./competitor-rules";
 
 const comp = (o: Partial<Competitor>): Competitor => ({
@@ -29,6 +31,10 @@ const comp = (o: Partial<Competitor>): Competitor => ({
   linkedin_status: "unchecked",
   facebook_status: "unchecked",
   x_status: "unchecked",
+  youtube_handle: null,
+  youtube_status: "unchecked",
+  youtube_channel_id: null,
+  youtube_subscribers: null,
   facebook_followers: null,
   facebook_followers_at: null,
   ...o,
@@ -117,25 +123,32 @@ describe("handlesToCheck", () => {
     expect(
       handlesToCheck(
         {},
-        { instagram: "noom", tiktok: null, linkedin: null, facebook: null, x: null },
+        { instagram: "noom", tiktok: null, linkedin: null, facebook: null, x: null, youtube: null },
       ),
     ).toEqual(["instagram"]);
     expect(
       handlesToCheck(
         { instagram: "noom", tiktok: "noom" },
-        { instagram: "noom", tiktok: "noomofficial", linkedin: li, facebook: fb, x: null },
+        {
+          instagram: "noom",
+          tiktok: "noomofficial",
+          linkedin: li,
+          facebook: fb,
+          x: null,
+          youtube: null,
+        },
       ),
     ).toEqual(["tiktok", "linkedin", "facebook"]);
     expect(
       handlesToCheck(
-        { instagram: "noom", tiktok: "noom", linkedin: li, facebook: fb, x: null },
-        { instagram: "noom", tiktok: null, linkedin: null, facebook: null, x: null },
+        { instagram: "noom", tiktok: "noom", linkedin: li, facebook: fb, x: null, youtube: null },
+        { instagram: "noom", tiktok: null, linkedin: null, facebook: null, x: null, youtube: null },
       ),
     ).toEqual([]); // removing a handle or page costs nothing
     expect(
       handlesToCheck(
         { instagram: "noom", facebook: fb, x: null },
-        { instagram: "noom", tiktok: null, linkedin: null, facebook: fb, x: null },
+        { instagram: "noom", tiktok: null, linkedin: null, facebook: fb, x: null, youtube: null },
       ),
     ).toEqual([]); // an unchanged Facebook page isn't checked again (no 5 credits for followers)
   });
@@ -274,5 +287,48 @@ describe("Facebook /p/ page links (Slice 17a)", () => {
       handle: "https://www.facebook.com/profile.php?id=100095309165059",
     });
     expect(parseHandle("facebook", "facebook.com/p/carnaby").kind).toBe("invalid");
+  });
+});
+
+describe("YouTube (Slice 18)", () => {
+  it("handles and channel links; video and old /c/ links are refused", () => {
+    expect(parseHandle("youtube", "@WeightWatchers")).toEqual({
+      kind: "ok",
+      handle: "weightwatchers",
+    });
+    expect(parseHandle("youtube", "https://www.youtube.com/@obuhealth/shorts")).toEqual({
+      kind: "ok",
+      handle: "obuhealth",
+    });
+    expect(parseHandle("youtube", "youtube.com/channel/UC7AWNWptGGpybSgZbV34yBw")).toEqual({
+      kind: "ok",
+      handle: "UC7AWNWptGGpybSgZbV34yBw",
+    });
+    expect(parseHandle("youtube", "youtube.com/watch?v=Hm3jtqHt8tM")).toMatchObject({
+      kind: "invalid",
+      message: "Use the channel’s @handle (youtube.com/@…) or a youtube.com/channel/… link.",
+    });
+    expect(youtubeTarget("youtube.com/c/WeightWatchers")).toBeNull();
+    expect(youtubeTarget("ab")).toBeNull();
+  });
+  it("labels: @handle, or the channel id as it is", () => {
+    expect(handleLabel("youtube", "weightwatchers")).toBe("@weightwatchers");
+    expect(handleLabel("youtube", "UC7AWNWptGGpybSgZbV34yBw")).toBe("UC7AWNWptGGpybSgZbV34yBw");
+    expect(handleLabel("x", "ro")).toBe("@ro");
+    expect(handleLabel("facebook", "https://www.facebook.com/noom")).toBe("facebook.com/noom");
+  });
+  it("checks are free; found shows subscribers", () => {
+    expect(CHECK_COST.youtube).toBe(0);
+    expect(checkCostNote(["youtube"])).toBe("Checking YouTube is free · no credits");
+    expect(checkCostNote(["instagram", "youtube"])).toBe(
+      "Checking costs 2 credits per handle · up to 2 now · YouTube is free",
+    );
+    expect(foundMessage("youtube", 187000)).toBe("Found · public channel · 187K subscribers");
+    expect(foundMessage("youtube", null)).toBe("Found · public channel");
+  });
+  it("status chip names YouTube when its channel wasn't found", () => {
+    expect(competitorStatus(comp({ youtube_handle: "nope", youtube_status: "not_found" }))).toEqual(
+      { label: "YouTube not found", tone: "danger" },
+    );
   });
 });

@@ -189,3 +189,19 @@ describe("noAccountsText (Slice 17c fix)", () => {
     );
   });
 });
+
+describe("YouTube (Slice 18)", () => {
+  it("the daily quota running out is said once, plainly", () => {
+    expect(
+      problemSentence([
+        { brand: "Ro", platform: "youtube", code: "quota" },
+        { brand: "Hims", platform: "youtube", code: "quota" },
+      ]),
+    ).toBe(
+      "YouTube’s free daily limit ran out, so some YouTube channels weren’t pulled. Try again tomorrow.",
+    );
+    expect(problemSentence([{ brand: "Ro", platform: "youtube", code: "not_found" }])).toBe(
+      "Ro’s YouTube handle wasn’t found.",
+    );
+  });
+});

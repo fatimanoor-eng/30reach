@@ -447,11 +447,18 @@ describe("inputs from the browser", () => {
       format: null,
     });
     expect(
-      parseHooksInput({ clientId: CLIENT, title: "Q&A", platform: "youtube", format: "reel" }),
+      parseHooksInput({ clientId: CLIENT, title: "Q&A", platform: "pinterest", format: "reel" }),
     ).toMatchObject({
       platform: null,
       format: null,
     });
+    // YouTube (18): a reel isn't a YouTube format; a short is.
+    expect(
+      parseHooksInput({ clientId: CLIENT, title: "Q&A", platform: "youtube", format: "reel" }),
+    ).toMatchObject({ platform: "youtube", format: null });
+    expect(
+      parseHooksInput({ clientId: CLIENT, title: "Q&A", platform: "youtube", format: "short" }),
+    ).toMatchObject({ platform: "youtube", format: "short" });
   });
 });
 
@@ -1450,7 +1457,7 @@ describe("LinkedIn in Blip (Slice 15c)", () => {
     expect(ctx.platform).toBe("LinkedIn");
     expect(ctx.top_openings.map((o) => o.first_line)).toEqual(["Our care report is out"]);
     expect(hookContext(pullData([post()]), null).platform).toBe(
-      "Instagram, TikTok, LinkedIn and Facebook",
+      "Instagram, TikTok, LinkedIn, Facebook, X and YouTube",
     );
     expect(
       parseHooksInput({ clientId: CLIENT, title: "t", platform: "linkedin", format: "poll" }),
@@ -1575,5 +1582,44 @@ describe("Blip facts block (Slice 17a)", () => {
     expect(FACTS("All The Best Co")).toBe(
       "Facts: Breakthirty is the agency; 30reach is its tool; you are Blip. All The Best Co is Breakthirty's client (the brand we plan for); competitors are other brands we track.",
     );
+  });
+});
+
+describe("YouTube in Blip (Slice 18)", () => {
+  const TODAY = "2026-11-25";
+  it("hooks are YouTube video titles: keyword first, 40-70 characters, no clickbait", () => {
+    const sys = hooksSystem({ client: "OBU Health", platform: "youtube", today: TODAY });
+    expect(sys).toContain("a YouTube post by OBU Health");
+    expect(sys).toMatch(/VIDEO TITLES/);
+    expect(sys).toMatch(/keyword people would search for first/);
+    expect(sys).toMatch(/40-70 characters \(a Short: under 50\)/);
+  });
+  it("captions are video descriptions: a searchable first line, then 1-3 hashtags", () => {
+    const sys = captionsSystem({ client: "OBU Health", platform: "youtube", today: TODAY });
+    expect(sys).toMatch(/video DESCRIPTION/);
+    expect(sys).toMatch(/shown before "more"/);
+    const desc =
+      "How GLP-1s change hunger, explained by a doctor in 5 minutes.\nWe cover food noise and why it matters.\nWatch next: our protein guide.\n#glp1 #weightloss";
+    // Hashtags go on their own final line after a blank one, as on every platform.
+    expect(validateCaptions({ captions: [desc] }, "youtube", 1)).toEqual([
+      desc.replace("\n#glp1", "\n\n#glp1"),
+    ]);
+    // More than 3 hashtags: trimmed to 3.
+    const many = validateCaptions(
+      { captions: ["What a Short covers.\nOne more line.\n#a #b #c #d"] },
+      "youtube",
+      1,
+    );
+    expect(many?.[0].endsWith("#a #b #c")).toBe(true);
+  });
+  it("Plan {month} knows YouTube's formats", () => {
+    const sys = planSystem({
+      client: "OBU Health",
+      monthName: "January",
+      year: 2027,
+      today: TODAY,
+    });
+    expect(sys).toContain("youtube = video or short");
+    expect(sys).toMatch(/YouTube ideas are searchable and useful/);
   });
 });

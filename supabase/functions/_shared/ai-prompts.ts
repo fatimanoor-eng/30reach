@@ -150,7 +150,7 @@ ${clientRules(o.ctx)}
 Inputs: upcoming events (holidays, health months, marketing dates), what works for competitors now (<data>, a 30-day pull), and ideas already on the idea board. There is no data from last year, so don't refer to last year.
 Suggest 6 post ideas. Each is tied to a date in ${o.monthName} ${o.year} and has a one-sentence reason grounded in the inputs (an event, a competitor post, a format or time that works, or a board idea).
 Prefer the best-performing formats and posting times from the data. Spread the ideas across the month and the platforms in <data> (only those).
-Formats: instagram = reel, carousel or image; tiktok = video or carousel; linkedin = text, image, document, video, article (a link post) or poll; facebook = reel, video, image, carousel (an album), article (a link post) or text; x = text, image, video or carousel (several photos). LinkedIn ideas are professional: insights, team, research, behind the scenes; not trends. Facebook ideas are warm and community-minded: questions, tips, everyday moments. X ideas are short and timely: a clear take, a quick tip or a question.
+Formats: instagram = reel, carousel or image; tiktok = video or carousel; linkedin = text, image, document, video, article (a link post) or poll; facebook = reel, video, image, carousel (an album), article (a link post) or text; x = text, image, video or carousel (several photos); youtube = video or short. LinkedIn ideas are professional: insights, team, research, behind the scenes; not trends. Facebook ideas are warm and community-minded: questions, tips, everyday moments. X ideas are short and timely: a clear take, a quick tip or a question. YouTube ideas are searchable and useful: how-tos, explainers, myths, Q&As; a short is one quick tip or moment. For youtube the title is the video title: keyword first, specific, no clickbait.
 title: max 60 characters. reason: max 140 characters, starting with what it's based on. source_refs: refs of top_posts used ([] if none).
 ${ALL_KEYS}
 {"ideas":[{"date":"YYYY-MM-DD","platform":"instagram","format":"carousel","title":"<title>","reason":"<based on …>","source_refs":[]}]}`;
@@ -217,7 +217,9 @@ export function hooksSystem(o: {
             ? "a Facebook"
             : o.platform === "x"
               ? "an X"
-              : "a social";
+              : o.platform === "youtube"
+                ? "a YouTube"
+                : "a social";
   const tone =
     o.platform === "linkedin"
       ? "\nLinkedIn: professional and plain-spoken, like a thoughtful expert or founder. No slang, no hype, no clickbait."
@@ -225,7 +227,9 @@ export function hooksSystem(o: {
         ? '\nFacebook: warm and conversational, like talking with a community. The hook must work on its own before "See more": a question or a relatable moment. No clickbait.'
         : o.platform === "x"
           ? "\nX: short, sharp and plain, like a confident opening line in a feed, under 100 characters. A clear take or a specific fact; no hashtags, no emojis, no clickbait."
-          : "";
+          : o.platform === "youtube"
+            ? "\nYouTube: these are VIDEO TITLES, not spoken openings. Put the main keyword people would search for first; be specific and honest about what the viewer gets; 40-70 characters (a Short: under 50). No ALL CAPS words, no hashtags, no emojis, no clickbait."
+            : "";
   return `${todayLine(o.today)} You write hooks (the first line people see or hear) for ${where} post by ${o.client}.
 ${FACTS(o.client)}
 ${BLIP_VOICE_JSON}
@@ -260,6 +264,8 @@ const CAPTION_HOW: Record<Platform | "any", string> = {
   facebook:
     "Facebook: warm and conversational, 1-3 short paragraphs (at most 4 lines), under 500 characters, ending with a question or a soft call to action; 0-2 hashtags at most, on a final line.",
   x: "X: one post under 280 characters (1-3 short lines), plain and punchy, a clear point; 0-2 relevant hashtags at most; no emojis.",
+  youtube:
+    'YouTube: a video DESCRIPTION. The first 1-2 lines (under 150 characters, shown before "more") say what the viewer gets and use the words people would search for; then 1-4 short lines of detail or a gentle call to action (watch next, subscribe); then 1-3 relevant hashtags on a final line. A Short: just 1-2 lines, then the hashtags. Under 1,000 characters, at most 1 emoji.',
   any: "2-4 short lines, a gentle call to action, then 3-5 relevant hashtags on a final line.",
 };
 

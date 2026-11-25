@@ -13,6 +13,7 @@ import {
   LinkedInIcon,
   TikTokIcon,
   XIcon,
+  YouTubeIcon,
 } from "../components/icons/BrandIcons";
 import type { Platform } from "../lib/platforms";
 
@@ -37,6 +38,7 @@ export const navSections: { label: string; items: NavItem[] }[] = [
       { to: "/linkedin", label: "LinkedIn", icon: LinkedInIcon, platform: "linkedin" },
       { to: "/facebook", label: "Facebook", icon: FacebookIcon, platform: "facebook" },
       { to: "/x", label: "X", icon: XIcon, platform: "x" },
+      { to: "/youtube", label: "YouTube", icon: YouTubeIcon, platform: "youtube" },
       { to: "/competitors", label: "Competitors", icon: Users },
     ],
   },
@@ -56,7 +58,7 @@ export const mobileTabs: (NavItem & { match: string[] })[] = [
     to: "/instagram",
     label: "Social",
     icon: InstagramIcon,
-    match: ["/instagram", "/tiktok", "/linkedin", "/facebook", "/x"],
+    match: ["/instagram", "/tiktok", "/linkedin", "/facebook", "/x", "/youtube"],
   },
   { to: "/calendar", label: "Calendar", icon: Calendar, match: ["/calendar"] },
   { to: "/ideas", label: "Ideas", icon: Lightbulb, match: ["/ideas"] },

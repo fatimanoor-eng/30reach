@@ -146,6 +146,7 @@ export function SocialPage({ platform }: { platform: Platform }) {
         chosen={chosen}
         competitors={competitors.data}
       />
+      {platform === "youtube" && <YouTubeSource />}
     </>
   );
 }
@@ -330,5 +331,25 @@ function SocialSkeleton() {
         </SkeletonCard>
       </div>
     </Skeleton>
+  );
+}
+
+/**
+ * YouTube (Slice 18): the YouTube API Services rules ask apps to show YouTube as the source and link to
+ * YouTube's Terms of Service.
+ */
+function YouTubeSource() {
+  return (
+    <p className="mt-6 font-mono text-label text-muted">
+      Data from YouTube ·{" "}
+      <a
+        href="https://www.youtube.com/t/terms"
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex min-h-11 items-center underline hover:text-ink md:min-h-0"
+      >
+        YouTube Terms of Service
+      </a>
+    </p>
   );
 }

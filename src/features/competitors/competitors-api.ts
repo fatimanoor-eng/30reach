@@ -5,8 +5,11 @@ import type { Competitor } from "../../lib/useCompetitors";
 import { CHECK_COST } from "./competitor-rules";
 
 export type CheckResult =
-  /** `followers`: Facebook only (AnyAPI reads them with the check); null elsewhere. */
-  | { kind: "ok"; creditsUsed: number; followers: number | null }
+  /**
+   * `followers`: Facebook (AnyAPI reads them with the check) and YouTube subscribers; null elsewhere.
+   * `channelId`: YouTube only (the channel the handle points to).
+   */
+  | { kind: "ok"; creditsUsed: number; followers: number | null; channelId?: string | null }
   | { kind: "not_found"; creditsUsed: number }
   /** Couldn't get an answer (nothing marked wrong); `message` is shown next to Save. */
   | { kind: "failed"; message: string };
@@ -25,11 +28,17 @@ export async function checkHandle(
     status: "ok" | "not_found";
     creditsUsed: number;
     followers?: number | null;
+    channelId?: string | null;
   }>("check-handle", { platform, handle, clientId });
   if (r.ok) {
     const creditsUsed = r.data.creditsUsed ?? 0;
     return r.data.status === "ok"
-      ? { kind: "ok", creditsUsed, followers: r.data.followers ?? null }
+      ? {
+          kind: "ok",
+          creditsUsed,
+          followers: r.data.followers ?? null,
+          channelId: r.data.channelId ?? null,
+        }
       : { kind: "not_found", creditsUsed };
   }
   const isPage = platform === "linkedin" || platform === "facebook";
@@ -38,13 +47,15 @@ export async function checkHandle(
   const message =
     r.status === 409 || code === "pull_running"
       ? "A pull is running. Save again when it finishes."
-      : r.status === 402 || code === "insufficient"
-        ? `Not enough Firecrawl credits left to check ${isPage ? "a page" : "a handle"} (needs ${CHECK_COST[platform]}).`
-        : r.status === 429 || code === "rate_limited"
-          ? `Firecrawl asked us to slow down. Try Save again in ${Number.isFinite(retryAfter) && retryAfter > 0 ? Math.ceil(retryAfter) : 30} s.`
-          : r.status === 0
-            ? "Couldn’t reach the server. Check your connection and try again."
-            : `Couldn’t check the ${isPage ? "page" : "handle"} right now. Nothing was saved for it; try again.`;
+      : platform === "youtube" && code === "quota"
+        ? "YouTube’s free daily limit is used up. Try again tomorrow."
+        : r.status === 402 || code === "insufficient"
+          ? `Not enough Firecrawl credits left to check ${isPage ? "a page" : "a handle"} (needs ${CHECK_COST[platform]}).`
+          : r.status === 429 || code === "rate_limited"
+            ? `Firecrawl asked us to slow down. Try Save again in ${Number.isFinite(retryAfter) && retryAfter > 0 ? Math.ceil(retryAfter) : 30} s.`
+            : r.status === 0
+              ? "Couldn’t reach the server. Check your connection and try again."
+              : `Couldn’t check the ${isPage ? "page" : "handle"} right now. Nothing was saved for it; try again.`;
   return { kind: "failed", message };
 }
 

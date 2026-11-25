@@ -12,29 +12,29 @@ import {
   checkCostNote,
   duplicateOf,
   foundMessage,
+  handleLabel,
   handlesToCheck,
   MAX_INITIALS,
   parseHandle,
   PLATFORM_NAME,
   PLATFORMS,
   suggestInitials,
-  targetDisplay,
   targetNoun,
 } from "./competitor-rules";
 import { checkHandle, saveCompetitor, type CompetitorFields } from "./competitors-api";
 
 type Feedback = { tone: FieldTone; message: string };
 type Status = Competitor["instagram_status"];
-/** A check's answer; `followers` only for Facebook (read with the check). */
-type Answer = { status: "ok" | "not_found"; followers: number | null };
+/** A check's answer; `followers` for Facebook and YouTube (read with the check); `channelId` YouTube. */
+type Answer = { status: "ok" | "not_found"; followers: number | null; channelId?: string | null };
 
 const handleKey = (p: Platform) => TARGET_KEY[p];
 const statusKey = (p: Platform) => STATUS_KEY[p];
 const NOT_FOUND = "Not found. Check the spelling or leave it empty.";
 
-/** What the field shows for a saved value: "@handle", or the LinkedIn / Facebook page without https://www. */
+/** What the field shows for a saved value: "@handle", the LinkedIn / Facebook page without https://www., or a YouTube channel id. */
 const shownValue = (p: Platform, saved: string | null | undefined) =>
-  !saved ? "" : p === "linkedin" || p === "facebook" ? targetDisplay(p, saved) : `@${saved}`;
+  !saved ? "" : handleLabel(p, saved);
 
 /** Feedback for a saved handle when the panel opens (status from the last check or pull). */
 function savedFeedback(c: Competitor | null, p: Platform): Feedback | null {
@@ -45,7 +45,9 @@ function savedFeedback(c: Competitor | null, p: Platform): Feedback | null {
   if (s === "ok")
     return p === "facebook"
       ? { tone: "ok", message: foundMessage(p, c.facebook_followers, c.facebook_followers_at) }
-      : { tone: "ok", message: foundMessage(p) };
+      : p === "youtube"
+        ? { tone: "ok", message: foundMessage(p, c.youtube_subscribers) }
+        : { tone: "ok", message: foundMessage(p) };
   return { tone: "default", message: "Not checked yet. The next Refresh checks it." };
 }
 
@@ -115,7 +117,8 @@ export function CompetitorPanel({
   ) as Record<Platform, string | null>;
   const toCheck = handlesToCheck(before, after).filter((p) => !checked[`${p}:${after[p]}`]);
   const busy = saving || checking !== null;
-  const blockedByPull = pullBusy && toCheck.length > 0;
+  // YouTube's check uses YouTube's own API, not Firecrawl, so a running pull doesn't block it.
+  const blockedByPull = pullBusy && toCheck.some((p) => p !== "youtube");
 
   const setInput = (p: Platform, v: string) => {
     setInputs((s) => ({ ...s, [p]: v }));
@@ -158,7 +161,7 @@ export function CompetitorPanel({
     }
     setFeedback(nextFeedback);
     if (PLATFORMS.every((p) => parsed[p].kind === "empty")) {
-      setFormError("Add at least one handle (Instagram, TikTok, LinkedIn or Facebook).");
+      setFormError("Add at least one handle or page.");
       valid = false;
     }
     if (!valid) return;
@@ -185,6 +188,7 @@ export function CompetitorPanel({
       const answer: Answer = {
         status: r.kind,
         followers: r.kind === "ok" ? r.followers : null,
+        channelId: r.kind === "ok" ? (r.channelId ?? null) : null,
       };
       setChecked((s) => ({ ...s, [key]: answer }));
       results[p] = answer;
@@ -213,6 +217,11 @@ export function CompetitorPanel({
       linkedin_status: "unchecked",
       facebook_status: "unchecked",
       x_status: "unchecked",
+      youtube_handle: null,
+      youtube_status: "unchecked",
+      // Kept while the channel stays the same; replaced when a new / changed one is found (pulls refresh them).
+      youtube_channel_id: saved?.youtube_channel_id ?? null,
+      youtube_subscribers: saved?.youtube_subscribers ?? null,
       // Kept while the page stays the same; replaced when a new / changed page is found.
       facebook_followers: saved?.facebook_followers ?? null,
       facebook_followers_at: saved?.facebook_followers_at ?? null,
@@ -236,6 +245,14 @@ export function CompetitorPanel({
     } else if (!fields.facebook_url) {
       fields.facebook_followers = null;
       fields.facebook_followers_at = null;
+    }
+    const yt = results.youtube;
+    if (yt?.status === "ok") {
+      fields.youtube_channel_id = yt.channelId ?? null;
+      fields.youtube_subscribers = yt.followers;
+    } else if (!fields.youtube_handle) {
+      fields.youtube_channel_id = null;
+      fields.youtube_subscribers = null;
     }
     const notFound = PLATFORMS.filter((p) => results[p]?.status === "not_found");
 
@@ -287,9 +304,11 @@ export function CompetitorPanel({
             ? "@handle or profile link"
             : p === "tiktok" || p === "x"
               ? "@handle (optional)"
-              : p === "linkedin"
-                ? "Company page link (optional)"
-                : "Page link (optional)"
+              : p === "youtube"
+                ? "@handle or channel link (optional)"
+                : p === "linkedin"
+                  ? "Company page link (optional)"
+                  : "Page link (optional)"
         }
         autoCapitalize="none"
         autoCorrect="off"

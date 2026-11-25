@@ -1,0 +1,1804 @@
+{
+  "kind": "youtube#videoListResponse",
+  "etag": "tk4F22cbEI7UV4zfz-wdbYqM_WI",
+  "items": [
+    {
+      "kind": "youtube#video",
+      "etag": "2xVAEbQF7XZUVscWRo1jfJJqmNs",
+      "id": "In4-6SVSDZ0",
+      "snippet": {
+        "publishedAt": "2026-11-14T06:14:47Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Julie Rice on what Weight Watchers is in the era of GLP-1s | The Weigh In",
+        "description": "What is Weight Watchers in the era of GLP-1s? #JulieRice, WW chief experience officer, answers the question she gets at dinner parties. The Weigh In season finale is out now wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/In4-6SVSDZ0/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/In4-6SVSDZ0/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/In4-6SVSDZ0/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/In4-6SVSDZ0/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/In4-6SVSDZ0/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/In4-6SVSDZ0/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "Weight Watchers",
+          "WW",
+          "WeightWatchers",
+          "Julie Rice",
+          "The Weigh In",
+          "The Weigh In podcast",
+          "Weight Watchers podcast",
+          "WW podcast",
+          "GLP-1",
+          "GLP-1 weight loss",
+          "GLP-1 support",
+          "weight loss podcast",
+          "weight loss support",
+          "what is Weight Watchers",
+          "Weight Watchers GLP-1",
+          "wellness podcast",
+          "health podcast",
+          "women's health podcast",
+          "weight loss journey",
+          "podcast clips"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Julie Rice on what Weight Watchers is in the era of GLP-1s | The Weigh In",
+          "description": "What is Weight Watchers in the era of GLP-1s? #JulieRice, WW chief experience officer, answers the question she gets at dinner parties. The Weigh In season finale is out now wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT40S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "1245",
+        "likeCount": "12",
+        "favoriteCount": "0",
+        "commentCount": "1"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "arspa6LV_j7MRN66eaBbJd-VV_g",
+      "id": "53-Sk5BToAI",
+      "snippet": {
+        "publishedAt": "2026-11-09T23:27:09Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Julie Rice on what Weight Watchers is in the era of GLP-1s | The Weigh In",
+        "description": "What is Weight Watchers in the era of GLP-1s?\n\n#JulieRice, WW chief experience officer, answers the question she gets at dinner parties. The Weigh In season finale is out wherever you listen to your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/53-Sk5BToAI/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/53-Sk5BToAI/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/53-Sk5BToAI/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/53-Sk5BToAI/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/53-Sk5BToAI/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/53-Sk5BToAI/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "julie rice",
+          "soul cycle",
+          "weight watchers",
+          "weight loss",
+          "weight loss tips",
+          "ww",
+          "weight watchers podcast",
+          "health tips",
+          "health podcast"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Julie Rice on what Weight Watchers is in the era of GLP-1s | The Weigh In",
+          "description": "What is Weight Watchers in the era of GLP-1s?\n\n#JulieRice, WW chief experience officer, answers the question she gets at dinner parties. The Weigh In season finale is out wherever you listen to your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT1M16S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "650",
+        "likeCount": "9",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "0uFV4YK8wouD2vrUuUOvSRqlQjc",
+      "id": "53LX5__FLBU",
+      "snippet": {
+        "publishedAt": "2026-11-04T18:59:23Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Julie Rice on the WW meeting that changed things for her | The Weigh In",
+        "description": "\"Whatever it was, there was always something for me in those rooms.”\n\n#JulieRice, Weight Watchers’ chief experience officer and co-founder of #SoulCycle, on her first WW meeting and the community that became her ritual. The Weigh In season finale is out wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/53LX5__FLBU/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/53LX5__FLBU/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/53LX5__FLBU/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/53LX5__FLBU/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/53LX5__FLBU/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/53LX5__FLBU/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "Julie Rice",
+          "Julie Rice SoulCycle",
+          "SoulCycle co-founder",
+          "Julie Rice Weight Watchers",
+          "Weight Watchers chief experience officer",
+          "Samhita Mukhopadhyay",
+          "The Weigh In",
+          "The Weigh In podcast",
+          "Weight Watchers",
+          "WW",
+          "Weight Watchers podcast",
+          "Weight Watchers meeting",
+          "first Weight Watchers meeting",
+          "Weight Watchers workshop",
+          "finding community",
+          "building community",
+          "community and support",
+          "wellness podcast"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Julie Rice on the WW meeting that changed things for her | The Weigh In",
+          "description": "\"Whatever it was, there was always something for me in those rooms.”\n\n#JulieRice, Weight Watchers’ chief experience officer and co-founder of #SoulCycle, on her first WW meeting and the community that became her ritual. The Weigh In season finale is out wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT1M13S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "489",
+        "likeCount": "9",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "5ez8pgrXKLIIrIE4E5HhrPSFlpA",
+      "id": "Hm3jtqHt8tM",
+      "snippet": {
+        "publishedAt": "2026-11-04T08:00:03Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "The Secret to a Sustainable Health Journey",
+        "description": "This week’s conversation with Julie Rice is about the ways building community can help sustain a healthy life — not a goal weight, but a life. After turning SoulCycle into a cultural phenomenon, Julie co-founded Peoplehood around the idea that human connection is a profound practice; it’s also at the forefront of how she is reshaping the Weight Watchers experience. Julie opens up about her own health and career trajectory, her changing relationship to her body, and why connection should be at the heart of wellness conversations.\n\n0:00 Introduction\n0:56 Julie’s Body Journey\n3:21 Finding Weight Watchers\n6:57 Why Community Matters\n10:59 Creating SoulCycle\n14:43 More Than Fitness\n16:32 Weight Loss Unlocks More\n19:47 Joining Weight Watchers\n22:58 Julie’s GLP-1 Journey\n26:00 Rethinking Weight and Biology\n29:14 Weight Watchers Today\n31:43 Reinventing Weight Watchers Workshops\n36:09 The Challenge of Maintenance\n38:56 GLP-1 Mental Health Benefits\n43:15 Building Long-Term Health\n\nGuest: Julie Rice.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.\n\nProduced by @DearMediaStudio",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/Hm3jtqHt8tM/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/Hm3jtqHt8tM/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/Hm3jtqHt8tM/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/Hm3jtqHt8tM/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/Hm3jtqHt8tM/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "fhd": {
+            "url": "https://i.ytimg.com/vi/Hm3jtqHt8tM/fhddefault.jpg",
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "The Weigh In",
+          "The Weigh In podcast",
+          "Weight Watchers",
+          "Julie Rice",
+          "Julie Rice SoulCycle",
+          "SoulCycle founder",
+          "Peoplehood",
+          "Peoplehood founder",
+          "building community",
+          "community and wellness",
+          "human connection",
+          "wellness podcast",
+          "healthy life",
+          "GLP-1",
+          "GLP-1 journey",
+          "body image",
+          "weight and biology",
+          "long-term health",
+          "maintaining weight loss",
+          "Weight Watchers workshops",
+          "SoulCycle story"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "The Secret to a Sustainable Health Journey",
+          "description": "This week’s conversation with Julie Rice is about the ways building community can help sustain a healthy life — not a goal weight, but a life. After turning SoulCycle into a cultural phenomenon, Julie co-founded Peoplehood around the idea that human connection is a profound practice; it’s also at the forefront of how she is reshaping the Weight Watchers experience. Julie opens up about her own health and career trajectory, her changing relationship to her body, and why connection should be at the heart of wellness conversations.\n\n0:00 Introduction\n0:56 Julie’s Body Journey\n3:21 Finding Weight Watchers\n6:57 Why Community Matters\n10:59 Creating SoulCycle\n14:43 More Than Fitness\n16:32 Weight Loss Unlocks More\n19:47 Joining Weight Watchers\n22:58 Julie’s GLP-1 Journey\n26:00 Rethinking Weight and Biology\n29:14 Weight Watchers Today\n31:43 Reinventing Weight Watchers Workshops\n36:09 The Challenge of Maintenance\n38:56 GLP-1 Mental Health Benefits\n43:15 Building Long-Term Health\n\nGuest: Julie Rice.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.\n\nProduced by @DearMediaStudio"
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT47M4S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "true",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "1006",
+        "likeCount": "10",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "gmYaHDLeEu9AjCOz1vuD7Kzer84",
+      "id": "Zs8P7Fax7s0",
+      "snippet": {
+        "publishedAt": "2026-11-03T17:52:47Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "The one question to ask about every piece in your closet | The Weigh In",
+        "description": "The question to ask about every piece in your closet: does it relate to the person you’re becoming? Celebrity stylist and author #ErinWalsh on why we cling to the past, and how to let go. Hear the full conversation with #SamhitaMukhopadhyay in episode 7 of The Weigh In wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/Zs8P7Fax7s0/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/Zs8P7Fax7s0/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/Zs8P7Fax7s0/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/Zs8P7Fax7s0/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/Zs8P7Fax7s0/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/Zs8P7Fax7s0/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "Erin Walsh",
+          "Erin Walsh stylist",
+          "celebrity stylist",
+          "Samhita Mukhopadhyay",
+          "The Weigh In",
+          "The Weigh In podcast",
+          "Weight Watchers",
+          "WW",
+          "Weight Watchers podcast",
+          "closet cleanout",
+          "how to clean out your closet",
+          "declutter your closet",
+          "wardrobe tips",
+          "personal style",
+          "style tips",
+          "letting go of the past",
+          "closet edit",
+          "dressing your changing body",
+          "stylist advice"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "The one question to ask about every piece in your closet | The Weigh In",
+          "description": "The question to ask about every piece in your closet: does it relate to the person you’re becoming? Celebrity stylist and author #ErinWalsh on why we cling to the past, and how to let go. Hear the full conversation with #SamhitaMukhopadhyay in episode 7 of The Weigh In wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT1M9S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "375",
+        "likeCount": "12",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "nbxPwtzKByZFv7LZw-sWwH5r6ng",
+      "id": "u751KW03xN0",
+      "snippet": {
+        "publishedAt": "2026-10-30T18:24:26Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "What your closet says about who you’re becoming | The Weigh In",
+        "description": "Your closet is full of people you thought you were supposed to be. Celebrity stylist and author #ErinWalsh on why holding on to them limits who you can become. Hear the full conversation with #SamhitaMukhopadhyay in episode 7 of The Weigh In wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/u751KW03xN0/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/u751KW03xN0/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/u751KW03xN0/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/u751KW03xN0/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/u751KW03xN0/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/u751KW03xN0/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "erin walsh",
+          "The Weigh In",
+          "The Weigh In podcast",
+          "Weight Watchers",
+          "Erin Walsh",
+          "Samhita Mukhopadhyay",
+          "celebrity stylist",
+          "intentional dressing",
+          "how to dress with intention",
+          "personal style",
+          "closet",
+          "wardrobe",
+          "style tips",
+          "women’s podcast"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "What your closet says about who you’re becoming | The Weigh In",
+          "description": "Your closet is full of people you thought you were supposed to be. Celebrity stylist and author #ErinWalsh on why holding on to them limits who you can become. Hear the full conversation with #SamhitaMukhopadhyay in episode 7 of The Weigh In wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT1M18S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "440",
+        "likeCount": "15",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "n80yh_ejO_mSd4ZKEqIplKIsBzE",
+      "id": "Xl35x2lv2kY",
+      "snippet": {
+        "publishedAt": "2026-10-28T17:59:41Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "What is style, really? Celebrity stylist Erin Walsh explains | The Weigh In",
+        "description": "Standing in front of your closet wondering what to wear, and why it feels so loaded? Celebrity stylist and author #ErinWalsh on making getting dressed the most empowering part of your day. Hear the full conversation with #SamhitaMukhopadhyay in episode 7 of The Weigh In wherever you listen to your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/Xl35x2lv2kY/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/Xl35x2lv2kY/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/Xl35x2lv2kY/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/Xl35x2lv2kY/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/Xl35x2lv2kY/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/Xl35x2lv2kY/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "erin walsh",
+          "celebrity stylist",
+          "style",
+          "style tips",
+          "weight loss",
+          "the weigh in podcast",
+          "the weigh in",
+          "weight watchers",
+          "body positivity",
+          "clothes",
+          "dressing tips",
+          "confidence"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "What is style, really? Celebrity stylist Erin Walsh explains | The Weigh In",
+          "description": "Standing in front of your closet wondering what to wear, and why it feels so loaded? Celebrity stylist and author #ErinWalsh on making getting dressed the most empowering part of your day. Hear the full conversation with #SamhitaMukhopadhyay in episode 7 of The Weigh In wherever you listen to your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT1M3S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "389",
+        "likeCount": "8",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "MAUNlxZxuMaWImbBdLkg-uYyODI",
+      "id": "IOIGTbqEaJQ",
+      "snippet": {
+        "publishedAt": "2026-10-28T12:24:33Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Dressing a Changing Body",
+        "description": "Nobody talks about how emotionally weird it is to dress a body that's changing. The closet purges. The grief of giving away clothes you loved. The dressing room moments that catch you off guard. Whether to dress the body you have or the one you imagine is in your future. In this episode, Samhita Mukhopadhyay talks with celebrity stylist, creative director, and author Erin Walsh about style as identity when your identity is in flux, and the psychology of body image underneath it all.\n\nGuest: Erin Walsh\n\n0:00 Introduction\n0:55 Meet Erin Walsh\n1:12 Fashion as Transformation\n3:58 Dressing With Intention\n6:23 Using Fashion as Armor\n7:38 Clothes, Weight, and Emotion\n9:14 Identity Inside Your Closet\n10:35 Why Size Inclusivity Matters\n13:05 Embodying Your Best Self\n15:02 Letting Go of Old Clothes\n17:29 Editing Your Closet\n19:48 Dressing Through Body Scrutiny\n23:17 Dressing While Your Body Changes\n24:42 GLP-1s and Fashion\n29:00 Finding Freedom Through Style\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.\n\nProduced by @DearMediaStudio",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/IOIGTbqEaJQ/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/IOIGTbqEaJQ/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/IOIGTbqEaJQ/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/IOIGTbqEaJQ/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/IOIGTbqEaJQ/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "fhd": {
+            "url": "https://i.ytimg.com/vi/IOIGTbqEaJQ/fhddefault.jpg",
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "erin walsh",
+          "The Weigh In",
+          "Weight Watchers",
+          "WW",
+          "Samhita Mukhopadhyay",
+          "celebrity stylist",
+          "Erin Walsh stylist",
+          "Erin Walsh book",
+          "Create Method",
+          "dressing a changing body",
+          "how to dress a changing body",
+          "dressing while losing weight",
+          "dressing after weight loss",
+          "closet cleanout",
+          "body image",
+          "personal style",
+          "fashion and body image",
+          "what to wear",
+          "style podcast",
+          "weight loss podcast",
+          "wellness podcast",
+          "GLP-1 and fashion"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Dressing a Changing Body",
+          "description": "Nobody talks about how emotionally weird it is to dress a body that's changing. The closet purges. The grief of giving away clothes you loved. The dressing room moments that catch you off guard. Whether to dress the body you have or the one you imagine is in your future. In this episode, Samhita Mukhopadhyay talks with celebrity stylist, creative director, and author Erin Walsh about style as identity when your identity is in flux, and the psychology of body image underneath it all.\n\nGuest: Erin Walsh\n\n0:00 Introduction\n0:55 Meet Erin Walsh\n1:12 Fashion as Transformation\n3:58 Dressing With Intention\n6:23 Using Fashion as Armor\n7:38 Clothes, Weight, and Emotion\n9:14 Identity Inside Your Closet\n10:35 Why Size Inclusivity Matters\n13:05 Embodying Your Best Self\n15:02 Letting Go of Old Clothes\n17:29 Editing Your Closet\n19:48 Dressing Through Body Scrutiny\n23:17 Dressing While Your Body Changes\n24:42 GLP-1s and Fashion\n29:00 Finding Freedom Through Style\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.\n\nProduced by @DearMediaStudio"
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT34M22S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "true",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "924",
+        "likeCount": "10",
+        "favoriteCount": "0",
+        "commentCount": "1"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "M9aCoP3vZ9qpKsoUDGnT2ULS6qk",
+      "id": "POYYAuSiJNw",
+      "snippet": {
+        "publishedAt": "2026-10-26T19:07:10Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Samhita Mukhopadhyay on the question she got as a fashion magazine editor | The Weigh In",
+        "description": "When #SamhitaMukhopadhyay became executive editor at Teen Vogue, people asked what it was like to be the first plus-size editor. She knew why she’d gotten the job: she was good at it. In episode 6 of The Weigh In, she and #RavenGoodwin talk about what happens when people see your body before your work. Hear the full conversation wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/POYYAuSiJNw/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/POYYAuSiJNw/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/POYYAuSiJNw/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/POYYAuSiJNw/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/POYYAuSiJNw/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/POYYAuSiJNw/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "raven goodwin",
+          "Being Mary Jane",
+          "Grotesquerie",
+          "Good Luck Charlie",
+          "acting",
+          "body image",
+          "film",
+          "television",
+          "the weigh in",
+          "weight watchers",
+          "the weigh in podcast",
+          "samhita mukhopadhyay",
+          "weight health",
+          "plus size women"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Samhita Mukhopadhyay on the question she got as a fashion magazine editor | The Weigh In",
+          "description": "When #SamhitaMukhopadhyay became executive editor at Teen Vogue, people asked what it was like to be the first plus-size editor. She knew why she’d gotten the job: she was good at it. In episode 6 of The Weigh In, she and #RavenGoodwin talk about what happens when people see your body before your work. Hear the full conversation wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT33S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "1639",
+        "likeCount": "44",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "qpWiSHkw5J_gu-mUpoCxBSFyK8Q",
+      "id": "_rAkAse9ExA",
+      "snippet": {
+        "publishedAt": "2026-10-23T17:18:02Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Raven Goodwin on telling the stories she wants to see | The Weigh In",
+        "description": "#RavenGoodwin isn’t waiting for someone else to write her stories. She’s creating the ones she wants to see, where plus-size women are just living. Hear the full conversation with #SamhitaMukhopadhyay in episode 6 of The Weigh In at the link in bio.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/_rAkAse9ExA/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/_rAkAse9ExA/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/_rAkAse9ExA/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/_rAkAse9ExA/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/_rAkAse9ExA/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/_rAkAse9ExA/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "WeightWatchers",
+          "Weight Watchers",
+          "The Weigh-In",
+          "The Weigh In",
+          "Weigh-In Podcast",
+          "WeightWatchers Podcast",
+          "Weight Watchers Podcast",
+          "wellness podcast",
+          "weight management",
+          "weight loss journey",
+          "health and wellness",
+          "WW",
+          "WW Podcast",
+          "WeightWatchers journey",
+          "Raven Goodwin",
+          "Being Mary Jane",
+          "Grotesquerie",
+          "Good Luck Charlie",
+          "acting",
+          "body image",
+          "film",
+          "television"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Raven Goodwin on telling the stories she wants to see | The Weigh In",
+          "description": "#RavenGoodwin isn’t waiting for someone else to write her stories. She’s creating the ones she wants to see, where plus-size women are just living. Hear the full conversation with #SamhitaMukhopadhyay in episode 6 of The Weigh In at the link in bio.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT1M5S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "336",
+        "likeCount": "17",
+        "favoriteCount": "0",
+        "commentCount": "1"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "GSsY_rGuVsOZgL5JTf9-i4fqo_4",
+      "id": "_5_57eEfwQE",
+      "snippet": {
+        "publishedAt": "2026-10-21T17:00:13Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Raven Goodwin on growing up with opinions about her body | The Weigh In",
+        "description": "What’s it like when Hollywood has opinions about your body before you’ve formed your own? #RavenGoodwin has been navigating weight and body image in public since childhood. At 18, she starred in ‘Huge,’ a show about teens at a weight-loss camp. Now the acclaimed actress, executive producer, and mom is a WW cover star, and she’s talking with #SamhitaMukhopadhyay in episode 6 of The Weigh In about what it means to come full circle. Hear the full convo wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/_5_57eEfwQE/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/_5_57eEfwQE/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/_5_57eEfwQE/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/_5_57eEfwQE/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/_5_57eEfwQE/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/_5_57eEfwQE/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "Raven Goodwin",
+          "Being Mary Jane",
+          "Grotesquerie",
+          "Good Luck Charlie",
+          "acting",
+          "body image",
+          "film",
+          "television",
+          "WeightWatchers",
+          "Weight Watchers",
+          "The Weigh-In",
+          "The Weigh In",
+          "Weigh-In Podcast",
+          "WeightWatchers Podcast",
+          "Weight Watchers Podcast",
+          "wellness podcast",
+          "weight loss podcast",
+          "weight loss journey",
+          "health and wellness",
+          "healthy lifestyle",
+          "nutrition",
+          "WW",
+          "WW Podcast",
+          "WeightWatchers journey",
+          "wellness tips"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Raven Goodwin on growing up with opinions about her body | The Weigh In",
+          "description": "What’s it like when Hollywood has opinions about your body before you’ve formed your own? #RavenGoodwin has been navigating weight and body image in public since childhood. At 18, she starred in ‘Huge,’ a show about teens at a weight-loss camp. Now the acclaimed actress, executive producer, and mom is a WW cover star, and she’s talking with #SamhitaMukhopadhyay in episode 6 of The Weigh In about what it means to come full circle. Hear the full convo wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT1M3S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "527",
+        "likeCount": "8",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "Z79Ql4JQpIX7kXPoU8fbbdhUXho",
+      "id": "eO4XG3-Ev44",
+      "snippet": {
+        "publishedAt": "2026-10-21T07:00:04Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Growing Up on Screen in a Bigger Body",
+        "description": "Raven Goodwin has been navigating weight and body image in public since she was a child actress. At 18 she starred in Huge, a show about teenagers at a weight-loss camp. Now she's a WW cover star, a mother, and a woman whose relationship to her body has played out on screen for two decades. This conversation is about what it's like when Hollywood has opinions about your body before you've even formed your own — and what it means to come full circle.\n\nGuest: Raven Goodwin.\n\n0:00 Introduction\n0:42 Growing Up On Screen\n2:30 Childhood Body Commentary\n4:18 How Comments Shape Kids\n7:10 Body Size and Casting\n9:43 Looking Back at Huge\n12:39 Food, Addiction, and Identity\n15:17 Finding Balance With Food\n18:12 Redefining a Healthy Body\n20:02 Creating Better Representation\n25:00 Raven’s Self-Care Journey\n27:22 Health, Motherhood, and Weight\n31:19 Considering GLP-1s\n35:10 Finding Her Healthy Weight\n37:17 Raising Body-Confident Kids\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.\n\nProduced by @DearMediaStudio",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/eO4XG3-Ev44/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/eO4XG3-Ev44/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/eO4XG3-Ev44/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/eO4XG3-Ev44/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/eO4XG3-Ev44/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "fhd": {
+            "url": "https://i.ytimg.com/vi/eO4XG3-Ev44/fhddefault.jpg",
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "raven goodwin",
+          "Being Mary Jane",
+          "Grotesquerie",
+          "Good Luck Charlie",
+          "acting",
+          "body image",
+          "film",
+          "television",
+          "WeightWatchers",
+          "Weight Watchers",
+          "The Weigh-In",
+          "The Weigh In",
+          "Weigh-In Podcast",
+          "WeightWatchers Podcast",
+          "Weight Watchers Podcast",
+          "wellness podcast",
+          "weight loss podcast",
+          "weight management",
+          "weight loss journey",
+          "health and wellness",
+          "healthy lifestyle",
+          "nutrition",
+          "healthy eating",
+          "WW",
+          "WW Podcast",
+          "WeightWatchers journey",
+          "weight loss tips",
+          "wellness tips"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Growing Up on Screen in a Bigger Body",
+          "description": "Raven Goodwin has been navigating weight and body image in public since she was a child actress. At 18 she starred in Huge, a show about teenagers at a weight-loss camp. Now she's a WW cover star, a mother, and a woman whose relationship to her body has played out on screen for two decades. This conversation is about what it's like when Hollywood has opinions about your body before you've even formed your own — and what it means to come full circle.\n\nGuest: Raven Goodwin.\n\n0:00 Introduction\n0:42 Growing Up On Screen\n2:30 Childhood Body Commentary\n4:18 How Comments Shape Kids\n7:10 Body Size and Casting\n9:43 Looking Back at Huge\n12:39 Food, Addiction, and Identity\n15:17 Finding Balance With Food\n18:12 Redefining a Healthy Body\n20:02 Creating Better Representation\n25:00 Raven’s Self-Care Journey\n27:22 Health, Motherhood, and Weight\n31:19 Considering GLP-1s\n35:10 Finding Her Healthy Weight\n37:17 Raising Body-Confident Kids\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.\n\nProduced by @DearMediaStudio"
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT49M10S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "true",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "1293",
+        "likeCount": "17",
+        "favoriteCount": "0",
+        "commentCount": "1"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "vW8hDben1N9LUT4OyUlksSngLLI",
+      "id": "F5rD9c-SI94",
+      "snippet": {
+        "publishedAt": "2026-10-19T20:05:48Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "The GLP-1 analogy that makes it click with Johann Hari | The Weigh In",
+        "description": "Best-selling author #JohannHari breaks down how GLP-1 works in the body, and the analogy that makes it click.\n\nHear the full conversation with #SamhitaMukhopadhyay  in episode 5 of The Weigh In wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/F5rD9c-SI94/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/F5rD9c-SI94/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/F5rD9c-SI94/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/F5rD9c-SI94/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/F5rD9c-SI94/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/F5rD9c-SI94/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "johann hari",
+          "glp-1",
+          "glp1",
+          "the weigh in",
+          "weight watchers",
+          "weight watchers podcast",
+          "weight health",
+          "weight tips",
+          "weight loss tips"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "The GLP-1 analogy that makes it click with Johann Hari | The Weigh In",
+          "description": "Best-selling author #JohannHari breaks down how GLP-1 works in the body, and the analogy that makes it click.\n\nHear the full conversation with #SamhitaMukhopadhyay  in episode 5 of The Weigh In wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT29S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "661",
+        "likeCount": "8",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "8TvggtRQatLJV0bzNH3F-fqCZ8o",
+      "id": "oOH2RtnvddM",
+      "snippet": {
+        "publishedAt": "2026-10-14T17:17:41Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Why men often keep weight and health to themselves | The Weigh In",
+        "description": "Best-selling author #JohannHari breaks down how GLP-1 works in the body, and the analogy that makes it click.\n\nHear the full conversation with #SamhitaMukhopadhyay in episode 5 of The Weigh In. Link in bio.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/oOH2RtnvddM/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/oOH2RtnvddM/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/oOH2RtnvddM/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/oOH2RtnvddM/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/oOH2RtnvddM/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/oOH2RtnvddM/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "johann hari",
+          "glp-1",
+          "glp1s",
+          "weight loss",
+          "WeightWatchers",
+          "Weight Watchers",
+          "The Weigh-In",
+          "The Weigh In",
+          "Weigh-In Podcast",
+          "WeightWatchers Podcast",
+          "Weight Watchers Podcast",
+          "wellness podcast",
+          "weight loss podcast",
+          "weight management",
+          "weight loss journey",
+          "health and wellness",
+          "healthy lifestyle",
+          "nutrition",
+          "healthy eating",
+          "fitness and wellness",
+          "WW",
+          "WW Podcast",
+          "WeightWatchers journey",
+          "weight loss tips",
+          "wellness tips",
+          "health podcast"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Why men often keep weight and health to themselves | The Weigh In",
+          "description": "Best-selling author #JohannHari breaks down how GLP-1 works in the body, and the analogy that makes it click.\n\nHear the full conversation with #SamhitaMukhopadhyay in episode 5 of The Weigh In. Link in bio.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT37S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "1591",
+        "likeCount": "3",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "qAu-xtRaRHYIhd-SCSkDEHgctdc",
+      "id": "nMJlqJU_HzA",
+      "snippet": {
+        "publishedAt": "2026-10-14T07:00:13Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Hacked Hunger and the Role of GLP-1s",
+        "description": "What happened to our food, our bodies, and our ability to stop eating — and who's responsible? Writer and journalist Johann Hari tracked down the scientists who discovered GLP-1, and traveled the world investigating the food system that was engineered to override our satiety signals. Here, Hari discusses his personal journey on a GLP-1—from losing food as a coping mechanism to embracing self-compassion in a world that says weight loss should involve punishment.\n\nGuest: Johann Hari\n\n0:00 Introduction\n0:58 Johann’s Body Story\n5:28 Weight, Health, and Denial\n8:40 Medical Stigma and Obesity\n10:58 Body Positivity vs. Health\n15:40 How Food Systems Changed\n17:58 Why We Don’t Feel Full\n18:38 How GLP-1s Work\n21:09 Why GLP-1s Feel Like Cheating\n23:57 Rethinking Weight and Willpower\n25:03 Learning Self-Compassion\n26:05 Men, Body Image, and GLP-1s\n29:00 Understanding GLP-1 Risks\n30:32 Losing Food as Comfort\n33:28 Grief, Health, and Hope\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.\n\nProduced by  ⁨@DearMediaStudio⁩",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/nMJlqJU_HzA/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/nMJlqJU_HzA/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/nMJlqJU_HzA/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/nMJlqJU_HzA/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/nMJlqJU_HzA/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "fhd": {
+            "url": "https://i.ytimg.com/vi/nMJlqJU_HzA/fhddefault.jpg",
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "johann hari",
+          "glp-1s",
+          "glp-1",
+          "weight watchers",
+          "WeightWatchers",
+          "Weight Watchers",
+          "The Weigh-In",
+          "The Weigh In",
+          "Weigh-In Podcast",
+          "WeightWatchers Podcast",
+          "Weight Watchers Podcast",
+          "wellness podcast",
+          "weight loss podcast",
+          "weight management",
+          "weight loss journey",
+          "health and wellness",
+          "healthy lifestyle",
+          "nutrition",
+          "healthy eating",
+          "fitness and wellness",
+          "WW",
+          "WW Podcast",
+          "WeightWatchers journey",
+          "weight loss tips",
+          "wellness tips",
+          "health podcast",
+          "hunger",
+          "food",
+          "food noise"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Hacked Hunger and the Role of GLP-1s",
+          "description": "What happened to our food, our bodies, and our ability to stop eating — and who's responsible? Writer and journalist Johann Hari tracked down the scientists who discovered GLP-1, and traveled the world investigating the food system that was engineered to override our satiety signals. Here, Hari discusses his personal journey on a GLP-1—from losing food as a coping mechanism to embracing self-compassion in a world that says weight loss should involve punishment.\n\nGuest: Johann Hari\n\n0:00 Introduction\n0:58 Johann’s Body Story\n5:28 Weight, Health, and Denial\n8:40 Medical Stigma and Obesity\n10:58 Body Positivity vs. Health\n15:40 How Food Systems Changed\n17:58 Why We Don’t Feel Full\n18:38 How GLP-1s Work\n21:09 Why GLP-1s Feel Like Cheating\n23:57 Rethinking Weight and Willpower\n25:03 Learning Self-Compassion\n26:05 Men, Body Image, and GLP-1s\n29:00 Understanding GLP-1 Risks\n30:32 Losing Food as Comfort\n33:28 Grief, Health, and Hope\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.\n\nProduced by  ⁨@DearMediaStudio⁩"
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT35M9S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "true",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "1006",
+        "likeCount": "15",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "d7HhE8XsoX_U-hnL3ZCp2JbByac",
+      "id": "lCAeah8gPBM",
+      "snippet": {
+        "publishedAt": "2026-10-13T20:34:58Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Susie Banikarim’s Advice to Anyone Under 30 | The Weigh In",
+        "description": "Be nicer to the person in the photo.\n\nSusie Banikarim talks body image, weight, and GLP-1s with host of The Weigh In, Samhita Mukhopadhyay. Listen to episode 4 wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/lCAeah8gPBM/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/lCAeah8gPBM/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/lCAeah8gPBM/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/lCAeah8gPBM/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/lCAeah8gPBM/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/lCAeah8gPBM/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "advice",
+          "life advice",
+          "susie banikarim",
+          "glp1",
+          "glp-1",
+          "WeightWatchers",
+          "Weight Watchers",
+          "The Weigh-In",
+          "The Weigh In",
+          "Weigh-In Podcast",
+          "WeightWatchers Podcast",
+          "Weight Watchers Podcast",
+          "wellness podcast",
+          "weight loss podcast",
+          "weight management",
+          "weight loss journey",
+          "health and wellness",
+          "healthy lifestyle",
+          "fitness and wellness",
+          "WW",
+          "WW Podcast",
+          "WeightWatchers journey",
+          "weight loss tips",
+          "wellness tips",
+          "health podcast"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Susie Banikarim’s Advice to Anyone Under 30 | The Weigh In",
+          "description": "Be nicer to the person in the photo.\n\nSusie Banikarim talks body image, weight, and GLP-1s with host of The Weigh In, Samhita Mukhopadhyay. Listen to episode 4 wherever you get your podcasts.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT1M",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "433",
+        "likeCount": "9",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "d-xMOaNfkyLlbmsPA6qFp0QcqjQ",
+      "id": "s1H_7NmzCRw",
+      "snippet": {
+        "publishedAt": "2026-10-12T21:50:03Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Is Taking a GLP-1 “Cheating”? Susie Banikarim Says No | The Weigh In",
+        "description": "#SamhitaMukhopadhyay and #SusieBanikarim talk about the stigma around taking a GLP-1 and why they reject the idea that it's cheating. Hear the full conversation in episode 4 of The Weigh In. Listen wherever you get your podcasts. ✨\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/s1H_7NmzCRw/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/s1H_7NmzCRw/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/s1H_7NmzCRw/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/s1H_7NmzCRw/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/s1H_7NmzCRw/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/s1H_7NmzCRw/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "glp-1",
+          "glp-1s",
+          "WeightWatchers",
+          "Weight Watchers",
+          "The Weigh-In",
+          "The Weigh In",
+          "Weigh-In Podcast",
+          "WeightWatchers Podcast",
+          "Weight Watchers Podcast",
+          "podcast trailer",
+          "wellness podcast",
+          "weight loss podcast",
+          "weight management",
+          "weight loss journey",
+          "health and wellness",
+          "healthy lifestyle",
+          "nutrition",
+          "healthy eating",
+          "fitness and wellness",
+          "WW",
+          "WW Podcast",
+          "WeightWatchers journey",
+          "weight loss tips",
+          "wellness tips",
+          "health podcast"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Is Taking a GLP-1 “Cheating”? Susie Banikarim Says No | The Weigh In",
+          "description": "#SamhitaMukhopadhyay and #SusieBanikarim talk about the stigma around taking a GLP-1 and why they reject the idea that it's cheating. Hear the full conversation in episode 4 of The Weigh In. Listen wherever you get your podcasts. ✨\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT1M10S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "678",
+        "likeCount": "14",
+        "favoriteCount": "0",
+        "commentCount": "1"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "94Uh2nb_jkw-hsT7cW0GiEVr95c",
+      "id": "lZAOXwgU0eA",
+      "snippet": {
+        "publishedAt": "2026-10-07T17:19:10Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Susie Banikarim and Samhita Get Real About GLP-1s | The Weigh In",
+        "description": "#SusieBanikarim (Emmy-winning journalist and host of In Retrospect) joins her close friend #SamhitaMukhopadhyay for GLP-1 notes, jokes, and zero apologies. Hear the full conversation in episode 4 of The Weigh In, out now. Link in bio.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/lZAOXwgU0eA/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/lZAOXwgU0eA/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/lZAOXwgU0eA/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/lZAOXwgU0eA/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/lZAOXwgU0eA/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/lZAOXwgU0eA/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "susie banikarim",
+          "glp1",
+          "WeightWatchers",
+          "Weight Watchers",
+          "The Weigh-In",
+          "The Weigh In",
+          "Weigh-In Podcast",
+          "WeightWatchers Podcast",
+          "Weight Watchers Podcast",
+          "podcast trailer",
+          "wellness podcast",
+          "weight loss podcast",
+          "weight management",
+          "weight loss journey",
+          "health and wellness",
+          "healthy lifestyle",
+          "nutrition",
+          "healthy eating",
+          "fitness and wellness",
+          "WW",
+          "WW Podcast",
+          "WeightWatchers journey",
+          "weight loss tips",
+          "wellness tips",
+          "health podcast"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Susie Banikarim and Samhita Get Real About GLP-1s | The Weigh In",
+          "description": "#SusieBanikarim (Emmy-winning journalist and host of In Retrospect) joins her close friend #SamhitaMukhopadhyay for GLP-1 notes, jokes, and zero apologies. Hear the full conversation in episode 4 of The Weigh In, out now. Link in bio.\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT1M22S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "614",
+        "likeCount": "14",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "7ljhgRAL2ZRvjXA3WH4XDpp4gG4",
+      "id": "-Q4NOfGLmi4",
+      "snippet": {
+        "publishedAt": "2026-10-07T07:00:20Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "Shame, Stigma, and Saying It Out Loud",
+        "description": "Some things you only say to your best friend. This time, Susie Banikarim — Emmy-winning journalist, podcast host, and one of Samhita's closest friends — is saying them out loud.\n\nThe shame she has felt for being overweight, wanting to lose weight, and being on a GLP-1 (and still not being thin). How women privately support each other and share information about these medications. Intentional weight loss as a dirty word.\n\nAnd Susie's radical declaration: she doesn't care about being thin or what people think about her journey anymore.\n\nGuest: Susie Banikarim\n\n0:00 Introduction\n1:29 Growing Up With Body Shame\n4:59 Discovering GLP-1s\n6:27 Letting Go of Shame\n8:07 How GLP-1s Change Food Noise\n10:38 Is Taking GLP-1 Cheating?\n13:03 Health Over Thinness\n16:02 Rethinking Body Image\n21:46 Body Culture in Newsrooms\n23:44 Why GLP-1s Get Judged\n27:34 Intentional Weight Loss\n32:19 Changing Your Mind Publicly\n37:36 When Thin Isn’t The Goal\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.\n\nProduced by @DearMediaStudio",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/-Q4NOfGLmi4/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/-Q4NOfGLmi4/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/-Q4NOfGLmi4/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/-Q4NOfGLmi4/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/-Q4NOfGLmi4/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "fhd": {
+            "url": "https://i.ytimg.com/vi/-Q4NOfGLmi4/fhddefault.jpg",
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "Susie Banikarim",
+          "glp1",
+          "glp-1",
+          "WeightWatchers",
+          "Weight Watchers",
+          "The Weigh-In",
+          "The Weigh In",
+          "Weigh-In Podcast",
+          "WeightWatchers Podcast",
+          "Weight Watchers Podcast",
+          "podcast trailer",
+          "wellness podcast",
+          "weight loss podcast",
+          "weight management",
+          "weight loss journey",
+          "health and wellness",
+          "healthy lifestyle",
+          "nutrition",
+          "healthy eating",
+          "fitness and wellness",
+          "WW",
+          "WW Podcast",
+          "WeightWatchers journey",
+          "weight loss tips",
+          "wellness tips",
+          "health podcast"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "Shame, Stigma, and Saying It Out Loud",
+          "description": "Some things you only say to your best friend. This time, Susie Banikarim — Emmy-winning journalist, podcast host, and one of Samhita's closest friends — is saying them out loud.\n\nThe shame she has felt for being overweight, wanting to lose weight, and being on a GLP-1 (and still not being thin). How women privately support each other and share information about these medications. Intentional weight loss as a dirty word.\n\nAnd Susie's radical declaration: she doesn't care about being thin or what people think about her journey anymore.\n\nGuest: Susie Banikarim\n\n0:00 Introduction\n1:29 Growing Up With Body Shame\n4:59 Discovering GLP-1s\n6:27 Letting Go of Shame\n8:07 How GLP-1s Change Food Noise\n10:38 Is Taking GLP-1 Cheating?\n13:03 Health Over Thinness\n16:02 Rethinking Body Image\n21:46 Body Culture in Newsrooms\n23:44 Why GLP-1s Get Judged\n27:34 Intentional Weight Loss\n32:19 Changing Your Mind Publicly\n37:36 When Thin Isn’t The Goal\n\nThe Weigh In is a Weight Watchers podcast and is not intended as medical advice. Talk to your doctor.\n\nProduced by @DearMediaStudio"
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT44M5S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "true",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "846",
+        "likeCount": "10",
+        "favoriteCount": "0",
+        "commentCount": "0"
+      }
+    },
+    {
+      "kind": "youtube#video",
+      "etag": "uZvSpTyTDpLwyMmSjPOGESbv3i0",
+      "id": "pT0Xy5xLoA0",
+      "snippet": {
+        "publishedAt": "2026-10-05T21:24:26Z",
+        "channelId": "UC7AWNWptGGpybSgZbV34yBw",
+        "title": "What Does \"Eating Healthy\" Actually Mean? | The Weigh In",
+        "description": "Dr. Amy Shah joins Samhita to talk about what 'eating healthy' actually means. Listen to the full conversation on episode 3, 'The Science of GLP-1s,' of The Weigh In — now wherever you get your podcasts.\n\nReminder: The Weigh In is a Weight Watchers podcast for entertainment and educational purposes. The guest, Dr. Amy Shah is a doctor, but not your doctor. This does not constitute medical advice or a doctor-patient relationship. Consult your personal physician with any questions.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/pT0Xy5xLoA0/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/pT0Xy5xLoA0/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/pT0Xy5xLoA0/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/pT0Xy5xLoA0/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/pT0Xy5xLoA0/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "shortsAspectRatio": {
+            "url": "https://i.ytimg.com/vi/pT0Xy5xLoA0/sardefault.jpg",
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        "channelTitle": "Weight Watchers",
+        "tags": [
+          "WeightWatchers",
+          "Weight Watchers",
+          "The Weigh-In",
+          "The Weigh In",
+          "Weigh-In Podcast",
+          "WeightWatchers Podcast",
+          "Weight Watchers Podcast",
+          "podcast trailer",
+          "wellness podcast",
+          "weight loss podcast",
+          "weight management",
+          "weight loss journey",
+          "health and wellness",
+          "healthy lifestyle",
+          "nutrition",
+          "healthy eating",
+          "fitness and wellness",
+          "WW",
+          "WW Podcast",
+          "WeightWatchers journey",
+          "weight loss tips",
+          "wellness tips",
+          "health podcast",
+          "dr amy shah",
+          "glp1"
+        ],
+        "categoryId": "22",
+        "liveBroadcastContent": "none",
+        "defaultLanguage": "en",
+        "localized": {
+          "title": "What Does \"Eating Healthy\" Actually Mean? | The Weigh In",
+          "description": "Dr. Amy Shah joins Samhita to talk about what 'eating healthy' actually means. Listen to the full conversation on episode 3, 'The Science of GLP-1s,' of The Weigh In — now wherever you get your podcasts.\n\nReminder: The Weigh In is a Weight Watchers podcast for entertainment and educational purposes. The guest, Dr. Amy Shah is a doctor, but not your doctor. This does not constitute medical advice or a doctor-patient relationship. Consult your personal physician with any questions."
+        },
+        "defaultAudioLanguage": "en"
+      },
+      "contentDetails": {
+        "duration": "PT54S",
+        "dimension": "2d",
+        "definition": "hd",
+        "caption": "false",
+        "licensedContent": false,
+        "contentRating": {},
+        "projection": "rectangular"
+      },
+      "statistics": {
+        "viewCount": "1091",
+        "likeCount": "19",
+        "favoriteCount": "0",
+        "commentCount": "1"
+      }
+    }
+  ],
+  "pageInfo": {
+    "totalResults": 50,
+    "resultsPerPage": 50
+  }
+}

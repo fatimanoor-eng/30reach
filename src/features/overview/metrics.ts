@@ -14,7 +14,17 @@ export type OverviewPost = {
   external_id: string;
   url: string;
   posted_at: string | null;
-  format: "reel" | "carousel" | "image" | "video" | "text" | "document" | "article" | "poll" | null;
+  format:
+    | "reel"
+    | "carousel"
+    | "image"
+    | "video"
+    | "text"
+    | "document"
+    | "article"
+    | "poll"
+    | "short"
+    | null;
   caption: string | null;
   hashtags: string[] | null;
   likes: number | null;
@@ -24,6 +34,8 @@ export type OverviewPost = {
   shares: number | null;
   counts_hidden: boolean;
   thumbnail_path: string | null;
+  /** YouTube (18): the video's length; null / missing elsewhere. */
+  duration_seconds?: number | null;
 };
 
 export type BrandRef = { id: string; name: string; initials: string };
@@ -109,6 +121,7 @@ export const FORMAT_LABEL: Record<NonNullable<OverviewPost["format"]>, string> =
   document: "Documents",
   article: "Links",
   poll: "Polls",
+  short: "Shorts",
 };
 
 /**
@@ -313,12 +326,27 @@ export function topPosts(posts: OverviewPost[], n = 3): OverviewPost[] {
  * "18.4K likes · 1.1K comments" (Instagram) / "212K views · 9.8K likes" (TikTok) /
  * "1.2K reactions · 48 comments · 12 reposts" (LinkedIn) /
  * "2.8K views · 12 reactions · 3 comments · 3 shares" (Facebook; views on videos / reels only) /
- * "4.1K views · 120 likes · 8 replies · 12 reposts" (X; reposts = reposts + quotes).
+ * "4.1K views · 120 likes · 8 replies · 12 reposts" (X; reposts = reposts + quotes) /
+ * "12K views · 340 likes · 21 comments · 8:42" (YouTube, with the video's length).
  */
+/** 40 → "0:40", 2824 → "47:04", 3723 → "1:02:03" (YouTube's own style). */
+export function clockDuration(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
+}
+
 export function postStats(p: OverviewPost): string {
   // LinkedIn's and Facebook's 3–4 parts wrap on cards: keep each number with its word ("12\u00a0reposts").
   const gap =
-    p.platform === "linkedin" || p.platform === "facebook" || p.platform === "x" ? "\u00a0" : " ";
+    p.platform === "linkedin" ||
+    p.platform === "facebook" ||
+    p.platform === "x" ||
+    p.platform === "youtube"
+      ? "\u00a0"
+      : " ";
   const part = (n: number | null, word: string) =>
     n === null
       ? null
@@ -342,10 +370,17 @@ export function postStats(p: OverviewPost): string {
                 part(p.comments, "reply"),
                 part(p.shares, "repost"),
               ]
-            : [
-                p.counts_hidden ? "likes hidden" : part(p.likes, "like"),
-                part(p.comments, "comment"),
-              ];
+            : p.platform === "youtube"
+              ? [
+                  part(p.views, "view"),
+                  p.counts_hidden ? "likes hidden" : part(p.likes, "like"),
+                  part(p.comments, "comment"),
+                  p.duration_seconds ? clockDuration(p.duration_seconds) : null,
+                ]
+              : [
+                  p.counts_hidden ? "likes hidden" : part(p.likes, "like"),
+                  part(p.comments, "comment"),
+                ];
   return parts.filter(Boolean).join(" · ");
 }
 

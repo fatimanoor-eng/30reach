@@ -54,6 +54,7 @@ const FORMAT_LABEL: Record<string, string> = {
   document: "Document",
   article: "Link",
   poll: "Poll",
+  short: "Short",
 };
 /** What a saved post's `likes` are called: LinkedIn and Facebook save all reactions there (15c / 16c). */
 export const likesWord = (platform: IdeaPlatform | null) =>
@@ -177,7 +178,7 @@ export function linkLabel(url: string): string {
   }
 }
 
-/** Platform from a link's host (instagram.com / tiktok.com / linkedin.com / facebook.com / fb.com / x.com), else null. */
+/** Platform from a link's host (instagram.com / tiktok.com / linkedin.com / facebook.com / fb.com / x.com / youtube.com / youtu.be), else null. */
 export function platformFromUrl(url: string): IdeaPlatform | null {
   try {
     const host = new URL(url).hostname.replace(/^www\./, "");
@@ -187,6 +188,8 @@ export function platformFromUrl(url: string): IdeaPlatform | null {
     if (["facebook.com", "fb.com", "fb.watch"].includes(host) || host.endsWith(".facebook.com"))
       return "facebook";
     if (["x.com", "twitter.com", "mobile.twitter.com", "mobile.x.com"].includes(host)) return "x";
+    if (["youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"].includes(host))
+      return "youtube";
   } catch {
     /* not a URL */
   }
@@ -260,6 +263,7 @@ const PLATFORM_SHORT: Record<IdeaPlatform, string> = {
   linkedin: "LI",
   facebook: "FB",
   x: "X",
+  youtube: "YT",
 };
 
 /**

@@ -58,6 +58,7 @@ export function ManualStep({
     facebook: "",
     linkedin: "",
     x: "",
+    youtube: "",
   });
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);

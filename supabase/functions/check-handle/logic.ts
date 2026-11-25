@@ -9,6 +9,7 @@ import {
   type ProfileResult,
   xHandle,
 } from "../_shared/pull-logic.ts";
+import { type ChannelResult, youtubeTarget } from "../_shared/youtube-logic.ts";
 
 /** Handles are stored lowercase without "@". Instagram 1–30 chars, TikTok 2–24; letters, digits, . and _. */
 export const HANDLE_PATTERN: Record<"instagram" | "tiktok", RegExp> = {
@@ -26,6 +27,7 @@ export const CHECK_COST: Record<Platform, number> = {
   linkedin: 2,
   facebook: 5,
   x: 1, // ScrapeCreators x/user-posts (17g): 1, also when the account doesn't exist
+  youtube: 0, // YouTube Data API (18): free; 1 quota unit
 };
 
 /** `handle` = the Instagram/TikTok handle, or the LinkedIn / Facebook page URL (canonical). */
@@ -52,6 +54,10 @@ export function parseCheckRequest(body: Record<string, unknown>): CheckRequest |
   if (platform === "x") {
     const h = xHandle(input);
     return h ? { platform, handle: h } : { error: "bad_handle" };
+  }
+  if (platform === "youtube") {
+    const t = youtubeTarget(input);
+    return t ? { platform, handle: t } : { error: "bad_handle" };
   }
   const raw = input.trim().replace(/^@/, "").toLowerCase();
   if (!HANDLE_PATTERN[platform as "instagram" | "tiktok"].test(raw)) return { error: "bad_handle" };
@@ -86,4 +92,14 @@ export function profileOutcome(profile: ProfileResult): CheckOutcome {
   if (profile.code === "not_found")
     return { status: "not_found", creditsUsed: profile.creditsCost };
   return { error: profile.code, creditsUsed: profile.creditsCost };
+}
+
+/** YouTube (18): channels.list → outcome, plus the channel id the browser saves (pulls skip the lookup). */
+export function channelOutcome(
+  ch: ChannelResult,
+): (CheckOutcome & { channelId?: string }) | { error: string; creditsUsed: number } {
+  if (ch.kind === "ok")
+    return { status: "ok", creditsUsed: 0, followers: ch.subscribers, channelId: ch.channelId };
+  if (ch.code === "not_found") return { status: "not_found", creditsUsed: 0 };
+  return { error: ch.code, creditsUsed: 0 };
 }

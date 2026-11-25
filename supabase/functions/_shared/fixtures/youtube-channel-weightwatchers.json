@@ -1,0 +1,55 @@
+{
+  "kind": "youtube#channelListResponse",
+  "etag": "wd2iQQJVfpn0c3VCERN-BaKYmH8",
+  "pageInfo": {
+    "totalResults": 1,
+    "resultsPerPage": 5
+  },
+  "items": [
+    {
+      "kind": "youtube#channel",
+      "etag": "nyg0kewGC-DiIGifDrDeCeSWrsE",
+      "id": "UC7AWNWptGGpybSgZbV34yBw",
+      "snippet": {
+        "title": "Weight Watchers",
+        "description": "Points, Plans, Prescriptions.\nWe are not your mother’s Weight Watchers.\n",
+        "customUrl": "@weightwatchers",
+        "publishedAt": "2006-09-18T22:47:57Z",
+        "thumbnails": {
+          "default": {
+            "url": "https://yt3.ggpht.com/gAcxgmAgDra5TJ33lwT7SxFFBnwBuMQ7e0V94n3qfX3CGnQ_dwqU2bb1K4OIaiYaGWVoh83q5g=s88-c-k-c0x00ffffff-no-rj",
+            "width": 88,
+            "height": 88
+          },
+          "medium": {
+            "url": "https://yt3.ggpht.com/gAcxgmAgDra5TJ33lwT7SxFFBnwBuMQ7e0V94n3qfX3CGnQ_dwqU2bb1K4OIaiYaGWVoh83q5g=s240-c-k-c0x00ffffff-no-rj",
+            "width": 240,
+            "height": 240
+          },
+          "high": {
+            "url": "https://yt3.ggpht.com/gAcxgmAgDra5TJ33lwT7SxFFBnwBuMQ7e0V94n3qfX3CGnQ_dwqU2bb1K4OIaiYaGWVoh83q5g=s800-c-k-c0x00ffffff-no-rj",
+            "width": 800,
+            "height": 800
+          }
+        },
+        "localized": {
+          "title": "Weight Watchers",
+          "description": "Points, Plans, Prescriptions.\nWe are not your mother’s Weight Watchers.\n"
+        },
+        "country": "US"
+      },
+      "contentDetails": {
+        "relatedPlaylists": {
+          "likes": "",
+          "uploads": "UU7AWNWptGGpybSgZbV34yBw"
+        }
+      },
+      "statistics": {
+        "viewCount": "29028114",
+        "subscriberCount": "187000",
+        "hiddenSubscriberCount": false,
+        "videoCount": "132"
+      }
+    }
+  ]
+}

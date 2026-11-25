@@ -21,6 +21,7 @@ import { PLATFORM_NAME, PLATFORMS, TARGET_KEY } from "../../lib/platforms";
 import { supabase } from "../../lib/supabase";
 import { useClient } from "../../lib/useClient";
 import { CREDITS_QUERY_KEY } from "../../lib/useCredits";
+import { handleLabel } from "../competitors/competitor-rules";
 
 /**
  * DEV ONLY (/dev/test-pull, not in production builds). Slice 5 test mode:
@@ -51,7 +52,7 @@ export function TestPullPage() {
       const { data, error } = await supabase
         .from("competitors")
         .select(
-          "id, name, instagram_handle, tiktok_handle, linkedin_url, facebook_url, x_handle, instagram_status, tiktok_status, linkedin_status, facebook_status, x_status",
+          "id, name, instagram_handle, tiktok_handle, linkedin_url, facebook_url, x_handle, youtube_handle, instagram_status, tiktok_status, linkedin_status, facebook_status, x_status, youtube_status",
         )
         .eq("client_id", client.data!.id)
         .order("name");
@@ -186,7 +187,9 @@ export function TestPullPage() {
             />
             {handle && (
               <Chip>
-                {platform === "linkedin" || platform === "facebook" ? handle : `@${handle}`}
+                {platform === "linkedin" || platform === "facebook"
+                  ? handle
+                  : handleLabel(platform, handle)}
               </Chip>
             )}
           </div>

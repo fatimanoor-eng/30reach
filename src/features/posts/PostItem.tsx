@@ -15,6 +15,7 @@ const FORMAT_TAG: Record<string, string> = {
   document: "Document",
   article: "Link",
   poll: "Poll",
+  short: "Short",
 };
 
 /**
@@ -54,8 +55,9 @@ export function PostItem({
         : (FORMAT_TAG[p.format ?? ""] ?? "Post");
   const fill = fallback === "soft" ? "bg-soft" : PLATFORM_FILL[p.platform];
   // Tag on a white chip: always on grid / card, and on the dark Blue (LinkedIn) / Fresh (Facebook) / ink (X)
-  // blocks.
-  const chip = !row || fill === "bg-blue" || fill === "bg-fresh" || fill === "bg-ink";
+  // / YouTube red blocks.
+  const chip =
+    !row || fill === "bg-blue" || fill === "bg-fresh" || fill === "bg-ink" || fill === "bg-youtube";
 
   return (
     <article

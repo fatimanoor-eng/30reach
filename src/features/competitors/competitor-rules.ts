@@ -1,4 +1,4 @@
-// Competitors (Slice 8: 07 / 07b / 07c; LinkedIn Slice 15a; Facebook Slice 16a). Pure rules, tested in
+// Competitors (Slice 8: 07 / 07b / 07c; LinkedIn Slice 15a; Facebook Slice 16a; YouTube Slice 18). Pure rules, tested in
 // competitor-rules.test.ts.
 import {
   type Platform,
@@ -17,8 +17,8 @@ export { PLATFORM_NAME, PLATFORMS };
 /**
  * Most a check can cost for a handle / page that exists; not found = 0. Instagram / TikTok: a first page
  * of posts (2); LinkedIn: 1–2; Facebook: AnyAPI's page profile with the followers (5, spike 24 Nov);
- * X: ScrapeCreators x/user-posts (1, also when the account doesn't exist; Slice 17g).
- * Same numbers as check-handle (CHECK_COST there).
+ * X: ScrapeCreators x/user-posts (1, also when the account doesn't exist; Slice 17g). YouTube: the
+ * official YouTube Data API, free (Slice 18). Same numbers as check-handle (CHECK_COST there).
  */
 export const CHECK_COST: Record<Platform, number> = {
   instagram: 2,
@@ -26,6 +26,7 @@ export const CHECK_COST: Record<Platform, number> = {
   linkedin: 2,
   facebook: 5,
   x: 1,
+  youtube: 0,
 };
 
 // ───────────────────────────────────────────── initials
@@ -158,11 +159,42 @@ export function facebookPageUrl(input: string): string | null {
 /** Stored URL → what the field and the table show: "facebook.com/weightwatchers". */
 export const facebookDisplay = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "");
 
+// ───────────────────────────────────────────── YouTube channel (Slice 18)
+// Same rules as supabase/functions/_shared/youtube-logic.ts (youtubeTarget); kept in sync by hand.
+const YOUTUBE_HANDLE = /^[a-z0-9._-]{3,30}$/;
+const YOUTUBE_CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/;
+export const isYouTubeChannelId = (v: string) => YOUTUBE_CHANNEL_ID.test(v);
+
+/**
+ * @handle, handle or channel link → the handle (lowercase, no "@") or a channel id (UC…, case kept), or
+ * null. Old /c/ and /user/ links and video links don't name a channel reliably.
+ */
+export function youtubeTarget(input: string): string | null {
+  let v = input.trim();
+  const link = v.match(/^(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/([^?#]+)/i);
+  if (link) {
+    const [first, second] = link[1].split("/");
+    if (first === "channel") return second && isYouTubeChannelId(second) ? second : null;
+    if (!first.startsWith("@")) return null;
+    v = first;
+  }
+  if (isYouTubeChannelId(v)) return v;
+  v = v.replace(/^@/, "").toLowerCase();
+  return YOUTUBE_HANDLE.test(v) ? v : null;
+}
+
 /** Page URL (LinkedIn / Facebook) or handle → what the field, the table and the cards show. */
 export function targetDisplay(platform: Platform, value: string): string {
   if (platform === "linkedin") return linkedInDisplay(value);
   if (platform === "facebook") return facebookDisplay(value);
   return value;
+}
+
+/** A saved account as people read it: "@noom", "linkedin.com/company/…", a YouTube channel id as it is. */
+export function handleLabel(platform: Platform, value: string): string {
+  if (platform === "linkedin" || platform === "facebook") return targetDisplay(platform, value);
+  if (platform === "youtube" && isYouTubeChannelId(value)) return value;
+  return `@${value}`;
 }
 
 export type HandleInput =
@@ -189,6 +221,15 @@ export function parseHandle(platform: Platform, input: string): HandleInput {
       ? { kind: "ok", handle: url }
       : { kind: "invalid", message: "Use a Facebook page link (facebook.com/…)." };
   }
+  if (platform === "youtube") {
+    const t = youtubeTarget(v);
+    return t
+      ? { kind: "ok", handle: t }
+      : {
+          kind: "invalid",
+          message: "Use the channel’s @handle (youtube.com/@…) or a youtube.com/channel/… link.",
+        };
+  }
   const host =
     platform === "instagram"
       ? "instagram\\.com"
@@ -200,7 +241,8 @@ export function parseHandle(platform: Platform, input: string): HandleInput {
   );
   if (link) v = link[1];
   v = v.replace(/^@/, "").toLowerCase();
-  if (PATTERN[platform].test(v) && !(platform === "x" && X_RESERVED.includes(v)))
+  const pattern = PATTERN[platform as "instagram" | "tiktok" | "x"];
+  if (pattern.test(v) && !(platform === "x" && X_RESERVED.includes(v)))
     return { kind: "ok", handle: v };
   return {
     kind: "invalid",
@@ -268,6 +310,11 @@ export function foundMessage(
   now: Date = new Date(),
 ): string {
   if (platform === "linkedin") return "Found · public company page";
+  // YouTube (18): subscribers come with the check and are refreshed by every pull.
+  if (platform === "youtube")
+    return followers === null || followers === undefined
+      ? "Found · public channel"
+      : `Found · public channel · ${formatCompact(followers)} subscribers`;
   if (platform !== "facebook") return "Found · public account";
   if (followers === null || followers === undefined) return "Found · public page";
   const date = asOf ? formatShortDate(asOf, now) : null;
@@ -280,6 +327,13 @@ export function foundMessage(
  */
 export function checkCostNote(toCheck: Platform[]): string {
   if (toCheck.length === 0) return "No handle to check · no credits";
+  // YouTube (18): checked with YouTube's own free API, never Firecrawl credits.
+  if (toCheck.includes("youtube")) {
+    const rest = toCheck.filter((p) => p !== "youtube");
+    return rest.length
+      ? `${checkCostNote(rest)} · YouTube is free`
+      : "Checking YouTube is free · no credits";
+  }
   const total = toCheck.reduce((n, p) => n + CHECK_COST[p], 0);
   // X (17g): always 1 credit, also when the account doesn't exist.
   const xs = toCheck.filter((p) => p === "x").length;

@@ -28,7 +28,7 @@ describe("accounts linked on a site (24 Nov spike pages)", () => {
       { platform: "facebook", handle: null, url: "https://www.facebook.com/shop.at.atb" },
     ]);
   });
-  it("OBU: Instagram, TikTok + X, Pinterest, YouTube (coming later)", () => {
+  it("OBU: Instagram, TikTok, X, YouTube + Pinterest (coming later)", () => {
     expect(accountsFromLinks(obu.data.links).map((a) => [a.platform, a.handle])).toEqual([
       ["instagram", "obuhealth"],
       ["tiktok", "obuhealth"],

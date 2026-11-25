@@ -326,7 +326,7 @@ describe("postColumns", () => {
     const cols = postColumns(post);
     expect(cols).not.toHaveProperty("thumbnail_source");
     expect(cols).not.toHaveProperty("pinned");
-    expect(Object.keys(cols)).toHaveLength(17);
+    expect(Object.keys(cols)).toHaveLength(18); // + duration_seconds (YouTube, 18)
   });
 });
 
@@ -714,11 +714,12 @@ describe("trackedPlatforms — per-client platforms (Slice 17b)", () => {
         { platform: "linkedin", state: "off" },
         { platform: "instagram", state: "on" },
       ]),
-    ).toEqual(["instagram", "facebook", "x"]);
+    ).toEqual(["instagram", "facebook", "x", "youtube"]); // YouTube supported since Slice 18
   });
   it("a client without rows tracks everything; all off tracks nothing", () => {
-    expect(trackedPlatforms([])).toEqual(["instagram", "tiktok", "linkedin", "facebook", "x"]);
-    expect(trackedPlatforms(null)).toEqual(["instagram", "tiktok", "linkedin", "facebook", "x"]);
+    const all = ["instagram", "tiktok", "linkedin", "facebook", "x", "youtube"];
+    expect(trackedPlatforms([])).toEqual(all);
+    expect(trackedPlatforms(null)).toEqual(all);
     expect(trackedPlatforms([{ platform: "tiktok", state: "off" }])).toEqual([]);
   });
 });

@@ -30,6 +30,7 @@ import {
   competitorStatus,
   PLATFORM_NAME,
   PLATFORMS,
+  handleLabel,
   targetDisplay,
   targetNoun,
 } from "./competitor-rules";
@@ -169,7 +170,7 @@ export function CompetitorsPage() {
         >
           {targetNoun(p) === "page"
             ? targetDisplay(p, h).replace(/^(linkedin\.com\/company|facebook\.com)\//, "")
-            : `@${h}`}
+            : handleLabel(p, h)}
         </span>
         {bad && <span className="sr-only">(not found)</span>}
       </span>
@@ -240,8 +241,11 @@ export function CompetitorsPage() {
                   <th scope="col" className="py-4 font-normal">
                     Facebook
                   </th>
-                  <th scope="col" className="py-4 font-normal">
+                  <th scope="col" className="py-4 pr-4 font-normal">
                     X
+                  </th>
+                  <th scope="col" className="py-4 pr-4 font-normal">
+                    YouTube
                   </th>
                   <th scope="col" className="py-4 pr-4 font-normal">
                     Posts · 30 days
@@ -268,6 +272,7 @@ export function CompetitorsPage() {
                     <td className="max-w-56 py-4 pr-4">{handleCell(c, "linkedin")}</td>
                     <td className="max-w-56 py-4 pr-4">{handleCell(c, "facebook")}</td>
                     <td className="max-w-56 py-4 pr-4">{handleCell(c, "x")}</td>
+                    <td className="max-w-56 py-4 pr-4">{handleCell(c, "youtube")}</td>
                     <td className="py-4 pr-4 text-body">{posts(c)}</td>
                     <td className="py-4">{statusChip(c)}</td>
                     <td className="py-4 pr-6">{actions(c)}</td>

@@ -5,10 +5,18 @@ import {
   LinkedInIcon,
   TikTokIcon,
   XIcon,
+  YouTubeIcon,
 } from "../components/icons/BrandIcons";
 
-export type Platform = "instagram" | "tiktok" | "linkedin" | "facebook" | "x";
-export const PLATFORMS: Platform[] = ["instagram", "tiktok", "linkedin", "facebook", "x"];
+export type Platform = "instagram" | "tiktok" | "linkedin" | "facebook" | "x" | "youtube";
+export const PLATFORMS: Platform[] = [
+  "instagram",
+  "tiktok",
+  "linkedin",
+  "facebook",
+  "x",
+  "youtube",
+];
 
 export const PLATFORM_NAME: Record<Platform, string> = {
   instagram: "Instagram",
@@ -16,6 +24,7 @@ export const PLATFORM_NAME: Record<Platform, string> = {
   linkedin: "LinkedIn",
   facebook: "Facebook",
   x: "X",
+  youtube: "YouTube",
 };
 
 export const PLATFORM_ICON: Record<Platform, typeof InstagramIcon> = {
@@ -24,6 +33,7 @@ export const PLATFORM_ICON: Record<Platform, typeof InstagramIcon> = {
   linkedin: LinkedInIcon,
   facebook: FacebookIcon,
   x: XIcon,
+  youtube: YouTubeIcon,
 };
 
 /** competitors columns: where each platform is pulled from (handle, or LinkedIn / Facebook page URL). */
@@ -33,6 +43,8 @@ export const TARGET_KEY = {
   linkedin: "linkedin_url",
   facebook: "facebook_url",
   x: "x_handle",
+  // YouTube (18): the @handle without "@", or a channel id (UC…) from a /channel/ link.
+  youtube: "youtube_handle",
 } as const satisfies Record<Platform, string>;
 export const STATUS_KEY = {
   instagram: "instagram_status",
@@ -40,17 +52,19 @@ export const STATUS_KEY = {
   linkedin: "linkedin_status",
   facebook: "facebook_status",
   x: "x_status",
+  youtube: "youtube_status",
 } as const satisfies Record<Platform, string>;
 
 export const isPlatform = (v: unknown): v is Platform => PLATFORMS.includes(v as Platform);
 
-/** Short names for the desktop platform switch (Slice 16b): All · IG · TikTok · LinkedIn · FB · X. */
+/** Short names for the desktop platform switch (Slice 16b): All · IG · TikTok · LinkedIn · FB · X · YT. */
 export const PLATFORM_SHORT_NAME: Record<Platform, string> = {
   instagram: "IG",
   tiktok: "TikTok",
   linkedin: "LinkedIn",
   facebook: "FB",
   x: "X",
+  youtube: "YT",
 };
 
 /** "handle" for Instagram/TikTok/X, "page" for a LinkedIn company page or a Facebook page. */
@@ -71,8 +85,8 @@ export function platformsWithAccounts(
 
 /**
  * Thumbnail fallback block (no saved thumbnail) and other platform fills: Instagram Pop, TikTok Breeze,
- * LinkedIn B30 Blue (Slice 15), Facebook B30 Fresh (Slice 16), X ink (Slice 17g). Blue, Fresh and ink are
- * dark: put ink text on a surface chip on top of them, never on them.
+ * LinkedIn B30 Blue (Slice 15), Facebook B30 Fresh (Slice 16), X ink (Slice 17g), YouTube red (Slice 18).
+ * Blue, Fresh, ink and YouTube red are dark: put ink text on a surface chip on top of them, never on them.
  */
 export const PLATFORM_FILL: Record<Platform, string> = {
   instagram: "bg-pop",
@@ -80,6 +94,7 @@ export const PLATFORM_FILL: Record<Platform, string> = {
   linkedin: "bg-blue",
   facebook: "bg-fresh",
   x: "bg-ink",
+  youtube: "bg-youtube",
 };
 
 /**

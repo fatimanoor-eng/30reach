@@ -9,6 +9,16 @@ import {
 import { decodeLinkedInCursor, parseRetryAfter, type Platform } from "./pull-logic.ts";
 
 import { type UsageInput, usageRow } from "./usage.ts";
+import {
+  channelFilter,
+  decodeYouTubeCursor,
+  parseChannel,
+  shortFromStatus,
+  uploadsPlaylist,
+  videosToCheck,
+  youtubeErrorCode,
+  type YouTubePageBody,
+} from "./youtube-logic.ts";
 
 export { withSupabase } from "npm:@supabase/server@1.9.2";
 export type { SupabaseClient };
@@ -299,4 +309,104 @@ export async function clientName(
   if (!clientId) return null;
   const { data } = await admin.from("clients").select("name").eq("id", clientId).maybeSingle();
   return (data as { name?: string } | null)?.name ?? null;
+}
+
+// ───────────────────────────────────────────── YouTube Data API v3 (Slice 18)
+// Free: quota units (10,000 a day per Google Cloud project), not Firecrawl credits. The key comes from the
+// YOUTUBE_API_KEY secret (restricted to the YouTube Data API v3) and is never returned or logged.
+
+/** The API answered with an error. `code`: "quota" (used up for today), "not_found", "youtube_unavailable". */
+export class YouTubeApiError extends Error {
+  constructor(
+    public status: number,
+    public code: string,
+  ) {
+    super(`YouTube API ${status} (${code})`);
+  }
+}
+
+async function youtubeApi(path: string, params: Record<string, string>): Promise<unknown> {
+  const key = Deno.env.get("YOUTUBE_API_KEY");
+  if (!key) throw new YouTubeApiError(0, "youtube_unavailable");
+  const res = await fetch(
+    `https://www.googleapis.com/youtube/v3/${path}?${new URLSearchParams({ ...params, key })}`,
+    { signal: AbortSignal.timeout(20_000) },
+  );
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new YouTubeApiError(res.status, youtubeErrorCode(res.status, body));
+  return body;
+}
+
+/** channels.list for a stored target (handle or UC… id): 1 unit. A missing channel = no `items`. */
+export const fetchYouTubeChannel = (target: string) =>
+  youtubeApi("channels", { part: "snippet,statistics", ...channelFilter(target) });
+
+/** youtube.com/shorts/<id> without following redirects: 200 = Short, 303 → /watch = video (spike). */
+async function shortsUrlCheck(id: string): Promise<boolean | null> {
+  try {
+    const res = await fetch(`https://www.youtube.com/shorts/${encodeURIComponent(id)}`, {
+      method: "HEAD",
+      redirect: "manual",
+      signal: AbortSignal.timeout(5_000),
+    });
+    return shortFromStatus(res.status);
+  } catch {
+    return null; // unknown → shown as a Video
+  }
+}
+
+/**
+ * ONE page of a channel's uploads (≤ 50, newest first): channels.list on the first page (subscribers, or
+ * "not found"), then playlistItems.list + videos.list. ~3 quota units, 0 credits. Shorts the API can't
+ * settle are checked on youtube.com, only inside the pull's window, 6 at a time.
+ */
+export async function fetchYouTubePage(
+  target: string,
+  cursor: string | null,
+  cutoffMs: number,
+): Promise<YouTubePageBody> {
+  const next = decodeYouTubeCursor(cursor);
+  let channel: unknown = null;
+  let channelId = next?.channelId ?? "";
+  if (!next) {
+    channel = await fetchYouTubeChannel(target);
+    const ch = parseChannel(channel);
+    if (ch.kind === "error")
+      return { channel, channelId: "", playlist: {}, videos: {}, shorts: {} };
+    channelId = ch.channelId;
+  }
+  let playlist: unknown = {};
+  try {
+    playlist = await youtubeApi("playlistItems", {
+      part: "contentDetails",
+      playlistId: uploadsPlaylist(channelId),
+      maxResults: "50",
+      ...(next ? { pageToken: next.pageToken } : {}),
+    });
+  } catch (err) {
+    // A channel with no public uploads has no uploads playlist: an empty page, not an error.
+    if (!(err instanceof YouTubeApiError && err.code === "not_found")) throw err;
+  }
+  const items = ((playlist as { items?: unknown[] }).items ?? []) as {
+    contentDetails?: { videoId?: string };
+  }[];
+  const ids = items.map((i) => i.contentDetails?.videoId).filter((id): id is string => !!id);
+  const videos = ids.length
+    ? await youtubeApi("videos", {
+        part: "snippet,statistics,contentDetails",
+        id: ids.join(","),
+        maxResults: "50",
+      })
+    : { items: [] };
+  const toCheck = videosToCheck(
+    ((videos as { items?: unknown[] }).items ?? []) as unknown[],
+    cutoffMs,
+  );
+  const shorts: Record<string, boolean | null> = {};
+  for (let i = 0; i < toCheck.length; i += 6) {
+    const batch = toCheck.slice(i, i + 6);
+    const answers = await Promise.all(batch.map(shortsUrlCheck));
+    batch.forEach((id, j) => (shorts[id] = answers[j]));
+  }
+  return { channel, channelId, playlist, videos, shorts };
 }

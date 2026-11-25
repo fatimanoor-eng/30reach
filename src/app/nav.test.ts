@@ -27,6 +27,7 @@ describe("platforms with accounts (Slice 16b)", () => {
       "linkedin",
       "facebook",
       "x",
+      "youtube",
     ]);
   });
 });

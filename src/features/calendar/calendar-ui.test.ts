@@ -19,13 +19,14 @@ describe("calendar platforms (LinkedIn, Slice 15c)", () => {
     expect(cardMeta({ platform: "linkedin", format: "document" })).toBe("LI · Document");
   });
 
-  it("the platform chip offers all three; formats follow the platform", () => {
+  it("the platform chip offers every platform; formats follow the platform", () => {
     expect(PLATFORM_OPTIONS.map((o) => o.value)).toEqual([
       "instagram",
       "tiktok",
       "linkedin",
       "facebook",
       "x",
+      "youtube",
     ]);
     // Slice 17g: X formats; a text post is a "Post".
     expect(formatOptions("x").map((o) => o.label)).toEqual(["Post", "Image", "Video", "Carousel"]);

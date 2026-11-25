@@ -1,5 +1,5 @@
 // Typed social accounts in Add client (15d team platforms / competitors, 15f manual form): format checks
-// only, nothing is charged. Instagram / TikTok / X = handles; Facebook / LinkedIn = page links.
+// only, nothing is charged. Instagram / TikTok / X / YouTube = handles; Facebook / LinkedIn = page links.
 import type { Platform } from "../../../lib/platforms";
 import { parseHandle } from "../../competitors/competitor-rules";
 import type { ParsedInput } from "./add-client-rules";
@@ -19,4 +19,5 @@ export const ACCOUNT_PLACEHOLDER: Record<Platform, string> = {
   facebook: "Page link",
   linkedin: "Company page link",
   x: "@handle",
+  youtube: "@handle or channel link",
 };

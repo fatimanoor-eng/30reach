@@ -244,12 +244,12 @@ export function countsSentence(c: {
 
 /**
  * Manual Add client (15f): the client's platforms. Instagram, TikTok, LinkedIn and Facebook are tracked
- * (team rows, on), with the client's own account where one was given; X only when a handle was given
- * (Slice 17g: X is on for clients that use it). Instagram / TikTok / X are handles; Facebook / LinkedIn are
- * page URLs.
+ * (team rows, on), with the client's own account where one was given; X and YouTube only when a handle
+ * was given (Slices 17g / 18: on for clients that use them). Instagram / TikTok / X / YouTube are handles;
+ * Facebook / LinkedIn are page URLs.
  */
 export function manualPlatformRows(accounts: Partial<Record<Platform, string | null>>) {
-  return PLATFORMS.filter((p) => p !== "x" || !!accounts.x).map((p) => {
+  return PLATFORMS.filter((p) => (p !== "x" && p !== "youtube") || !!accounts[p]).map((p) => {
     const v = accounts[p] ?? null;
     const isUrl = p === "facebook" || p === "linkedin";
     return {

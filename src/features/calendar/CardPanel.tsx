@@ -277,6 +277,8 @@ export function CardPanel({
   };
   const shownCheck = check && check.key === checkKey(fields) ? check.value : null;
   const canSuggest = !!(fields.title.trim() || fields.caption?.trim());
+  // YouTube (18): the hook is the video's title and the caption its description.
+  const yt = fields.platform === "youtube";
   const canSuggestCaption = !!(fields.title.trim() || fields.hook?.trim());
 
   const confirmDelete = async () => {
@@ -356,7 +358,8 @@ export function CardPanel({
       </div>
       <div>
         <textarea
-          aria-label="Title"
+          // YouTube cards (18) have a "Title" field (the video's title), so this one is the post title there.
+          aria-label={fields.platform === "youtube" ? "Post title" : "Title"}
           rows={1}
           value={fields.title}
           placeholder="Post title"
@@ -487,9 +490,14 @@ export function CardPanel({
             </div>
           )}
           <Field
-            label="Hook"
+            label={yt ? "Title" : "Hook"}
             action={
-              <Tooltip content="Add a title or caption first" enabled={!canSuggest}>
+              <Tooltip
+                content={
+                  yt ? "Add a post title or description first" : "Add a title or caption first"
+                }
+                enabled={!canSuggest}
+              >
                 {(tip) => (
                   <button
                     type="button"
@@ -502,7 +510,7 @@ export function CardPanel({
                       canSuggest ? "text-blue hover:underline" : "cursor-not-allowed text-muted"
                     }`}
                   >
-                    Suggest hooks
+                    {yt ? "Suggest titles" : "Suggest hooks"}
                   </button>
                 )}
               </Tooltip>
@@ -512,6 +520,7 @@ export function CardPanel({
               <>
                 <TextArea id={id} value={fields.hook} onChange={(v) => set("hook", v)} />
                 <HookSuggestions
+                  noun={yt ? "title" : "hook"}
                   value={hooks}
                   onPick={(h) => {
                     set("hook", h);
@@ -524,9 +533,12 @@ export function CardPanel({
             )}
           </Field>
           <Field
-            label="Caption"
+            label={yt ? "Description" : "Caption"}
             action={
-              <Tooltip content="Add a title or hook first" enabled={!canSuggestCaption}>
+              <Tooltip
+                content={yt ? "Add a post title or video title first" : "Add a title or hook first"}
+                enabled={!canSuggestCaption}
+              >
                 {(tip) => (
                   <button
                     type="button"
@@ -543,7 +555,7 @@ export function CardPanel({
                         : "cursor-not-allowed text-muted"
                     }`}
                   >
-                    Suggest caption
+                    {yt ? "Suggest description" : "Suggest caption"}
                   </button>
                 )}
               </Tooltip>
@@ -558,7 +570,7 @@ export function CardPanel({
                   minRows
                 />
                 <HookSuggestions
-                  noun="caption"
+                  noun={yt ? "description" : "caption"}
                   value={captions}
                   onPick={(c) => {
                     set("caption", c);

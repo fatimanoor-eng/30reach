@@ -6,7 +6,22 @@ import type { OverviewPost } from "./metrics";
 export type SavedPull = { id: string; started_at: string; status: "done" | "partial" };
 
 const POST_COLUMNS =
-  "id, competitor_id, platform, external_id, url, posted_at, format, caption, hashtags, likes, comments, views, shares, counts_hidden, thumbnail_path";
+  "id, competitor_id, platform, external_id, url, posted_at, format, caption, hashtags, likes, comments, views, shares, counts_hidden, thumbnail_path, duration_seconds";
+
+/**
+ * YouTube's developer policies: its statistics may be kept 30 days at most. pull-finish deletes YouTube
+ * posts in pulls older than that, but only when someone pulls, so the app also stops showing them.
+ */
+export const YOUTUBE_KEEP_DAYS = 30;
+export function withoutExpiredYouTube<T extends { platform: string }>(
+  posts: T[],
+  pullStartedAt: string | null | undefined,
+  now: number = Date.now(),
+): T[] {
+  if (!pullStartedAt) return posts;
+  const expired = now - Date.parse(pullStartedAt) > YOUTUBE_KEEP_DAYS * 24 * 60 * 60 * 1000;
+  return expired ? posts.filter((p) => p.platform !== "youtube") : posts;
+}
 
 /** The two newest REAL pulls (done/partial). Test pulls never show on dashboards. */
 export function useSavedPulls() {
@@ -38,13 +53,15 @@ export function usePullPosts(pullId: string | null | undefined) {
     enabled: !!pullId,
     staleTime: Infinity, // a saved pull never changes
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("posts")
-        .select(POST_COLUMNS)
-        .eq("pull_id", pullId!)
-        .eq("hidden", false);
+      const [{ data, error }, { data: pull }] = await Promise.all([
+        supabase.from("posts").select(POST_COLUMNS).eq("pull_id", pullId!).eq("hidden", false),
+        supabase.from("pulls").select("started_at").eq("id", pullId!).maybeSingle(),
+      ]);
       if (error) throw error;
-      return (data ?? []) as OverviewPost[];
+      return withoutExpiredYouTube(
+        (data ?? []) as OverviewPost[],
+        (pull as { started_at?: string } | null)?.started_at,
+      );
     },
   });
 }

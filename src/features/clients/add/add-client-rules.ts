@@ -3,7 +3,7 @@
 import type { ContentRule } from "../../../lib/client-rules";
 import { plural } from "../../../lib/format";
 import { PLATFORM_NAME, PLATFORMS, type Platform } from "../../../lib/platforms";
-import { suggestInitials } from "../../competitors/competitor-rules";
+import { suggestInitials, youtubeTarget } from "../../competitors/competitor-rules";
 
 export type FoundPlatform = Platform | "youtube" | "pinterest" | "threads";
 export type FoundAccount = { platform: FoundPlatform; handle: string | null; url: string | null };
@@ -314,6 +314,7 @@ export function competitorRowsForCreate(d: ReviewDraft, parse: ParseAccount) {
     linkedin_url: string | null;
     facebook_url: string | null;
     x_handle: string | null;
+    youtube_handle: string | null;
   }[] = [];
   for (const c of d.competitors) {
     if (!c.ticked) continue;
@@ -330,6 +331,9 @@ export function competitorRowsForCreate(d: ReviewDraft, parse: ParseAccount) {
       linkedin_url: found("linkedin")?.url ?? typed("linkedin"),
       facebook_url: found("facebook")?.url ?? typed("facebook"),
       x_handle: found("x")?.handle ?? typed("x"),
+      // YouTube (18): a site's /channel/UC… link works as it is; old /c/ and /user/ links don't.
+      youtube_handle:
+        found("youtube")?.handle ?? youtubeTarget(found("youtube")?.url ?? "") ?? typed("youtube"),
     });
   }
   return rows;

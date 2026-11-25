@@ -17,8 +17,10 @@ import {
   readJson,
   requireTeam,
   saveCreditsCache,
+  type SupabaseClient,
   withSupabase,
 } from "../_shared/server.ts";
+import { youtubeExpiredPulls } from "../_shared/youtube-logic.ts";
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
@@ -97,6 +99,12 @@ export default {
         await admin.from("pulls").delete().in("id", toDelete);
         deleted = toDelete.length;
       }
+      // YouTube (18): its statistics may be kept 30 days at most (developer policies).
+      const expired = youtubeExpiredPulls(
+        ((pulls ?? []) as PullRow[]).filter((p) => !toDelete.includes(p.id)),
+        Date.now(),
+      );
+      if (expired.length) await deleteYouTubePosts(admin, pull.client_id, expired);
     }
 
     return json({
@@ -110,3 +118,25 @@ export default {
     });
   }),
 };
+
+/** Delete a client's YouTube posts in these pulls, and their stored thumbnails. */
+async function deleteYouTubePosts(admin: SupabaseClient, clientId: string, pullIds: string[]) {
+  const { data } = await admin
+    .from("posts")
+    .select("id, thumbnail_path")
+    .eq("client_id", clientId)
+    .eq("platform", "youtube")
+    .in("pull_id", pullIds);
+  const paths = (data ?? []).map((r) => r.thumbnail_path).filter((p): p is string => !!p);
+  if (paths.length) await admin.storage.from("post-thumbs").remove(paths);
+  if (data?.length) {
+    const { error } = await admin
+      .from("posts")
+      .delete()
+      .in(
+        "id",
+        data.map((r) => r.id),
+      );
+    if (error) console.error(`pull-finish: YouTube cleanup failed (${error.code})`);
+  }
+}

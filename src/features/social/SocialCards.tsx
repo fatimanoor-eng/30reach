@@ -53,7 +53,9 @@ export function SocialTopPosts({
               ? "Ranked by reactions + comments. Shares, and views on videos and reels, are shown but don’t change the order."
               : platform === "x"
                 ? "Ranked by likes + replies. Views and reposts are shown but don’t change the order."
-                : "Ranked by likes + comments."
+                : platform === "youtube"
+                  ? "Ranked by likes + comments. Views and length are shown but don’t change the order."
+                  : "Ranked by likes + comments."
       }
       posts={posts}
       brands={brands}

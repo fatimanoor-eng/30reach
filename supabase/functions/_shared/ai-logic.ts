@@ -44,9 +44,10 @@ export const LIMITS = {
 /**
  * LinkedIn (Slice 15c): text, image (one or more), document, video, article (a link post), poll.
  * Facebook (Slice 16c): reel, video, image, carousel (an album), article (a link post), text.
+ * YouTube (Slice 18): video or short.
  */
 export type Format =
-  "reel" | "carousel" | "image" | "video" | "text" | "document" | "article" | "poll";
+  "reel" | "carousel" | "image" | "video" | "text" | "document" | "article" | "poll" | "short";
 
 export const FORMATS_BY_PLATFORM: Record<Platform, Format[]> = {
   instagram: ["reel", "carousel", "image"],
@@ -55,6 +56,8 @@ export const FORMATS_BY_PLATFORM: Record<Platform, Format[]> = {
   facebook: ["reel", "video", "image", "carousel", "article", "text"],
   // X (17g): a post with no media, one photo, several photos or a video.
   x: ["text", "image", "video", "carousel"],
+  // YouTube (18): a regular video or a Short.
+  youtube: ["video", "short"],
 };
 /** Every format any platform has (Plan {month}'s JSON schema enum). */
 export const ALL_FORMATS: Format[] = [...new Set(Object.values(FORMATS_BY_PLATFORM).flat())];
@@ -67,6 +70,7 @@ const FORMAT_LABEL: Record<Format, string> = {
   document: "Documents",
   article: "Link posts",
   poll: "Polls",
+  short: "Shorts",
 };
 const PLATFORM_LABEL: Record<Platform, string> = {
   instagram: "Instagram",
@@ -74,6 +78,7 @@ const PLATFORM_LABEL: Record<Platform, string> = {
   linkedin: "LinkedIn",
   facebook: "Facebook",
   x: "X",
+  youtube: "YouTube",
 };
 
 // ───────────────────────────────────────────── small helpers
@@ -1104,7 +1109,9 @@ export function hookContext(data: Pick<PullData, "brands" | "posts">, platform: 
   const posts = platform ? data.posts.filter((p) => p.platform === platform) : data.posts;
   const f = bestFormat(posts);
   return {
-    platform: platform ? PLATFORM_LABEL[platform] : "Instagram, TikTok, LinkedIn and Facebook",
+    platform: platform
+      ? PLATFORM_LABEL[platform]
+      : "Instagram, TikTok, LinkedIn, Facebook, X and YouTube",
     best_format: f ? FORMAT_LABEL[f] : null,
     top_openings: posts
       .filter(countable)
@@ -1161,6 +1168,8 @@ export const CAPTION_STYLE: Record<
   facebook: { lines: [1, 4], tags: [0, 2], chars: 500, emoji: 2 },
   // X (17g): one post under 280 characters, plain and punchy, 0–2 hashtags, no emoji.
   x: { lines: [1, 3], tags: [0, 2], chars: 280, emoji: 0 },
+  // YouTube (18): a video description: a searchable first line or two, then detail, 1–3 hashtags.
+  youtube: { lines: [2, 6], tags: [1, 3], chars: 1000, emoji: 1 },
   any: { lines: [2, 4], tags: [3, 5], chars: 600, emoji: 2 },
 };
 const HASHTAG = /#[\p{L}\p{N}_]+/gu;

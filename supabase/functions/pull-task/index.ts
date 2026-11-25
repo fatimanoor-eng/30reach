@@ -13,6 +13,11 @@
 // each brand's posts on that brand's task. The other X tasks answer "busy" until the leader finishes, then
 // they're already done. If the combined search fails on its first call (it can time out), every X task
 // switches to "solo": one page of its own `from:handle` search.
+//
+// YouTube (Slice 18): the official Data API, not Firecrawl (0 credits; ~3 of the free 10,000 daily quota
+// units a page). The first page reads the channel (fresh subscribers; "not found"), every page 50 uploads,
+// newest first, with their stats; Shorts are told apart on the way (youtube-logic.ts). The quota running out
+// fails the task with "quota" (it resets at midnight Pacific).
 
 import {
   cutoffFor,
@@ -32,6 +37,7 @@ import {
   xNeedsFallback,
   xQuery,
 } from "../_shared/pull-logic.ts";
+import { parseYouTubePage, type YouTubePageBody } from "../_shared/youtube-logic.ts";
 import {
   FirecrawlHttpError,
   FirecrawlRateLimited,
@@ -39,9 +45,11 @@ import {
   readJson,
   recordUsage,
   requireTeam,
+  fetchYouTubePage,
   scrapePage,
   type SupabaseClient,
   withSupabase,
+  YouTubeApiError,
 } from "../_shared/server.ts";
 
 const LEASE_MS = 150_000; // ≥ the function's wall-clock limit
@@ -124,7 +132,7 @@ export default {
     const { data: competitor } = await admin
       .from("competitors")
       .select(
-        "id, instagram_handle, tiktok_handle, linkedin_url, facebook_url, facebook_followers, x_handle",
+        "id, instagram_handle, tiktok_handle, linkedin_url, facebook_url, facebook_followers, x_handle, youtube_handle, youtube_channel_id, youtube_subscribers",
       )
       .eq("id", task.competitor_id)
       .single();
@@ -242,8 +250,30 @@ export default {
     // ── one page from Firecrawl
     let body: unknown;
     try {
-      body = await scrapePage(platform, target, providerCursor);
+      body =
+        platform === "youtube"
+          ? await fetchYouTubePage(
+              competitor!.youtube_channel_id ?? handle,
+              providerCursor,
+              cutoffMs,
+            )
+          : await scrapePage(platform, target, providerCursor);
     } catch (err) {
+      if (err instanceof YouTubeApiError) {
+        console.error(`pull-task: YouTube API failed (${err.status}, ${err.code})`);
+        if (err.code === "quota") {
+          // Today's free quota is used up: no point retrying until it resets (midnight Pacific).
+          const { data } = await release({
+            status: "failed",
+            error_code: "quota",
+            cursor: null,
+            finished_at: new Date().toISOString(),
+          });
+          return json(summary(data, false));
+        }
+        await release({});
+        return json({ error: "youtube_unavailable", retryable: true }, 502);
+      }
       const status = err instanceof FirecrawlHttpError ? err.status : 0;
       if (canGoSolo && (xNeedsFallback(null, status) || (err as Error).name === "TimeoutError")) {
         return await goSolo(0, status ? `HTTP ${status}` : "timeout");
@@ -263,7 +293,10 @@ export default {
       );
     }
 
-    const page = parsePage(platform, body, pagesSoFar);
+    const page =
+      platform === "youtube"
+        ? parseYouTubePage(body as YouTubePageBody)
+        : parsePage(platform, body, pagesSoFar);
     // Usage (Slice 17a): every page's credits, per client (0-credit pages aren't recorded).
     await recordUsage(admin, {
       kind: "pull",
@@ -346,9 +379,17 @@ export default {
         })
         .eq("id", t.id);
     }
+    // YouTube: the channel id (so later pulls skip the handle lookup) and fresh subscribers, from page 1.
+    const ytChannel =
+      platform === "youtube" && (body as YouTubePageBody).channel !== null
+        ? {
+            youtube_channel_id: (body as YouTubePageBody).channelId,
+            ...(page.followers !== null ? { youtube_subscribers: page.followers } : {}),
+          }
+        : {};
     await admin
       .from("competitors")
-      .update({ [STATUS_COLUMN[platform]]: "ok" })
+      .update({ [STATUS_COLUMN[platform]]: "ok", ...ytChannel })
       .eq("id", competitor!.id);
 
     const { data } = await release({
@@ -362,7 +403,8 @@ export default {
         page.followers ??
         (platform === "x" ? followersOf(competitor!.id) : null) ??
         task.followers ??
-        (platform === "facebook" ? (competitor?.facebook_followers ?? null) : null),
+        (platform === "facebook" ? (competitor?.facebook_followers ?? null) : null) ??
+        (platform === "youtube" ? (competitor?.youtube_subscribers ?? null) : null),
       // X leader (17g fix): "page_cap" when the combined search stopped at its 3 pages with more to read,
       // so the X page can say it shows only the latest ~60 posts. A done task's code isn't a problem.
       error_code: decision.more
