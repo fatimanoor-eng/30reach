@@ -56,6 +56,14 @@ describe("Ask Blip rules", () => {
   it("shortens the client name like Figma ('OBU')", () => {
     expect(clientShort("OBU Health")).toBe("OBU");
   });
+  it("keeps the rest of a multi-word name (not just the first word)", () => {
+    expect(clientShort("All The Best Co")).toBe("All The Best");
+    expect(clientShort("Demo Wellness Co.")).toBe("Demo Wellness");
+    expect(clientShort("Hims & Hers")).toBe("Hims & Hers");
+    expect(clientShort("Acme Health Inc")).toBe("Acme");
+    expect(clientShort("Health")).toBe("Health");
+    expect(clientShort("  Ro  ")).toBe("Ro");
+  });
 
   it("chips: what changed first, the top brand, then post ideas", () => {
     expect(suggestions("OBU Health", "Hers")).toEqual([

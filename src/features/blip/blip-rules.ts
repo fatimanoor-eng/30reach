@@ -17,8 +17,18 @@ export const MAX_QUESTION = 500;
 export const firstNameOf = (fullName: string | null | undefined) =>
   fullName?.trim().split(/\s+/)[0] || null;
 
-/** "OBU Health" → "OBU" (Figma: "Ask about OBU’s competitors…", "3 post ideas for OBU"). */
-export const clientShort = (name: string) => name.trim().split(/\s+/)[0] || name;
+/** Trailing words a client's short name drops ("OBU Health" → "OBU", "All The Best Co" → "All The Best"). */
+const COMPANY_WORDS = /^(health|co|company|inc|llc|ltd|limited|group|corp|corporation)\.?$/i;
+
+/**
+ * "OBU Health" → "OBU" (Figma: "Ask about OBU’s competitors…", "3 post ideas for OBU"). Drops trailing
+ * company words only, so a multi-word name stays readable ("All The Best Co" → "All The Best", never "All").
+ */
+export function clientShort(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  while (words.length > 1 && COMPANY_WORDS.test(words.at(-1)!)) words.pop();
+  return words.join(" ") || name;
+}
 
 /**
  * Suggestion chips. "Explain this chart" (Figma) is swapped for "What changed since the last pull?":

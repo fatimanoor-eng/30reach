@@ -1,5 +1,5 @@
 import { Archive, Check, ChevronDown, Plus, Search, SlidersVertical } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { BottomSheet } from "../components/BottomSheet";
 import { ModalPresence } from "../components/ModalPresence";
@@ -17,6 +17,7 @@ import { useClientActions } from "../features/clients/client-actions";
 import { useProfileNames } from "../features/clients/clients-api";
 import { archivedLabel, firstNameFrom } from "../lib/client-rules";
 import { useClient, useClients, useLastPulls } from "../lib/useClient";
+import { usePopover } from "../lib/usePopover";
 import { ClientMark } from "./ClientMark";
 
 /*
@@ -234,34 +235,6 @@ function ArchivedSection({
       )}
     </>
   );
-}
-
-/** Closes on Esc (focus back on the trigger) and on a click outside. */
-function usePopover() {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelId = useId();
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setOpen(false);
-      triggerRef.current?.focus();
-    };
-    document.addEventListener("pointerdown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-  const toggle = () => setOpen((o) => !o);
-  const close = () => setOpen(false);
-  return { open, toggle, close, wrapRef, triggerRef, panelId };
 }
 
 function Panel({

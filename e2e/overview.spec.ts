@@ -217,9 +217,16 @@ test("Facebook on Overview (Slice 16b): Fresh block with a white tag chip, link 
   await expect(
     card.getByRole("button", { name: "Save as idea" }).filter({ visible: true }).first(),
   ).toBeVisible();
+  if (info.project.name !== "mobile-390") {
+    await card.getByRole("button", { name: "See all" }).click(); // 18 fix: platform menu
+  }
   await expect(
     card.getByRole("link", { name: "All Facebook posts" }).filter({ visible: true }),
   ).toHaveCount(1);
+  if (info.project.name !== "mobile-390") {
+    await page.keyboard.press("Escape");
+    await card.getByRole("button", { name: "See all" }).blur(); // no focus ring in the shot
+  }
   await noSidewaysScroll(page);
   await card.scrollIntoViewIfNeeded();
   await expect(card).toHaveScreenshot(`facebook-no-thumbnail-${info.project.name}.png`);
@@ -304,7 +311,28 @@ test("Top posts links open the platform page with all posts expanded", async ({ 
   const card = page
     .locator("section")
     .filter({ has: page.getByRole("heading", { name: "Top posts", exact: true }) });
-  await expect(card.getByRole("button", { name: /See all|Show less/ })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Show less" })).toHaveCount(0);
+  if (!mobile) {
+    // Tablet/desktop: one "See all ▾" opens a menu of the client's platforms (5 links overflowed).
+    const seeAll = card.getByRole("button", { name: "See all" });
+    await expect(seeAll).toHaveAttribute("aria-expanded", "false");
+    await expect(card.getByRole("link", { name: "All Instagram posts" })).toHaveCount(0);
+    await seeAll.click();
+    await expect(seeAll).toHaveAttribute("aria-expanded", "true");
+    const menu = card.getByRole("list", { name: "See all posts on" });
+    await expect(menu.getByRole("link")).toHaveCount(3);
+    // Inside the card's right edge and the viewport.
+    const [m, c] = [await menu.boundingBox(), await card.boundingBox()];
+    expect(m!.x + m!.width).toBeLessThanOrEqual(c!.x + c!.width + 1);
+    await page.keyboard.press("Escape");
+    await expect(menu).toHaveCount(0);
+    await expect(seeAll).toBeFocused();
+    await seeAll.click();
+  } else {
+    await expect(
+      card.getByRole("button", { name: "See all" }).filter({ visible: true }),
+    ).toHaveCount(0);
+  }
   const ig = card.getByRole("link", { name: "All Instagram posts" }).filter({ visible: true });
   const tt = card.getByRole("link", { name: "All TikTok posts" }).filter({ visible: true });
   const li = card.getByRole("link", { name: "All LinkedIn posts" }).filter({ visible: true });

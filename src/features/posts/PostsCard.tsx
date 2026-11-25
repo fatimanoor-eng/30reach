@@ -34,6 +34,7 @@ export function PostsCard({
   expanded: expandedProp,
   onExpandedChange,
   links,
+  headerLinks,
   scrollIntoViewOnMount = false,
 }: {
   title: string;
@@ -56,6 +57,8 @@ export function PostsCard({
   onExpandedChange?: (expanded: boolean) => void;
   /** replaces "See all": the card never expands */
   links?: ReactNode;
+  /** Tablet/desktop header instead of `links` (phones still stack `links` under the cards). */
+  headerLinks?: ReactNode;
   /** arrived via a link to the expanded list: bring the card into view once */
   scrollIntoViewOnMount?: boolean;
 }) {
@@ -120,7 +123,7 @@ export function PostsCard({
       info={info}
       action={
         links ? (
-          <div className="hidden items-center gap-4 md:flex">{links}</div>
+          <div className="hidden items-center gap-4 md:flex">{headerLinks ?? links}</div>
         ) : canExpand ? (
           <button
             ref={headerButton}
