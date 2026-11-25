@@ -1,14 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { buttonClass, type ButtonVariant } from "./button-class";
 
-export type ButtonVariant = "primary" | "secondary" | "accent" | "danger" | "text";
-
-const variants: Record<ButtonVariant, string> = {
-  primary: "bg-ink text-white hover:bg-sidebar-2",
-  secondary: "bg-surface text-ink border border-line hover:bg-soft",
-  accent: "bg-flash text-ink hover:brightness-95",
-  danger: "bg-spark text-white hover:brightness-95",
-  text: "text-muted hover:text-ink",
-};
+export type { ButtonVariant };
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -29,7 +22,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-4 text-body-sm font-medium whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-40 md:min-h-10 ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
+      className={buttonClass(variant, `${fullWidth ? "w-full" : ""} ${className}`)}
       {...props}
     >
       {icon}

@@ -27,7 +27,7 @@ import { ClientMark } from "./ClientMark";
  * Archived (n) (16c), Slice 17c.
  */
 
-/** "page" = the Pick a client screen (17h): roomy rows, no Archived section, no current client. */
+/** "page" = the Pick a client screen (17h): roomy rows, no Archived section or Add client row, no current client. */
 type MenuVariant = "popover" | "sheet" | "page";
 
 /** Switching keeps the page you're on (Calendar → the other client's Calendar), without its query. */
@@ -138,7 +138,8 @@ export function ClientMenu({
         </ul>
       )}
 
-      <div aria-hidden="true" className="-mx-2 my-2 h-px bg-line" />
+      {/* Pick a client has its own "+ Add client" button at the card's top right (UI fixes, 25 Nov). */}
+      {!page && <div aria-hidden="true" className="-mx-2 my-2 h-px bg-line" />}
       {current && (
         <Link
           to={clientPath(current.slug, "/client-settings")}
@@ -149,10 +150,12 @@ export function ClientMenu({
           {current.name} settings
         </Link>
       )}
-      <Link to="/add-client" onClick={onPick} className={`${row} hover:bg-bg`}>
-        <Plus size={18} aria-hidden="true" className="shrink-0" />
-        Add client
-      </Link>
+      {!page && (
+        <Link to="/add-client" onClick={onPick} className={`${row} hover:bg-bg`}>
+          <Plus size={18} aria-hidden="true" className="shrink-0" />
+          Add client
+        </Link>
+      )}
       {!page && (
         <ArchivedSection
           clients={(clients.data ?? []).filter((c) => c.archived_at)}

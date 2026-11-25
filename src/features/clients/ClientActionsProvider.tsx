@@ -17,13 +17,14 @@ import {
   DeleteClientError,
   deleteClient,
   invalidateClient,
+  markRestored,
   setArchived,
   useClientCounts,
 } from "./clients-api";
 
 /**
  * Archive / restore / permanent delete for the whole shell (Slice 17c). Archiving sends you to your last
- * other client (or Add client when none is left) with "{Client} archived · Undo"; restoring opens it
+ * other client (or the "No active clients" page when none is left) with "{Client} archived · Undo"; restoring opens it
  * again; deleting (archived clients only) goes through `delete-client`.
  */
 export function ClientActionsProvider({ children }: { children: ReactNode }) {
@@ -48,6 +49,7 @@ export function ClientActionsProvider({ children }: { children: ReactNode }) {
         });
         return;
       }
+      markRestored(queryClient, client);
       invalidateClient(queryClient, client.id);
       navigate(clientPath(client.slug, "/overview"));
       toast.show({ title: `${client.name} restored`, pose: "success" });
@@ -60,7 +62,8 @@ export function ClientActionsProvider({ children }: { children: ReactNode }) {
       await setArchived(client.id, true, user?.id ?? null);
       setArchiving(null);
       const landing = landingAfterArchive(clients.data ?? [], client.id, readStoredSlug());
-      navigate(landing ? clientPath(landing.slug, "/overview") : "/add-client");
+      // The last active client: "/" says "No active clients" (Restore / Add client), UI fixes 25 Nov.
+      navigate(landing ? clientPath(landing.slug, "/overview") : "/");
       invalidateClient(queryClient, client.id);
       toast.show({
         title: `${client.name} archived`,

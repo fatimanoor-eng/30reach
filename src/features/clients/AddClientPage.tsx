@@ -88,7 +88,11 @@ export function AddClientPage() {
       navigate(clientPath(state.created.slug, "/overview"));
       return;
     }
-    if (window.history.length > 1) navigate(-1);
+    // Back to where you came from, if that was inside the app; otherwise "/" (your last client, Pick a
+    // client, or "No active clients"). history.length counted pages from before the app, so Close could
+    // leave 30reach, or land on an archived client's link that bounced straight back here.
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) navigate(-1);
     else navigate("/");
   }
   const close = () => (state.created || !started ? leave() : setLeaving(true));

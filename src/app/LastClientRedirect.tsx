@@ -4,12 +4,14 @@ import { LoadError } from "../components/LoadError";
 import { useProfile } from "../lib/auth/useProfile";
 import { clientPath, lastClientChoice } from "../lib/client-path";
 import { readStoredSlug, useClients } from "../lib/useClient";
+import { NoClientSettings } from "./NoClientSettings";
 import { PickClientPage } from "./PickClientPage";
 
 /**
  * "/" and every address without a client (/overview, /ideas?idea=…, sign-in redirects, old bookmarks)
  * → the same page for your last client (Slice 17b): profile (any device) → this browser. No last client
- * (first visit), or it was archived / deleted → "Pick a client" (17h). No active client → Add client.
+ * (first visit), or it was archived / deleted → "Pick a client" (17h). No active client → the same page
+ * saying so (Restore, Add client, Settings, Sign out); /settings then opens team Settings without a client.
  */
 export function LastClientRedirect() {
   const location = useLocation();
@@ -32,8 +34,12 @@ export function LastClientRedirect() {
     profileClientId: profile.data?.last_client_id,
     storedSlug: readStoredSlug(),
   });
-  // No active client at all (all archived, or none yet): Add client (Slice 17c).
-  if (choice.kind === "none") return <Navigate to="/add-client" replace state={location.state} />;
+  // No active client at all (all archived, or none yet): say so here, with Restore, Add client, Settings
+  // and Sign out (UI fixes, 25 Nov). Nothing redirects, so Add client's Close always has somewhere to go.
+  if (choice.kind === "none") {
+    if (pathname === "/settings") return <NoClientSettings />;
+    return <PickClientPage noActive={clients.data} />;
+  }
   if (choice.kind === "pick") return <PickClientPage archivedName={choice.archived?.name} />;
   const client = choice.client;
   const page = pathname === "/" ? "/overview" : pathname;

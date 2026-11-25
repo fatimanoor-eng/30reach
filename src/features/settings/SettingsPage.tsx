@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PageHeader } from "../../app/PageHeader";
 import { useProfile } from "../../lib/auth/useProfile";
+import { useClientSlug } from "../../lib/useClient";
 import { AccountCard } from "./AccountCard";
 import { DataCard } from "./DataCard";
 import { TeamCard } from "./TeamCard";
@@ -16,16 +17,18 @@ export function SettingsPage() {
   const profile = useProfile();
   const isAdmin = profile.data?.role === "admin";
   const [now] = useState(() => Date.now()); // "2 days ago" etc. from one page time
+  // No active client (UI fixes, 25 Nov): /settings opens outside the shell, without the per-client cards.
+  const hasClient = !!useClientSlug();
   return (
     <>
       <PageHeader title="Settings" />
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <TeamCard isAdmin={isAdmin} now={now} />
-          <DataCard isAdmin={isAdmin} />
+          {hasClient && <DataCard isAdmin={isAdmin} />}
         </div>
         <div className="flex flex-col gap-4 xl:w-110 xl:shrink-0">
-          <UsageLinkCard />
+          {hasClient && <UsageLinkCard />}
           <DemoClientCard />
           <AccountCard isAdmin={isAdmin} />
         </div>

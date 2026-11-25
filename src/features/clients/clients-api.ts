@@ -11,6 +11,7 @@ import {
   uniqueSlug,
 } from "../../lib/client-rules";
 import type { Platform } from "../../lib/platforms";
+import type { ClientSummary } from "../../lib/client-path";
 import { callFunction } from "../../lib/pulls/api";
 import { supabase } from "../../lib/supabase";
 import { compressImage, imageExtension } from "../ideas/compress-image";
@@ -93,6 +94,19 @@ export function invalidateClient(queryClient: QueryClient, clientId?: string) {
     void queryClient.invalidateQueries({ queryKey: platformRowsKey(clientId) });
     void queryClient.invalidateQueries({ queryKey: ["client_platforms", clientId] });
   }
+}
+
+/**
+ * After a restore: mark the client active in the cache at once, before its refetch lands. Otherwise the
+ * shell opens it from a cached "archived" copy and sends you straight back out (UI fixes, 25 Nov).
+ */
+export function markRestored(queryClient: QueryClient, client: Pick<ClientSummary, "id" | "slug">) {
+  const active = <T extends Pick<ClientSummary, "id">>(c: T): T =>
+    c.id === client.id ? { ...c, archived_at: null, archived_by: null } : c;
+  queryClient.setQueryData<ClientSummary | null>(["client", client.slug], (c) =>
+    c ? active(c) : c,
+  );
+  queryClient.setQueryData<ClientSummary[]>(["clients"], (list) => list?.map(active));
 }
 
 export type ClientPatch = Partial<

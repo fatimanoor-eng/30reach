@@ -13,6 +13,7 @@ import {
 import { SelectField } from "../../../components/SelectField";
 import { TextField } from "../../../components/TextField";
 import { clientPath } from "../../../lib/client-path";
+import { ArchivedSiteNote } from "./ArchivedSiteNote";
 import { normaliseWebsite, siteHost } from "../../../lib/client-rules";
 import { COUNTRIES, countryName } from "../../../lib/countries";
 import type { Platform } from "../../../lib/platforms";
@@ -82,7 +83,10 @@ export function ManualStep({
   const [error, setError] = useState<string | null>(null);
 
   const host = siteHost(website);
-  const takenBy = host ? clients.data?.find((c) => siteHost(c.website) === host) : undefined;
+  // Only an active client's site blocks; an archived one's offers Restore (UI fixes, 25 Nov).
+  const owners = host ? (clients.data ?? []).filter((c) => siteHost(c.website) === host) : [];
+  const takenBy = owners.find((c) => !c.archived_at);
+  const archivedOwner = takenBy ? undefined : owners.find((c) => c.archived_at);
   const parsed = Object.fromEntries(
     FIELDS.map((f) => [f.key, parseAccount(f.key, accounts[f.key])]),
   ) as Record<Key, ReturnType<typeof parseAccount>>;
@@ -177,6 +181,9 @@ export function ManualStep({
               Open it
             </Link>
           </p>
+        )}
+        {archivedOwner && host && (
+          <ArchivedSiteNote client={archivedOwner} host={host} className="-mt-3" />
         )}
         <div className="grid gap-5 md:grid-cols-2">
           <SelectField

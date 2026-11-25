@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { BlipIdle } from "../../../components/blip/BlipPoses";
 import { Button } from "../../../components/Button";
 import { clientPath } from "../../../lib/client-path";
+import { ArchivedSiteNote } from "./ArchivedSiteNote";
 import { siteHost } from "../../../lib/client-rules";
 import { formatNumber } from "../../../lib/format";
 import { useClients } from "../../../lib/useClient";
@@ -30,7 +31,10 @@ export function WebsiteStep({
   const fieldId = useId();
   const msgId = useId();
   const host = siteHost(value);
-  const takenBy = host ? clients.data?.find((c) => siteHost(c.website) === host) : undefined;
+  // Only an active client's site blocks; an archived one's offers Restore (UI fixes, 25 Nov).
+  const owners = host ? (clients.data ?? []).filter((c) => siteHost(c.website) === host) : [];
+  const takenBy = owners.find((c) => !c.archived_at);
+  const archivedOwner = takenBy ? undefined : owners.find((c) => c.archived_at);
   const invalid = value.trim() && !host;
   const left =
     credits.status === "ready" ? ` · ${formatNumber(credits.credits.remaining)} left` : "";
@@ -98,6 +102,8 @@ export function WebsiteStep({
             "That doesn’t look like a website address."
           )}
         </p>
+      ) : archivedOwner && host ? (
+        <ArchivedSiteNote client={archivedOwner} host={host} className="mt-2 w-full text-left" />
       ) : null}
       <p className="mt-4 mono-label text-muted">About 10–12 Firecrawl credits{left}</p>
       <button
