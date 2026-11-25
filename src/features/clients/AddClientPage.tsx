@@ -203,6 +203,7 @@ export function AddClientPage() {
             update({ step: "website", scan: null, suggestions: null, accountsRead: 0 })
           }
           onManual={() => update({ step: "manual", unreadable: null })}
+          onBack={back}
         />
       );
       break;
@@ -215,6 +216,7 @@ export function AddClientPage() {
           onDirty={setManualDirty}
           saved={state.manual}
           onValues={keepManual}
+          onBack={back}
           onTryAgain={() =>
             update({
               step: "scanning",
@@ -243,7 +245,7 @@ export function AddClientPage() {
         <ReviewStep
           draft={state.draft}
           onChange={(draft) => update({ draft })}
-          onBack={() => update({ step: "website" })}
+          onBack={back!}
           onCreate={() => void create()}
           busy={creating}
           error={createError}
@@ -266,7 +268,6 @@ export function AddClientPage() {
       step={manualPath ? 2 : STEP_NUMBER[state.step]}
       steps={manualPath ? MANUAL_STEPS : undefined}
       onClose={close}
-      onBack={back}
     >
       {body}
       <ModalPresence open={leaving}>

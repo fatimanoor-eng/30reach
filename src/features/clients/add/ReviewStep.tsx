@@ -1,4 +1,5 @@
 import { Globe, Lock, Plus } from "lucide-react";
+import { BackButton } from "./BackButton";
 import { Checkbox } from "../../../components/Checkbox";
 import { useId, useState, type ComponentType } from "react";
 import { ClientMark } from "../../../app/ClientMark";
@@ -115,7 +116,10 @@ export function ReviewStep({
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex max-w-280 flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between md:px-6 xl:px-0">
-          <p className="mono-label text-muted">{summaryLine(draft, { short: !tabletUp })}</p>
+          <div className="flex items-center gap-3">
+            {tabletUp && <BackButton onClick={onBack} disabled={busy} />}
+            <p className="mono-label text-muted">{summaryLine(draft, { short: !tabletUp })}</p>
+          </div>
           {error && (
             <p role="alert" className="text-small text-spark-text">
               {error}
@@ -126,14 +130,11 @@ export function ReviewStep({
               Fix the fields marked in red first.
             </p>
           )}
-          <div className="flex gap-2">
-            {tabletUp && (
-              <Button variant="secondary" onClick={onBack} disabled={busy}>
-                Back
-              </Button>
-            )}
+          <div className="flex items-center gap-2">
+            {/* Phones: Back bottom-left of the bar, Create on the right. */}
+            {!tabletUp && <BackButton onClick={onBack} disabled={busy} />}
             <Button
-              fullWidth={!tabletUp}
+              className="flex-1 md:flex-none"
               disabled={busy}
               onClick={() => {
                 setTried(true);

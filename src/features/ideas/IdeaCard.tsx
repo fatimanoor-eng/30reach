@@ -209,7 +209,7 @@ export function IdeaCard({
               aria-checked={false}
               aria-label={`Select idea: ${label}`}
               onClick={onStartSelect}
-              className="absolute top-1 right-1 z-20 hidden size-9 items-center justify-center rounded-[6px] opacity-0 md:inline-flex group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ink"
+              className="absolute top-1 right-1 z-20 hidden size-9 items-center justify-center rounded-[6px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ink md:inline-flex"
             >
               <CheckboxBox checked={false} className="shadow-sm" />
             </button>

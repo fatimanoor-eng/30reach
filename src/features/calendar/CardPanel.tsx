@@ -370,7 +370,7 @@ export function CardPanel({
             set("title", e.target.value.replace(/\n/g, " "));
             setTitleError(false);
           }}
-          className="[field-sizing:content] w-full resize-none bg-transparent text-heading outline-none placeholder:text-muted md:text-heading-md"
+          className="block [field-sizing:content] w-full resize-none bg-transparent text-heading outline-none placeholder:text-muted md:text-heading-md"
         />
         {titleError && (
           <p id={titleErrorId} className="mt-1 text-small text-spark">

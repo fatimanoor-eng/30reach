@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { BackButton } from "./BackButton";
 import { useEffect, useRef, useState } from "react";
 import { BlipScanning, BlipSuccess } from "../../../components/blip/BlipPoses";
 import { Button } from "../../../components/Button";
@@ -52,12 +53,15 @@ export function ScanningStep({
   onUnreadable,
   onCancelled,
   onManual,
+  onBack,
 }: {
   state: FlowState;
   update: (patch: Partial<FlowState> | ((s: FlowState) => Partial<FlowState>)) => void;
   onUnreadable: (u: NonNullable<FlowState["unreadable"]>) => void;
   onCancelled: () => void;
   onManual: () => void;
+  /** "← Back" to the website step (the scan's paid steps are kept). */
+  onBack?: () => void;
 }) {
   const tabletUp = useMediaQuery(MQ_TABLET_UP);
   const [searching, setSearching] = useState(false);
@@ -211,13 +215,16 @@ export function ScanningStep({
         </ol>
       )}
 
-      <div className="mt-5 flex items-center gap-4">
-        <p className="mono-label text-muted">{plural(state.credits, "credit")} used so far</p>
-        {!problem && !finished && (
-          <Button variant="secondary" onClick={() => setConfirmCancel(true)}>
-            Cancel
-          </Button>
-        )}
+      <div className="mt-5 flex w-full items-center justify-between gap-4">
+        {onBack ? <BackButton onClick={onBack} /> : <span />}
+        <div className="flex items-center gap-4">
+          <p className="mono-label text-muted">{plural(state.credits, "credit")} used so far</p>
+          {!problem && !finished && (
+            <Button variant="secondary" onClick={() => setConfirmCancel(true)}>
+              Cancel
+            </Button>
+          )}
+        </div>
       </div>
 
       <ModalPresence open={confirmCancel}>

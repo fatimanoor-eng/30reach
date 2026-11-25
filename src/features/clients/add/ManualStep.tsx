@@ -1,4 +1,5 @@
 import { useState, type ReactNode, useEffect } from "react";
+import { BackButton } from "./BackButton";
 import { Link } from "react-router";
 import { BlipError } from "../../../components/blip/BlipPoses";
 import { Button } from "../../../components/Button";
@@ -43,6 +44,7 @@ export function ManualStep({
   onDirty,
   saved,
   onValues,
+  onBack,
 }: {
   initialWebsite: string;
   unreadable: { reason: "no_answer" | "error_page"; credits: number } | null;
@@ -52,6 +54,8 @@ export function ManualStep({
   /** What was typed before Back (polish): the form starts from it. */
   saved?: ManualValues | null;
   onValues?: (v: ManualValues) => void;
+  /** "← Back" to the website step, bottom-left (entries kept). */
+  onBack?: () => void;
 }) {
   const clients = useClients();
   const [name, setName] = useState(saved?.name ?? "");
@@ -224,15 +228,18 @@ export function ManualStep({
             {error}
           </p>
         )}
-        <div className="flex flex-col-reverse gap-2 pt-1 md:flex-row md:justify-end">
-          {unreadable && (
-            <Button variant="secondary" onClick={onTryAgain} disabled={busy}>
-              Try again
+        <div className="flex flex-col-reverse gap-2 pt-1 md:flex-row md:items-center md:justify-between">
+          {onBack ? <BackButton onClick={onBack} disabled={busy} /> : <span />}
+          <div className="flex flex-col-reverse gap-2 md:flex-row">
+            {unreadable && (
+              <Button variant="secondary" onClick={onTryAgain} disabled={busy}>
+                Try again
+              </Button>
+            )}
+            <Button type="submit" disabled={busy}>
+              {busy ? "Adding…" : "Continue"}
             </Button>
-          )}
-          <Button type="submit" disabled={busy}>
-            {busy ? "Adding…" : "Continue"}
-          </Button>
+          </div>
         </div>
       </form>
     </div>

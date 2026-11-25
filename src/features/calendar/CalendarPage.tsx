@@ -235,7 +235,7 @@ export function CalendarPage() {
             onClick={() => goTo(today)}
             disabled={onTodaysMonth}
             title={onTodaysMonth ? "Already showing this month" : undefined}
-            className="ml-1 inline-flex h-8 items-center rounded-control border border-line bg-surface px-3 text-small font-medium hover:bg-soft disabled:cursor-default disabled:opacity-40 disabled:hover:bg-surface"
+            className="ml-1 inline-flex h-8 items-center rounded-control border border-line bg-surface px-3 text-small font-medium hover:bg-soft disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface"
           >
             Today
           </button>

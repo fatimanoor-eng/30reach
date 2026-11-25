@@ -300,7 +300,10 @@ export function AskBlipPanel({
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-ink py-1.5 pr-1.5 pl-3.5 focus-within:ring-2 focus-within:ring-ink/15 md:rounded-tile md:py-2 md:pr-2">
+          {/* Polish 2: one line is exactly the Send button's height (44 / 32 px), so the text sits in the
+              middle; a longer question grows with the same padding top and bottom, Send stays at the
+              bottom. */}
+          <div className="flex items-end gap-2 rounded-[26px] border border-ink py-1 pr-1 pl-3.5 focus-within:ring-2 focus-within:ring-ink/15 md:rounded-tile md:py-2 md:pr-2">
             <textarea
               ref={inputRef}
               rows={1}
@@ -317,7 +320,7 @@ export function AskBlipPanel({
                   ask(draft);
                 }
               }}
-              className="[field-sizing:content] max-h-32 min-h-6 flex-1 resize-none bg-transparent text-body outline-none placeholder:text-muted md:text-body-sm"
+              className="[field-sizing:content] max-h-32 min-h-11 flex-1 resize-none bg-transparent py-3 text-body leading-5 outline-none placeholder:text-muted md:min-h-8 md:py-1.5 md:text-body-sm md:leading-5"
             />
             {revealing ? (
               <button

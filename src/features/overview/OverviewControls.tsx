@@ -113,10 +113,12 @@ export function PlatformNav({ current }: { current: PlatformPage }) {
             value: p,
             ariaLabel: PLATFORM_NAME[p],
             tooltip: PLATFORM_NAME[p],
-            // Polish: "All" + icon-only segments at every width (names in the tooltip and aria-label).
+            // Polish 2: desktop = icon + full name for every segment (All · Instagram · … · YouTube);
+            // tablet = icons only (name in the tooltip and aria-label). Phones use the sheet.
             label: (
-              <span className="inline-flex items-center px-0.5 align-middle">
+              <span className="inline-flex items-center gap-1.5 px-0.5 align-middle">
                 <Icon size={16} aria-hidden="true" />
+                <span className="hidden xl:inline">{PLATFORM_NAME[p]}</span>
               </span>
             ),
           };

@@ -28,6 +28,40 @@
     outline-color: var(--color-ink);
   }
 
+  /* Polish 2: every clickable thing shows the pointer, disabled ones "not allowed" (Tailwind's reset gives
+     buttons the default arrow). Covers buttons, links, chips / pills / segments (buttons or radios), menu
+     items, checkboxes, switches, tabs, labels that wrap a control, selects and the client card. */
+  button,
+  a[href],
+  summary,
+  select,
+  label:has(> input, > select, > span > input),
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  [role="button"],
+  [role="checkbox"],
+  [role="radio"],
+  [role="switch"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="menuitemradio"],
+  [role="option"] {
+    cursor: pointer;
+  }
+  :disabled,
+  [aria-disabled="true"],
+  label:has(> input:disabled),
+  label:has(> span > input:disabled) {
+    cursor: not-allowed;
+  }
+
+  /* Polish 2: textareas are blocks. Inline (the browser default) leaves a descender gap under the last
+     line inside its wrapper, so text looked pushed to the top of bordered fields. */
+  textarea {
+    display: block;
+  }
+
   /* Icons: 1.75 stroke everywhere (DESIGN_SYSTEM › Icons). CSS beats the SVG attribute. */
   svg.lucide,
   svg.icon {

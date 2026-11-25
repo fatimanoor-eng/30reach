@@ -425,7 +425,7 @@ function Comments({ ideaId }: { ideaId: string }) {
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Add a comment…"
-          className="[field-sizing:content] max-h-40 min-h-11 flex-1 resize-none bg-transparent py-2.5 text-small outline-none placeholder:text-muted md:min-h-9 md:py-2"
+          className="[field-sizing:content] max-h-40 min-h-11 flex-1 resize-none bg-transparent py-3 text-small leading-5 outline-none placeholder:text-muted md:min-h-9 md:py-2"
         />
         {body.trim() && (
           <button
@@ -433,7 +433,7 @@ function Comments({ ideaId }: { ideaId: string }) {
             onClick={() => post.mutate()}
             disabled={!canPost}
             aria-label="Post comment"
-            className="mb-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-white disabled:opacity-40 md:mb-0.5 md:size-7"
+            className="mb-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-white disabled:opacity-40 md:size-7"
           >
             <ArrowUp size={16} aria-hidden="true" />
           </button>
