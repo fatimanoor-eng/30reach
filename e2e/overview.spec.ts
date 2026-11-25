@@ -504,3 +504,33 @@ test("KPI tiles: values never cut off, all the same height", async ({ page }, in
   await expect(page).toHaveScreenshot(`kpis-long-values.png`, { fullPage: false });
   void info;
 });
+
+test("carried platforms (18b): the Last pulled line, What's new and the platform page say so", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  // The latest pull didn't fetch TikTok: it was copied from the 6 Nov pull.
+  const carried = { ...LATEST, carried: { tiktok: "2026-11-06T10:00:00Z" } };
+  await setup(page, [carried, PREVIOUS]);
+  await ready(page);
+  const line = page.getByText(/^Last pulled 16 Nov, 16:20 · TikTok from 6 Nov/).filter({
+    visible: true,
+  });
+  await expect(line).toBeVisible();
+  // The oldest data shown (6 Nov, 11 days) is more than a week old: amber.
+  await expect(line).toHaveCSS("color", "rgb(178, 107, 0)");
+  await expect(
+    page
+      .getByRole("region", { name: "What's new since the last pull" })
+      .getByText("TikTok wasn’t pulled this time, so it isn’t compared."),
+  ).toBeVisible();
+
+  await page.getByRole("link", { name: "TikTok", exact: true }).first().click();
+  await expect(
+    page.getByText("From the 6 Nov pull · 11 days ago").filter({ visible: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Instagram", exact: true }).first().click();
+  await expect(
+    page.getByText(/^Last pulled 16 Nov, 16:20$/).filter({ visible: true }),
+  ).toBeVisible();
+});

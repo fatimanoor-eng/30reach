@@ -260,23 +260,111 @@ test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, inf
   await expect(page).toHaveScreenshot("pull-complete.png");
 });
 
-test("05f not enough credits", async ({ page }) => {
+test("05f not enough credits: the same picker, as many platforms as fit, with a warning (18b)", async ({
+  page,
+}) => {
   await setup(page);
-  await page.route("**/functions/v1/pull-start**", (r) =>
-    r.fulfill(json(preview(64, "insufficient"))),
-  );
+  const started: unknown[] = [];
+  await page.route("**/functions/v1/pull-start**", (r) => {
+    const body = r.request().postDataJSON();
+    if (!body.preview) started.push(body.platforms);
+    return r.fulfill(json(preview(64, "insufficient")));
+  });
   await openRefresh(page);
 
   const dialog = page.getByRole("dialog", { name: "Not enough credits for a full pull" });
   await expect(dialog).toBeVisible();
   await expect(
-    dialog.getByText(/needs up to 96 credits, and you have 64 left until 1 Dec/),
+    dialog.getByText(
+      "You have 64 credits left until 1 Dec. Untick platforms until it fits; they keep their last data.",
+    ),
   ).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Pull Instagram only" })).toBeVisible();
-  await dialog.getByLabel(/Wait for the reset/).check();
-  await expect(dialog.getByRole("button", { name: "OK" })).toBeVisible();
-  await dialog.getByLabel(/Pull Instagram only/).check();
+  // As many as fit, in the usual order: Instagram (48) fits, TikTok (48 more) doesn't.
+  await expect(dialog.getByLabel("Instagram")).toBeChecked();
+  await expect(dialog.getByLabel("TikTok")).not.toBeChecked();
+  await expect(dialog.getByText("Not pulled this time")).toBeVisible(); // no saved pull in these stubs
+  await expect(dialog.getByText("up to 48 credits")).toBeVisible();
+  const pullNow = dialog.getByRole("button", { name: "Pull now" });
+  await expect(pullNow).toBeEnabled();
+  // Ticking TikTok too doesn't fit: the total turns red and Pull now waits.
+  await dialog.getByLabel("TikTok").check();
+  await expect(dialog.getByText("up to 96 credits")).toBeVisible();
+  await expect(pullNow).toBeDisabled();
+  await dialog.getByLabel("TikTok").uncheck();
   await expect(page).toHaveScreenshot("not-enough-credits.png");
+  await pullNow.click();
+  await expect.poll(() => started).toEqual([["instagram"]]);
+});
+
+test("YouTube in the Refresh dialog: free, and today's daily limit (18b)", async ({ page }) => {
+  await setup(page);
+  await page.route("**/functions/v1/pull-start**", (r) =>
+    r.fulfill(
+      json({
+        ...preview(1021),
+        youtubeLimitToday: true,
+        estimate: {
+          ...preview(1021).estimate,
+          perPlatform: {
+            ...preview(1021).estimate.perPlatform,
+            youtube: { tasks: 2, expected: 0, max: 0 },
+          },
+        },
+      }),
+    ),
+  );
+  await openRefresh(page);
+  const dialog = page.getByRole("dialog", { name: "Refresh competitor data?" });
+  await expect(dialog.getByText("free (Google’s daily allowance)")).toBeVisible();
+  // The limit already ran out today: YouTube starts unticked, and says why.
+  await expect(dialog.getByLabel("YouTube")).not.toBeChecked();
+  await expect(
+    dialog.getByText("YouTube’s free daily limit ran out. YouTube will work again tomorrow."),
+  ).toBeVisible();
+  await expect(dialog.getByLabel("Instagram")).toBeChecked();
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot("refresh-youtube-limit.png");
+});
+
+test("YouTube's daily limit during a pull: the toast says the rest was pulled (18b)", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  await setup(page);
+  await page.route("**/rest/v1/pull_tasks**", (r) => r.fulfill(json(tasks(11))));
+  await page.route("**/functions/v1/pull-start**", (r) => {
+    const body = r.request().postDataJSON();
+    return r.fulfill(
+      json(
+        body.preview ? preview(1021) : { ...preview(1021), status: "started", pullId: "pull-1" },
+      ),
+    );
+  });
+  gatePullTask(page, 99);
+  await page.route("**/functions/v1/pull-finish**", (r) =>
+    r.fulfill(
+      json({
+        status: "partial",
+        isTest: false,
+        postsFound: 201,
+        creditsUsed: 62,
+        credits: null,
+        problems: [
+          { brand: "Ro", platform: "youtube", code: "quota" },
+          { brand: "Hims", platform: "youtube", code: "quota" },
+        ],
+        deleted: 1,
+        carried: { youtube: "2026-11-16T16:20:00Z" },
+      }),
+    ),
+  );
+  await openRefresh(page);
+  await page.getByRole("button", { name: "Pull now" }).click();
+  const toast = page.getByRole("status").filter({ hasText: "problem" });
+  await expect(toast).toContainText(
+    "YouTube’s free daily limit ran out. The other platforms were pulled. YouTube will work again tomorrow.",
+  );
+  await expect(toast).not.toContainText("Everything else updated");
 });
 
 test("05g finished with problems → Fix handle", async ({ page }, info) => {
