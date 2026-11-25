@@ -401,3 +401,40 @@ test("Cancel while scanning asks, then goes back to the website step", async ({ 
     page.getByRole("heading", { level: 1, name: "Which client are we adding?" }),
   ).toBeVisible();
 });
+
+test("Back on every step after Website keeps what was entered and never scans again (polish)", async ({
+  page,
+}, info) => {
+  const { calls } = await stubFlow(page);
+  await ready(page, "/add-client");
+  // Step 1 has no Back.
+  await expect(page.getByRole("button", { name: "Back", exact: true })).toHaveCount(0);
+  await page.getByLabel("Website").fill("all-the-best.co");
+  await page.getByRole("button", { name: "Scan website" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Review All The Best Co" })).toBeVisible(
+    { timeout: 10_000 },
+  );
+  await page.getByLabel("Name").fill("All The Best Co.");
+  // The shell's Back (top bar); Review's own Back stays in its footer.
+  await page.getByRole("button", { name: "Back", exact: true }).first().click();
+  await expect(page.getByLabel("Website")).toHaveValue("all-the-best.co");
+  await page.getByRole("button", { name: "Scan website" }).click();
+  // Same site: Review again with the edit kept; nothing scanned or charged again.
+  await expect(page.getByLabel("Name")).toHaveValue("All The Best Co.");
+  expect(calls.scans).toHaveLength(7);
+  expect(calls.suggest).toHaveLength(1);
+  if (isMobile(page)) await tapTargetsOk(page);
+  await noSidewaysScroll(page);
+  void info;
+});
+
+test("Back from the manual form keeps its entries (polish)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  await stubFlow(page);
+  await ready(page, "/add-client");
+  await page.getByRole("button", { name: /No website\?/ }).click();
+  await page.getByLabel("Name").fill("Northwind Clinic");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: /No website\?/ }).click();
+  await expect(page.getByLabel("Name")).toHaveValue("Northwind Clinic");
+});

@@ -1317,3 +1317,31 @@ test("ideas — Select mode: Cancel or Esc leaves it; nothing is deleted", async
   await expect(page.getByRole("toolbar", { name: "Selected ideas" })).toBeHidden();
   expect(calls.filter((c) => c.method.startsWith("RPC delete"))).toEqual([]);
 });
+
+test("ideas — gallery select: a card's checkbox (hover / focus) or a long press enters Select mode (polish)", async ({
+  page,
+}, info) => {
+  await setup(page, { role: "admin" });
+  await open(page);
+  const bar = page.getByRole("toolbar", { name: "Selected ideas" });
+  await expect(bar).toBeHidden();
+  const first = page
+    .locator("article")
+    .filter({ has: page.getByRole("button", { name: /^Open idea/ }) })
+    .first();
+  if (info.project.name === "mobile-390") {
+    // Phones: a long press on a card (no hover there).
+    const card = first.getByRole("button", { name: /^Open idea/ });
+    await card.dispatchEvent("pointerdown", { pointerType: "touch", isPrimary: true });
+    await page.waitForTimeout(650); // past 500 ms: select mode replaces the card's open button
+  } else {
+    await first.hover();
+    const tick = first.getByRole("checkbox", { name: /^Select idea/ });
+    await expect(tick).toBeVisible();
+    await tick.click();
+  }
+  await expect(bar.getByText("1 selected")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /^Select idea/, checked: true })).toHaveCount(1);
+  // The long press didn't also open the idea.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});

@@ -1005,3 +1005,36 @@ test("calendar — Save clears the draft", async ({ page }) => {
   );
   await expect(page.getByText("You have unsaved changes from earlier")).toHaveCount(0);
 });
+
+test("calendar — every day has '+'; more than 2 cards → '+N more' opens the day (polish)", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name === "mobile-390", "the month grid is tablet / desktop");
+  const { rows } = await setup(page);
+  // Monday 21 Dec: 3 cards, AI and manual alike (no limit per kind).
+  rows.push(
+    card("m1", "2026-12-21", "Extra one"),
+    card("m2", "2026-12-21", "Extra two", { origin: "ai" }),
+    card("m3", "2026-12-21", "Extra three"),
+  );
+  await open(page);
+  const day = page.getByRole("group", { name: "Monday 21 December" });
+  // The "+" is there on every day (shown on hover / focus), even with cards.
+  await expect(day.getByRole("button", { name: "Add post on Monday 21 December" })).toHaveCount(1);
+  await expect(
+    page.getByRole("group", { name: "Friday 4 December" }).getByRole("button", {
+      name: "Add post on Friday 4 December",
+    }),
+  ).toHaveCount(1);
+  // Two cards show; the third is behind "+1 more".
+  await expect(day.getByRole("button", { name: /Extra (one|two)/ })).toHaveCount(2);
+  await expect(day.getByText("Extra three")).toHaveCount(0);
+  await day.getByRole("button", { name: /1 more on Monday 21 December/ }).click();
+  const list = page.getByRole("dialog", { name: "Monday 21 December" });
+  await expect(list.getByText("3 posts planned")).toBeVisible();
+  await expect(list.getByRole("button", { name: /Extra three/ })).toBeVisible();
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot("calendar-day-list.png");
+  await list.getByRole("button", { name: /Extra three/ }).click();
+  await expect(page).toHaveURL(/card=m3/);
+});

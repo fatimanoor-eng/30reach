@@ -97,7 +97,8 @@ test("05 / M03 confirm cost", async ({ page }) => {
   await expect(dialog.getByText("~36 credits")).toBeVisible();
   await expect(dialog.getByText("~24 credits")).toBeVisible();
   await expect(dialog.getByText("up to 96 credits")).toBeVisible();
-  await expect(dialog.getByText("1,021 of 1,000")).toBeVisible(); // more than the plan: real number
+  // More than Firecrawl's plan total (extra credits): just the real number, no false "of 1,000".
+  await expect(dialog.getByText("1,021", { exact: true })).toBeVisible();
   await expect(dialog.getByText("about 961")).toBeVisible();
 
   // Unticking TikTok updates the cost.
@@ -315,9 +316,11 @@ test("YouTube in the Refresh dialog: free, and today's daily limit (18b)", async
   );
   await openRefresh(page);
   const dialog = page.getByRole("dialog", { name: "Refresh competitor data?" });
-  await expect(dialog.getByText("free (Google’s daily allowance)")).toBeVisible();
+  // "free", with an ⓘ that says why.
+  await expect(dialog.getByText(/^free/).first()).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Why YouTube is free" })).toBeVisible();
   // The limit already ran out today: YouTube starts unticked, and says why.
-  await expect(dialog.getByLabel("YouTube")).not.toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: /^YouTube/ })).not.toBeChecked();
   await expect(
     dialog.getByText("YouTube’s free daily limit ran out. YouTube will work again tomorrow."),
   ).toBeVisible();

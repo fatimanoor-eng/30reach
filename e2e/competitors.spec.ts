@@ -130,9 +130,23 @@ test("07 list: handles, status, posts in the latest pull", async ({ page }, info
   await expect(visible("TikTok not found")).toHaveCount(1); // Found
   await expect(visible("Not checked")).toHaveCount(1); // Hers (Instagram unchecked)
   await expect(visible("OK")).toHaveCount(4); // LifeMD has no TikTok: a missing handle doesn't count
-  await expect(visible("@ro.co")).toBeVisible();
-  await expect(visible("hims-&-hers")).toBeVisible(); // LinkedIn page, shown by its slug
-  await expect(visible("weightwatchers")).toBeVisible(); // Facebook page, shown by its slug
+  if (info.project.name === "desktop-1440") {
+    // Polish: one Accounts column of icon chips (no sideways scroll); the handle is in the tooltip /
+    // name, a red dot marks "not found", and a chip opens that field in the edit panel.
+    await expect(page.getByRole("columnheader", { name: "Accounts" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Instagram" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Instagram · @ro.co. Edit" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "LinkedIn · linkedin.com/company/hims-&-hers. Edit" }),
+    ).toBeVisible();
+    const notFound = page.getByRole("button", { name: "TikTok · @found · not found. Edit" });
+    await expect(notFound).toBeVisible();
+  } else {
+    // Tablet / phone cards keep a row per platform.
+    await expect(visible("@ro.co")).toBeVisible();
+    await expect(visible("hims-&-hers")).toBeVisible(); // LinkedIn page, shown by its slug
+    await expect(visible("weightwatchers")).toBeVisible(); // Facebook page, shown by its slug
+  }
   // Posts in the latest pull: Found has 8 in the fixture (8 − brand index 0).
   await expect(
     page.getByRole("button", { name: "Edit Found" }).filter({ visible: true }),
@@ -396,7 +410,7 @@ test("07b YouTube (Slice 18): @handle or channel link, checked free, subscribers
   await ready(page);
   // Desktop table (tablet and phone show cards with every platform).
   if (info.project.name === "desktop-1440")
-    await expect(page.getByRole("columnheader", { name: "YouTube" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Accounts" })).toBeVisible();
   await page.getByRole("button", { name: "Add competitor" }).click();
   const panel = page.getByRole("dialog", { name: "Add competitor" });
   await panel.getByRole("textbox", { name: "Brand name" }).fill("Noom");
