@@ -131,7 +131,7 @@ type AiFn = "ask-blip" | "plan-month" | "check-claims" | "suggest-hooks" | "sugg
 async function setup(
   page: Page,
   fns: Partial<Record<AiFn, Fn>> = {},
-  opts: { ideas?: Record<string, unknown>[] } = {},
+  opts: { ideas?: Record<string, unknown>[]; cards?: Record<string, unknown>[] } = {},
 ) {
   await page.clock.setFixedTime(NOW); // 17 Nov 2026
   await stubSupabase(page);
@@ -189,6 +189,7 @@ async function setup(
       compliance_notes: null,
       creator: { full_name: "Fatima Noor" },
     } as Record<string, unknown>,
+    ...(opts.cards ?? []),
   ];
   const cardWrites: Record<string, unknown>[] = [];
   await page.route("**/rest/v1/calendar_cards**", (r) => {
@@ -879,6 +880,61 @@ test("card — Suggest hooks puts the picked hook in the field", async ({ page }
     "One meal doesn’t undo your progress.",
   );
   await expect(dialog.getByText("Pick a hook")).toBeHidden();
+});
+
+test("card — YouTube cards say Title and Description; Blip suggests titles (Slice 18)", async ({
+  page,
+}) => {
+  const { sent } = await setup(
+    page,
+    {
+      "suggest-hooks": (r) =>
+        r.fulfill(
+          json({
+            hooks: [
+              "GLP-1 food noise, explained in 60 seconds",
+              "What a dietitian eats on a busy Tuesday",
+              "Protein on GLP-1s: how much is enough?",
+            ],
+          }),
+        ),
+    },
+    {
+      cards: [
+        {
+          id: "k-yt",
+          date: "2026-12-08",
+          title: "Food noise Short",
+          platform: "youtube",
+          format: "short",
+          hook: null,
+          caption: null,
+          visual_idea: null,
+          status: "idea",
+          origin: "manual",
+          idea_id: null,
+          updated_at: "2026-11-17T10:00:00Z",
+          compliance_status: null,
+          compliance_notes: null,
+          creator: { full_name: "Fatima Noor" },
+        },
+      ],
+    },
+  );
+  await open(page, "/calendar?date=2026-12-08&card=k-yt");
+  const dialog = page.getByRole("dialog", { name: /Food noise Short/ });
+  // The card's own title is the "Post title"; the video's title and description are fields.
+  await expect(dialog.getByRole("textbox", { name: "Post title" })).toHaveValue("Food noise Short");
+  await expect(dialog.getByRole("textbox", { name: "Hook" })).toHaveCount(0);
+  await expect(dialog.getByRole("textbox", { name: "Description" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Suggest description" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Suggest titles" }).click();
+  await expect(dialog.getByText("Pick a title")).toBeVisible();
+  expect(sent["suggest-hooks"][0]).toMatchObject({ platform: "youtube", format: "short" });
+  await dialog.getByRole("button", { name: "GLP-1 food noise, explained in 60 seconds" }).click();
+  await expect(dialog.getByRole("textbox", { name: "Title", exact: true })).toHaveValue(
+    "GLP-1 food noise, explained in 60 seconds",
+  );
 });
 
 test("card — Suggest caption: 2 platform-style options, the picked one fills Caption", async ({

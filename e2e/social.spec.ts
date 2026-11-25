@@ -14,6 +14,7 @@ import {
   makeLinkedInPosts,
   makePosts,
   makeXPosts,
+  makeYouTubePosts,
   NOW,
   solidPng,
 } from "./overview-fixtures";
@@ -36,7 +37,8 @@ async function setup(
   pulls: (typeof LATEST)[] = [LATEST],
   /** Slice 16b: WeightWatchers and Ro have Facebook pages (and posts). Off = nobody has one. */
   /** Slice 17g: Ro and LifeMD have X handles (and posts). */
-  opts: { facebook?: boolean; x?: boolean } = {},
+  /** Slice 18: WeightWatchers and Hims have YouTube channels (and uploads). */
+  opts: { facebook?: boolean; x?: boolean; youtube?: boolean } = {},
 ) {
   await page.clock.setFixedTime(NOW);
   await stubSupabase(page);
@@ -55,6 +57,8 @@ async function setup(
               ? `https://www.facebook.com/${b.id}`
               : null,
           x_handle: opts.x && (b.id === "c-ro" || b.id === "c-lifemd") ? b.id.slice(2) : null,
+          youtube_handle:
+            opts.youtube && (b.id === "c-ww" || b.id === "c-hims") ? b.id.slice(2) : null,
         })),
       ),
     ),
@@ -77,8 +81,9 @@ async function setup(
     ? makeFacebookPosts(LATEST.id, new Date(LATEST.started_at), { withThumbs: true })
     : [];
   const x = opts.x ? makeXPosts(LATEST.id, new Date(LATEST.started_at)) : [];
+  const youtube = opts.youtube ? makeYouTubePosts(LATEST.id, new Date(LATEST.started_at)) : [];
   await page.route("**/rest/v1/posts**", (r) =>
-    r.fulfill(json([...posts, ...linkedIn, ...facebook, ...x])),
+    r.fulfill(json([...posts, ...linkedIn, ...facebook, ...x, ...youtube])),
   );
   await page.route("**/storage/v1/object/sign/post-thumbs**", async (r) => {
     if (r.request().method() === "POST") {
@@ -302,6 +307,59 @@ test("X page (Slice 17g) — views, likes, replies, reposts; text posts are Post
   const dialog = page.getByRole("dialog", { name: "Save to idea board" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("X", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+});
+
+test("YouTube page (Slice 18) — views, likes, comments, length; Shorts; YouTube as the source", async ({
+  page,
+}, info) => {
+  const mobile = info.project.name === "mobile-390";
+  await setup(page, [LATEST], { youtube: true });
+  await ready(page, "/youtube");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveAccessibleName(
+    mobile ? /Social/ : /YouTube/,
+  );
+  await expect(page.getByRole("heading", { name: "Top posts on YouTube" })).toBeVisible();
+  // Only WeightWatchers and Hims have channels.
+  if (!mobile) {
+    await expect(page.getByText("2 brands · 30 days").filter({ visible: true })).toBeVisible();
+    await expect(
+      page.getByText(/likes \+ comments \/ post · [\d.]+K avg views/).filter({ visible: true }),
+    ).toBeVisible();
+  }
+  // "12K views · 155 likes · 10 comments · 17:11": every number with its word, then the length.
+  await expect(
+    page
+      .getByText(/views · .*likes? · .*comments? · \d+:\d\d/)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  // Shorts are their own format (the formats card), whatever ranks in Top posts.
+  await expect(
+    page
+      .getByRole("listitem")
+      .filter({ hasText: /^Shorts/ })
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  // YouTube's API rules: YouTube is named as the source, with its Terms of Service.
+  await expect(page.getByText(/Data from YouTube/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "YouTube Terms of Service" })).toHaveAttribute(
+    "href",
+    "https://www.youtube.com/t/terms",
+  );
+  await expect(currentPlatform(page, "YouTube", mobile)).toBeVisible();
+  await checks(page, mobile, "social-youtube.png");
+
+  // YouTube uploads can be saved as ideas (platform + format from the post).
+  await page
+    .getByRole("button", { name: "Save as idea" })
+    .filter({ visible: true })
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Save to idea board" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("YouTube", { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "Cancel" }).click();
 });
 

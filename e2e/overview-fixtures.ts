@@ -225,6 +225,52 @@ export function makeXPosts(pullId: string, pullStart: Date) {
   );
 }
 
+const YT_TITLES = [
+  "GLP-1s explained by a doctor in 5 minutes",
+  "What food noise really is (and how to quiet it)",
+  "3 protein swaps for busy weeknights",
+  "Myth or fact: you lose muscle on GLP-1s",
+  "Our dietitian answers your top questions",
+];
+
+/**
+ * Slice 18: YouTube uploads for WeightWatchers (8: Shorts and long videos) and Hims (3 long videos).
+ * Views, likes, comments and a length on every one; no thumbnails (the YouTube-red block shows).
+ */
+export function makeYouTubePosts(pullId: string, pullStart: Date) {
+  const perBrand: [string, number][] = [
+    ["c-ww", 8],
+    ["c-hims", 3],
+  ];
+  return perBrand.flatMap(([brandId, count], bi) =>
+    Array.from({ length: count }, (_, k) => {
+      const short = bi === 0 && k % 2 === 0;
+      return {
+        id: `${pullId}-yt${bi}-${k}`,
+        competitor_id: brandId,
+        platform: "youtube",
+        external_id: `yt-${brandId}-${k}`,
+        url: short
+          ? `https://www.youtube.com/shorts/yt${bi}${k}`
+          : `https://www.youtube.com/watch?v=yt${bi}${k}`,
+        posted_at: new Date(
+          pullStart.getTime() - (k * 3 + bi + 1) * 86_400_000 - ((k * 5) % 7) * 3_600_000,
+        ).toISOString(),
+        format: short ? "short" : "video",
+        caption: YT_TITLES[(bi + k) % YT_TITLES.length],
+        hashtags: [],
+        likes: short ? 40 + k * 9 : 120 + k * 35 + bi * 60,
+        comments: short ? 1 + (k % 3) : 8 + k * 2,
+        views: short ? 2_400 + k * 900 : 9_000 + k * 2_500,
+        shares: null,
+        counts_hidden: false,
+        thumbnail_path: null,
+        duration_seconds: short ? 35 + k * 4 : 600 + k * 431,
+      };
+    }),
+  );
+}
+
 /** Tiny solid-colour PNG for stubbed thumbnails. */
 export function solidPng(
   width: number,

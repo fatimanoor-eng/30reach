@@ -85,6 +85,20 @@ async function setup(page: Page) {
       body.handle === "https://www.linkedin.com/company/nosuchco/" ||
       body.handle === "https://www.facebook.com/nosuchpage";
     const facebook = body.platform === "facebook";
+    // YouTube (18): the official API — free, with the channel id and subscribers.
+    if (body.platform === "youtube") {
+      const gone = body.handle === "nosuchchannel";
+      return r.fulfill(
+        json({
+          status: gone ? "not_found" : "ok",
+          handle: body.handle,
+          creditsUsed: 0,
+          credits: null,
+          followers: gone ? null : 187_000,
+          channelId: gone ? null : "UC7AWNWptGGpybSgZbV34yBw",
+        }),
+      );
+    }
     return r.fulfill(
       json({
         status: missing ? "not_found" : "ok",
@@ -209,9 +223,7 @@ test("07b edit: name only costs nothing; free validation", async ({ page }, info
   const add = page.getByRole("dialog", { name: "Add competitor" });
   await add.getByRole("textbox", { name: "Brand name" }).fill("Copycat");
   await add.getByRole("button", { name: "Save Copycat" }).click();
-  await expect(add.getByRole("alert")).toHaveText(
-    "Add at least one handle (Instagram, TikTok, LinkedIn or Facebook).",
-  );
+  await expect(add.getByRole("alert")).toHaveText("Add at least one handle or page.");
   await add.getByRole("textbox", { name: "Instagram" }).fill("@HIMS");
   await add.getByRole("textbox", { name: "TikTok" }).fill("no spaces");
   await add.getByRole("button", { name: "Save Copycat" }).click();
@@ -375,6 +387,58 @@ test("07b Facebook: page checked on save (up to 5 credits), followers saved with
   if (isMobile(info.project.name)) await tapTargetsOk(page);
   await noSidewaysScroll(page);
   await expect(page).toHaveScreenshot("competitor-panel-facebook.png");
+});
+
+test("07b YouTube (Slice 18): @handle or channel link, checked free, subscribers saved", async ({
+  page,
+}, info) => {
+  const { rows, checks } = await setup(page);
+  await ready(page);
+  // Desktop table (tablet and phone show cards with every platform).
+  if (info.project.name === "desktop-1440")
+    await expect(page.getByRole("columnheader", { name: "YouTube" })).toBeVisible();
+  await page.getByRole("button", { name: "Add competitor" }).click();
+  const panel = page.getByRole("dialog", { name: "Add competitor" });
+  await panel.getByRole("textbox", { name: "Brand name" }).fill("Noom");
+  const youtube = panel.getByRole("textbox", { name: "YouTube" });
+  await expect(youtube).toHaveAttribute("placeholder", "@handle or channel link (optional)");
+
+  // A video link is refused for free.
+  await youtube.fill("https://www.youtube.com/watch?v=Hm3jtqHt8tM");
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  await expect(
+    panel.getByText("Use the channel’s @handle (youtube.com/@…) or a youtube.com/channel/… link."),
+  ).toBeVisible();
+  expect(checks).toHaveLength(0);
+
+  // The cost line: YouTube is free. A made-up channel → not found.
+  await youtube.fill("@NoSuchChannel");
+  await expect(panel.getByText("Checking YouTube is free · no credits")).toBeVisible();
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  await expect(panel.getByText("Not found. Check the spelling or leave it empty.")).toBeVisible();
+
+  // A real channel link: found with its subscribers; the channel id is saved for the pulls.
+  await youtube.fill("https://www.youtube.com/@NoomInc/videos");
+  await panel.getByRole("button", { name: "Save Noom" }).click();
+  await expect(page.getByRole("status").getByText("Added Noom")).toBeVisible();
+  expect(checks).toEqual([
+    { platform: "youtube", handle: "nosuchchannel" },
+    { platform: "youtube", handle: "noominc" },
+  ]);
+  expect(rows.find((r) => r.name === "Noom")).toMatchObject({
+    youtube_handle: "noominc",
+    youtube_status: "ok",
+    youtube_channel_id: "UC7AWNWptGGpybSgZbV34yBw",
+    youtube_subscribers: 187_000,
+  });
+
+  await page.getByRole("button", { name: "Edit Noom" }).filter({ visible: true }).click();
+  const edit = page.getByRole("dialog", { name: "Edit Noom" });
+  await expect(edit.getByRole("textbox", { name: "YouTube" })).toHaveValue("@noominc");
+  await expect(edit.getByText("Found · public channel · 187K subscribers")).toBeVisible();
+  if (isMobile(info.project.name)) await tapTargetsOk(page);
+  await noSidewaysScroll(page);
+  await expect(page).toHaveScreenshot("competitor-panel-youtube.png");
 });
 
 test("handle checks say which client they're for (Slice 17a usage)", async ({ page }) => {
