@@ -41,6 +41,25 @@ export function creditsFraction(remaining: number, plan: number): number {
   return Math.min(1, remaining / plan);
 }
 
+/**
+ * Firecrawl's plan total, when it means something. Firecrawl's `planCredits` is the monthly allowance only:
+ * an account with extra credits can have more left than that (5,000 left, plan 1,000). Then — or when it's
+ * missing — there's no honest total, and the app says just "5,000 left".
+ */
+export function creditsTotal(remaining: number, plan: number | null | undefined): number | null {
+  return typeof plan === "number" && Number.isFinite(plan) && plan > 0 && plan >= remaining
+    ? plan
+    : null;
+}
+
+/** "919 of 1,000", or "5,000" when there's no honest total (dialogs: "Credits left this month"). */
+export function creditsOf(remaining: number, plan: number | null | undefined): string {
+  const total = creditsTotal(remaining, plan);
+  return total === null
+    ? formatNumber(remaining)
+    : `${formatNumber(remaining)} of ${formatNumber(total)}`;
+}
+
 /** Compact counts for stats: 640 → "640", 3,100 → "3.1K", 18,400 → "18.4K", 212,000 → "212K", 1.25M → "1.3M". */
 export function formatCompact(n: number): string {
   const abs = Math.abs(n);

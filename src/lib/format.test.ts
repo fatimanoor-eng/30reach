@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { creditsFraction, formatCompact, formatShortDate, plural } from "./format";
+import {
+  creditsFraction,
+  formatCompact,
+  formatShortDate,
+  plural,
+  creditsOf,
+  creditsTotal,
+} from "./format";
 
 describe("plural", () => {
   it.each([
@@ -54,4 +61,14 @@ describe("formatCompact", () => {
     [1_250_000, "1.3M"],
     [999, "999"],
   ])("%i → %s", (n, expected) => expect(formatCompact(n)).toBe(expected));
+});
+
+describe("credit totals (Firecrawl's plan can be smaller than what's left)", () => {
+  it("shows the total only when it's honest", () => {
+    expect(creditsTotal(919, 1000)).toBe(1000);
+    expect(creditsTotal(5000, 1000)).toBeNull(); // extra credits beyond the monthly plan
+    expect(creditsTotal(5000, null)).toBeNull();
+    expect(creditsOf(919, 1000)).toBe("919 of 1,000");
+    expect(creditsOf(5000, 1000)).toBe("5,000");
+  });
 });

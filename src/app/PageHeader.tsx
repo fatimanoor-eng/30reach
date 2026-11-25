@@ -10,6 +10,7 @@ export function PageHeader({
   mobileTitle,
   crumbs = [],
   description,
+  subline,
   actions,
   titleLeading,
   root,
@@ -21,6 +22,8 @@ export function PageHeader({
   crumbs?: string[];
   /** One line under the title (e.g. 07 "6 brands tracked. Changes apply on the next Refresh.") */
   description?: ReactNode;
+  /** Its own line under the title, any element (polish: Overview's "● Last pulled …"). */
+  subline?: ReactNode;
   actions?: ReactNode;
   /** Before the title, e.g. the calendar's month arrows + Today (08): fixed-width controls go first
    *  so they don't move when the title's width changes. */
@@ -59,6 +62,7 @@ export function PageHeader({
           </h1>
         </div>
         {description && <p className="mt-2 text-body text-muted">{description}</p>}
+        {subline && <div className="mt-2">{subline}</div>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>

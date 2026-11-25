@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, useEffect } from "react";
 import { Link } from "react-router";
 import { BlipError } from "../../../components/blip/BlipPoses";
 import { Button } from "../../../components/Button";
@@ -17,6 +17,7 @@ import { COUNTRIES, countryName } from "../../../lib/countries";
 import type { Platform } from "../../../lib/platforms";
 import { useClients } from "../../../lib/useClient";
 import { ACCOUNT_PLACEHOLDER, parseAccount } from "./account-input";
+import type { ManualValues } from "./add-client-state";
 import type { NewClient } from "../clients-api";
 
 type Key = Platform;
@@ -40,26 +41,38 @@ export function ManualStep({
   onTryAgain,
   onSubmit,
   onDirty,
+  saved,
+  onValues,
 }: {
   initialWebsite: string;
   unreadable: { reason: "no_answer" | "error_page"; credits: number } | null;
   onTryAgain: () => void;
   onSubmit: (c: NewClient) => Promise<void>;
   onDirty: (dirty: boolean) => void;
+  /** What was typed before Back (polish): the form starts from it. */
+  saved?: ManualValues | null;
+  onValues?: (v: ManualValues) => void;
 }) {
   const clients = useClients();
-  const [name, setName] = useState("");
-  const [website, setWebsite] = useState(initialWebsite.replace(/^https?:\/\//, ""));
-  const [country, setCountry] = useState("US");
-  const [industry, setIndustry] = useState("");
-  const [accounts, setAccounts] = useState<Record<Key, string>>({
-    instagram: "",
-    tiktok: "",
-    facebook: "",
-    linkedin: "",
-    x: "",
-    youtube: "",
-  });
+  const [name, setName] = useState(saved?.name ?? "");
+  const [website, setWebsite] = useState(
+    saved?.website ?? initialWebsite.replace(/^https?:\/\//, ""),
+  );
+  const [country, setCountry] = useState(saved?.country ?? "US");
+  const [industry, setIndustry] = useState(saved?.industry ?? "");
+  const [accounts, setAccounts] = useState<Record<Key, string>>(
+    saved?.accounts ?? {
+      instagram: "",
+      tiktok: "",
+      facebook: "",
+      linkedin: "",
+      x: "",
+      youtube: "",
+    },
+  );
+  useEffect(() => {
+    onValues?.({ name, website, country, industry, accounts });
+  }, [name, website, country, industry, accounts, onValues]);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { Checkbox } from "../../components/Checkbox";
+import { InfoTip } from "../../components/InfoTip";
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
-import { formatNumber, formatShortDate, plural } from "../../lib/format";
+import { formatNumber, formatShortDate, plural, creditsOf } from "../../lib/format";
 import { PLATFORM_ICON, PLATFORMS } from "../../lib/platforms";
 import { type Platform, pullStart, type PullStartResponse } from "../../lib/pulls/api";
 import { useClient, useClientPath } from "../../lib/useClient";
@@ -20,6 +22,7 @@ import {
   refreshIntro,
   rowCost,
   selectionCost,
+  YOUTUBE_FREE_TIP,
   YOUTUBE_LIMIT_ALONE,
 } from "./pull-text";
 
@@ -158,19 +161,17 @@ function ConfirmCost({ preview }: { preview: PullStartResponse }) {
             const note = limit ? YOUTUBE_LIMIT_ALONE : on ? null : keepsLine(dataFrom(p));
             return (
               <label key={p} className="flex min-h-12 cursor-pointer items-start gap-3 px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={on}
-                  onChange={() => toggle(p)}
-                  className="mt-0.5 size-5 shrink-0 accent-ink"
-                />
+                <Checkbox checked={on} onChange={() => toggle(p)} className="mt-0.5" />
                 <Icon size={18} className="mt-0.5 shrink-0" />
                 <span className="min-w-0 flex-1">
                   {/* One cost: on the right from tablet up; on phones it wraps under the name. */}
                   <span className="flex flex-wrap items-baseline gap-x-3">
                     <span className="text-body">{PLATFORM_LABEL[p]}</span>
-                    <span className="basis-full font-mono text-small text-muted md:ml-auto md:basis-auto md:text-right">
+                    <span className="inline-flex basis-full items-center gap-1 font-mono text-small text-muted md:ml-auto md:basis-auto md:justify-end">
                       {rowCost(preview, p)}
+                      {p === "youtube" && (
+                        <InfoTip text={YOUTUBE_FREE_TIP} label="Why YouTube is free" />
+                      )}
                     </span>
                   </span>
                   {note && (
@@ -192,9 +193,7 @@ function ConfirmCost({ preview }: { preview: PullStartResponse }) {
             up to {plural(cost.max, "credit")}
           </dd>
           <dt className="text-muted">Credits left this month</dt>
-          <dd className="text-right font-mono">
-            {formatNumber(left)} of {formatNumber(preview.credits.plan)}
-          </dd>
+          <dd className="text-right font-mono">{creditsOf(left, preview.credits.plan)}</dd>
           <dt className="text-muted">After this pull</dt>
           <dd className="text-right font-mono">about {formatNumber(after)}</dd>
         </dl>

@@ -74,16 +74,18 @@ export function SocialPage({ platform }: { platform: Platform }) {
         title={title}
         mobileTitle={mobileTitle}
         crumbs={crumbs}
+        subline={
+          latest && (
+            <LastPulled
+              startedAt={latest.started_at}
+              carried={latest.carried}
+              platform={platform}
+              className="hidden md:flex"
+            />
+          )
+        }
         actions={
           <>
-            {latest && (
-              <LastPulled
-                startedAt={latest.started_at}
-                carried={latest.carried}
-                platform={platform}
-                className="hidden md:flex"
-              />
-            )}
             {/* Wrapper hides it on mobile: SegmentedControl sets inline-flex, which beats `hidden`. */}
             <span className="hidden md:inline-flex">
               <DateRangeControl />

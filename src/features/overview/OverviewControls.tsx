@@ -3,7 +3,7 @@ import { useState } from "react";
 import { BottomSheet } from "../../components/BottomSheet";
 import { ModalPresence } from "../../components/ModalPresence";
 import { SegmentedControl } from "../../components/SegmentedControl";
-import { PLATFORM_ICON, PLATFORM_NAME, PLATFORM_SHORT_NAME } from "../../lib/platforms";
+import { PLATFORM_ICON, PLATFORM_NAME } from "../../lib/platforms";
 import { useVisiblePlatforms } from "../../lib/useVisiblePlatforms";
 import type { Platform } from "../../lib/platforms";
 import { lastPulledLine } from "./metrics";
@@ -113,10 +113,10 @@ export function PlatformNav({ current }: { current: PlatformPage }) {
             value: p,
             ariaLabel: PLATFORM_NAME[p],
             tooltip: PLATFORM_NAME[p],
+            // Polish: "All" + icon-only segments at every width (names in the tooltip and aria-label).
             label: (
-              <span className="inline-flex items-center gap-1.5 align-middle">
+              <span className="inline-flex items-center px-0.5 align-middle">
                 <Icon size={16} aria-hidden="true" />
-                <span className="hidden xl:inline">{PLATFORM_SHORT_NAME[p]}</span>
               </span>
             ),
           };

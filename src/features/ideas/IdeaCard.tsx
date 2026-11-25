@@ -1,4 +1,6 @@
-import { CalendarCheck, CalendarDays, Check, ImageIcon, Link2, StickyNote } from "lucide-react";
+import { useRef } from "react";
+import { CalendarCheck, CalendarDays, ImageIcon, Link2, StickyNote } from "lucide-react";
+import { CheckboxBox } from "../../components/Checkbox";
 import { Link } from "react-router";
 import { Chip } from "../../components/Chip";
 import { formatCompact, formatShortDate } from "../../lib/format";
@@ -48,7 +50,8 @@ function PlannedBadge({ planned }: { planned: NonNullable<Idea["planned"]> }) {
       <span className="inline-flex items-center gap-1.5 rounded-full bg-ink px-2 py-0.5 text-label font-medium text-white hover:bg-sidebar-2">
         <span
           aria-hidden="true"
-          className="hidden size-1.5 rounded-full bg-fresh md:inline-block"
+          // Flash on the black pill (Fresh green was barely visible on ink).
+          className="hidden size-1.5 rounded-full bg-flash md:inline-block"
         />
         Planned · <span className="md:hidden">{plannedLabel(planned.date, true)}</span>
         <span className="hidden md:inline">{plannedLabel(planned.date)}</span>
@@ -108,6 +111,7 @@ export function IdeaCard({
   now,
   onOpen,
   selection,
+  onStartSelect,
 }: {
   idea: Idea;
   imageUrl?: string;
@@ -120,6 +124,11 @@ export function IdeaCard({
    * covered. `allowed` = this person may delete it (their own, or any for an admin).
    */
   selection?: { selected: boolean; allowed: boolean; onToggle: () => void };
+  /**
+   * Gallery-style selection (polish): outside select mode, a checkbox shows on hover / focus (and a long
+   * press on touch screens); either enters select mode with this idea ticked. Only when it may be deleted.
+   */
+  onStartSelect?: () => void;
 }) {
   const text = ideaText(idea);
   const snap = idea.source_snapshot;
@@ -148,11 +157,12 @@ export function IdeaCard({
   const hasMeta = !!idea.platform || idea.tags.length > 0 || (idea.kind === "post" && !!format);
   const suggestion = aiSuggestion(idea, todayIso(new Date(now)));
   const planOn = usePlanOnDay();
+  const longPress = useLongPress(onStartSelect);
 
   return (
     <article
       data-kind={idea.kind}
-      className={`relative flex flex-col gap-2 overflow-hidden rounded-card p-3 md:gap-2.5 md:p-3.5 ${
+      className={`group relative flex flex-col gap-2 overflow-hidden rounded-card p-3 md:gap-2.5 md:p-3.5 ${
         isNote ? "bg-bloom" : "border border-line bg-surface"
       }`}
     >
@@ -180,23 +190,31 @@ export function IdeaCard({
           } ${selection.allowed ? "cursor-pointer" : "cursor-not-allowed bg-surface/50"}`}
         >
           {selection.allowed && (
-            <span
-              aria-hidden="true"
-              className={`absolute top-2.5 right-2.5 inline-flex size-5 items-center justify-center rounded-[5px] ${
-                selection.selected ? "bg-ink text-white" : "border-[1.5px] border-ink bg-surface"
-              }`}
-            >
-              {selection.selected && <Check size={13} strokeWidth={3} />}
-            </span>
+            <CheckboxBox checked={selection.selected} className="absolute top-2.5 right-2.5" />
           )}
         </button>
       ) : (
-        <button
-          type="button"
-          onClick={() => onOpen(false)}
-          aria-label={`Open idea: ${label}`}
-          className="absolute inset-0 rounded-card focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
-        />
+        <>
+          <button
+            type="button"
+            onClick={() => !longPress.fired() && onOpen(false)}
+            {...longPress.handlers}
+            aria-label={`Open idea: ${label}`}
+            className="absolute inset-0 rounded-card [-webkit-touch-callout:none] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
+          />
+          {onStartSelect && (
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={false}
+              aria-label={`Select idea: ${label}`}
+              onClick={onStartSelect}
+              className="absolute top-1 right-1 z-20 hidden size-9 items-center justify-center rounded-[6px] opacity-0 md:inline-flex group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ink"
+            >
+              <CheckboxBox checked={false} className="shadow-sm" />
+            </button>
+          )}
+        </>
       )}
 
       {idea.planned && <PlannedBadge planned={idea.planned} />}
@@ -295,4 +313,49 @@ export function IdeaCard({
       </div>
     </article>
   );
+}
+
+/**
+ * Long press (≥ 500 ms, touch only) → `onLong`. `fired()` tells the click that follows a long press to do
+ * nothing (it would otherwise open the idea).
+ */
+function useLongPress(onLong?: () => void) {
+  const timer = useRef<number | null>(null);
+  const didFire = useRef(false);
+  const clear = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+  };
+  return {
+    fired: () => {
+      const f = didFire.current;
+      didFire.current = false;
+      return f;
+    },
+    handlers: onLong
+      ? {
+          onPointerDown: (e: React.PointerEvent) => {
+            didFire.current = false;
+            if (e.pointerType !== "touch") return;
+            clear();
+            timer.current = window.setTimeout(() => {
+              didFire.current = true;
+              onLong();
+            }, 500);
+          },
+          onPointerUp: clear,
+          onPointerCancel: clear,
+          onPointerMove: (e: React.PointerEvent) => {
+            if (
+              e.pointerType === "touch" &&
+              (Math.abs(e.movementX) > 4 || Math.abs(e.movementY) > 4)
+            )
+              clear();
+          },
+          onContextMenu: (e: React.MouseEvent) => {
+            if (timer.current !== null || didFire.current) e.preventDefault();
+          },
+        }
+      : {},
+  };
 }

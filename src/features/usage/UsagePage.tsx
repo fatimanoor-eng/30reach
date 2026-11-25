@@ -6,7 +6,7 @@ import { Card } from "../../components/Card";
 import { Chip } from "../../components/Chip";
 import { LoadError } from "../../components/LoadError";
 import { clientPath, lastPullLabel } from "../../lib/client-path";
-import { formatNumber, formatShortDate, plural } from "../../lib/format";
+import { formatNumber, formatShortDate, plural, creditsTotal } from "../../lib/format";
 import { useCredits } from "../../lib/useCredits";
 import { todayIso } from "../calendar/events/dates";
 import { formatBytes } from "../settings/settings-rules";
@@ -72,7 +72,10 @@ export function UsagePage() {
             clients={overview.data.clients}
             weeksShown={weeks}
             rows={overview.data.weeks}
-            firecrawlUsed={c ? c.plan - c.remaining : null}
+            // No honest plan total (extra credits beyond the monthly plan): "used" is unknown, not negative.
+            firecrawlUsed={
+              c && creditsTotal(c.remaining, c.plan) !== null ? c.plan - c.remaining : null
+            }
             active={active}
             setActive={setActive}
           />

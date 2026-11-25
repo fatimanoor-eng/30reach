@@ -122,7 +122,7 @@ describe("costs (05 / 05f)", () => {
 
   it("row costs and the line under an unticked platform", () => {
     expect(rowCost(preview(588), "instagram")).toBe("~36 credits");
-    expect(rowCost(preview(588), "youtube")).toBe("free (Google’s daily allowance)");
+    expect(rowCost(preview(588), "youtube")).toBe("free");
     expect(keepsLine("2026-11-16T16:20:00Z")).toBe("Keeps the 16 Nov data");
     expect(keepsLine(null)).toBe("Not pulled this time");
   });

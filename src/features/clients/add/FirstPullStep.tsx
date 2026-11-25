@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { BlipSuccess } from "../../../components/blip/BlipPoses";
 import { Button } from "../../../components/Button";
-import { formatNumber, plural } from "../../../lib/format";
+import { formatNumber, plural, creditsOf } from "../../../lib/format";
 import { PLATFORM_ICON, PLATFORM_NAME } from "../../../lib/platforms";
 import { pullStart, type PullStartResponse } from "../../../lib/pulls/api";
 import { MQ_TABLET_UP, useMediaQuery } from "../../../lib/useMediaQuery";
@@ -111,7 +111,7 @@ export function FirstPullStep({
                     {tabletUp ? "Credits left this month" : "Credits left"}
                   </dt>
                   <dd className="text-right font-mono">
-                    {formatNumber(data.credits.remaining)} of {formatNumber(data.credits.plan)}
+                    {creditsOf(data.credits.remaining, data.credits.plan)}
                   </dd>
                   {tabletUp && (
                     <>

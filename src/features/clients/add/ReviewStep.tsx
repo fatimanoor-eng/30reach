@@ -1,4 +1,5 @@
-import { Check, Globe, Lock, Plus } from "lucide-react";
+import { Globe, Lock, Plus } from "lucide-react";
+import { Checkbox } from "../../../components/Checkbox";
 import { useId, useState, type ComponentType } from "react";
 import { ClientMark } from "../../../app/ClientMark";
 import { BlipIdle } from "../../../components/blip/BlipPoses";
@@ -504,20 +505,10 @@ function CompetitorsCard({
         {draft.competitors.map((c) => (
           <li key={c.key} className="border-t border-line py-3 first:border-t-0">
             <label className="flex min-h-11 cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={c.ticked}
                 onChange={(e) => update(c, { ticked: e.target.checked })}
-                className="peer sr-only"
               />
-              <span
-                aria-hidden="true"
-                className={`inline-flex size-5 shrink-0 items-center justify-center rounded-[4px] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink ${
-                  c.ticked ? "bg-ink text-white" : "border border-line-strong bg-surface"
-                }`}
-              >
-                {c.ticked && <Check size={13} strokeWidth={3} />}
-              </span>
               <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-soft text-label font-medium">
                 {suggestInitials(c.name.replace(/(^|\s)[^\p{L}\p{N}\s]+(?=\s|$)/gu, " "))}
               </span>

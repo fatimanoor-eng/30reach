@@ -1,4 +1,4 @@
-import { Check, X as XIcon } from "lucide-react";
+import { ArrowLeft, Check, X as XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Logo } from "../../../components/Logo";
 
@@ -15,6 +15,7 @@ export function AddClientShell({
   step,
   steps = SCAN_STEPS,
   onClose,
+  onBack,
   children,
   footer,
 }: {
@@ -23,6 +24,8 @@ export function AddClientShell({
   /** Step names; default = the scan path. */
   steps?: string[];
   onClose: () => void;
+  /** Polish: every step after the first has Back (keeps what was entered; nothing is scanned again). */
+  onBack?: () => void;
   children: ReactNode;
   /** Sticky bottom bar (Review). */
   footer?: ReactNode;
@@ -34,6 +37,16 @@ export function AddClientShell({
         <div className="hidden h-16 items-center justify-between gap-4 px-6 md:flex xl:px-8">
           <div className="flex items-center gap-4 xl:min-w-44">
             <Logo className="h-6 w-auto" />
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-control px-3 text-body-sm hover:bg-soft"
+              >
+                <ArrowLeft size={16} aria-hidden="true" />
+                Back
+              </button>
+            )}
           </div>
           <ol aria-label="Add client steps" className="flex items-center gap-2 xl:gap-3">
             {steps.map((label, i) => {
@@ -83,7 +96,17 @@ export function AddClientShell({
         {/* Phones */}
         <div className="px-4 pt-3 pb-2 md:hidden">
           <div className="flex items-start justify-between gap-3">
-            <div>
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                aria-label="Back"
+                className="-ml-2 inline-flex size-11 shrink-0 items-center justify-center rounded-control"
+              >
+                <ArrowLeft size={20} aria-hidden="true" />
+              </button>
+            )}
+            <div className="min-w-0 flex-1">
               <p className="mono-label text-muted">
                 Add client · Step {step} of {steps.length}
               </p>

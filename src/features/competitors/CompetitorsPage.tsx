@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { PageHeader } from "../../app/PageHeader";
+import { Tooltip } from "../../components/Tooltip";
 import { Avatar } from "../../components/Avatar";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
@@ -176,6 +177,49 @@ export function CompetitorsPage() {
       </span>
     );
   };
+  /**
+   * Polish: one "Accounts" column instead of six platform columns (no sideways scroll). An icon chip per
+   * platform the brand has; the tooltip names the handle / page; a red dot = not found. A chip opens the
+   * edit panel on that field. The panel still has every field.
+   */
+  const accountChips = (c: Competitor) => {
+    const present = PLATFORMS.filter((p) => !!c[handleKey(p)]);
+    if (!present.length) return <span className="text-muted">—</span>;
+    return (
+      <ul className="flex flex-wrap gap-1.5" aria-label={`${c.name}’s accounts`}>
+        {present.map((p) => {
+          const h = c[handleKey(p)]!;
+          const Icon = PLATFORM_ICON[p];
+          const bad = c[statusKey(p)] === "not_found";
+          const shown = targetNoun(p) === "page" ? targetDisplay(p, h) : handleLabel(p, h);
+          const label = `${PLATFORM_NAME[p]} · ${shown}${bad ? " · not found" : ""}`;
+          return (
+            <li key={p}>
+              <Tooltip content={label}>
+                {(tip) => (
+                  <button
+                    type="button"
+                    aria-label={`${label}. Edit`}
+                    aria-describedby={tip["aria-describedby"]}
+                    onClick={() => openPanel({ edit: c.id, focus: p })}
+                    className="relative inline-flex size-8 items-center justify-center rounded-full border border-line bg-surface text-ink hover:border-ink/40"
+                  >
+                    <Icon size={15} aria-hidden="true" />
+                    {bad && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-surface bg-spark"
+                      />
+                    )}
+                  </button>
+                )}
+              </Tooltip>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
   const statusChip = (c: Competitor) => {
     const s = competitorStatus(c);
     return <Chip tone={s.tone}>{s.label}</Chip>;
@@ -229,23 +273,8 @@ export function CompetitorsPage() {
                   <th scope="col" className="py-4 pl-6 font-normal">
                     Brand
                   </th>
-                  <th scope="col" className="py-4 font-normal">
-                    Instagram
-                  </th>
-                  <th scope="col" className="py-4 font-normal">
-                    TikTok
-                  </th>
-                  <th scope="col" className="py-4 font-normal">
-                    LinkedIn
-                  </th>
-                  <th scope="col" className="py-4 font-normal">
-                    Facebook
-                  </th>
                   <th scope="col" className="py-4 pr-4 font-normal">
-                    X
-                  </th>
-                  <th scope="col" className="py-4 pr-4 font-normal">
-                    YouTube
+                    Accounts
                   </th>
                   <th scope="col" className="py-4 pr-4 font-normal">
                     Posts · 30 days
@@ -267,12 +296,7 @@ export function CompetitorsPage() {
                         {c.name}
                       </span>
                     </th>
-                    <td className="max-w-56 py-4 pr-4">{handleCell(c, "instagram")}</td>
-                    <td className="max-w-56 py-4 pr-4">{handleCell(c, "tiktok")}</td>
-                    <td className="max-w-56 py-4 pr-4">{handleCell(c, "linkedin")}</td>
-                    <td className="max-w-56 py-4 pr-4">{handleCell(c, "facebook")}</td>
-                    <td className="max-w-56 py-4 pr-4">{handleCell(c, "x")}</td>
-                    <td className="max-w-56 py-4 pr-4">{handleCell(c, "youtube")}</td>
+                    <td className="py-4 pr-4">{accountChips(c)}</td>
                     <td className="py-4 pr-4 text-body">{posts(c)}</td>
                     <td className="py-4">{statusChip(c)}</td>
                     <td className="py-4 pr-6">{actions(c)}</td>

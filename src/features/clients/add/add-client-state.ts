@@ -18,6 +18,8 @@ export type FlowState = {
   credits: number;
   draft: ReviewDraft | null;
   unreadable: { reason: "no_answer" | "error_page"; credits: number } | null;
+  /** The manual form's entries (polish: Back keeps them). */
+  manual?: ManualValues | null;
   created: {
     id: string;
     slug: string;
@@ -25,6 +27,14 @@ export type FlowState = {
     competitors: number;
     platforms: Platform[];
   } | null;
+};
+
+export type ManualValues = {
+  name: string;
+  website: string;
+  country: string;
+  industry: string;
+  accounts: Record<Platform, string>;
 };
 
 export const START: FlowState = {

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check } from "lucide-react";
+import { Checkbox } from "../../components/Checkbox";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { BlipError, BlipIdle, BlipScanning } from "../../components/blip/BlipPoses";
@@ -322,15 +322,7 @@ function Suggestion({
   return (
     <li className="border-t border-line first:border-t-0">
       <label className="flex cursor-pointer items-start gap-3 px-3.5 py-3 hover:bg-bg">
-        <input type="checkbox" checked={checked} onChange={onToggle} className="peer sr-only" />
-        <span
-          aria-hidden="true"
-          className={`mt-0.5 inline-flex size-4.5 shrink-0 items-center justify-center rounded-[5px] peer-focus-visible:ring-2 peer-focus-visible:ring-ink/30 ${
-            checked ? "bg-ink text-white" : "border-[1.5px] border-line bg-surface"
-          }`}
-        >
-          {checked && <Check size={12} strokeWidth={3} />}
-        </span>
+        <Checkbox checked={checked} onChange={onToggle} className="mt-0.5" />
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex items-center gap-2">
             <span

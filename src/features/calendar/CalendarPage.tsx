@@ -22,6 +22,7 @@ import { addDays, isoDay, monthGrid, startOfWeek, todayIso, type IsoDay } from "
 import { dayMonth, monthName, monthYear } from "./format";
 import { IdeaPanel } from "./IdeaPanel";
 import { MonthGrid } from "./MonthGrid";
+import { DayListDialog } from "./DayListDialog";
 import { CalendarDnd } from "./CalendarDnd";
 import { formatFor } from "./platform-options";
 import { ideaCardTitle, plannedLabel, type Idea } from "../ideas/idea-rules";
@@ -117,6 +118,8 @@ export function CalendarPage() {
     isoDay(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1 + by, 1);
   const openCard = (id: string) => update({ card: id, new: null });
   const addPost = (day: IsoDay) => update({ new: day, card: null });
+  // "+N more" in a month cell: that day's full list.
+  const [dayList, setDayList] = useState<IsoDay | null>(null);
   // The card just closed here: after a delete or "Move to idea board" the list can refresh before
   // the URL drops ?card=, which isn't a "missing" card.
   const [closedId, setClosedId] = useState<string | null>(null);
@@ -309,6 +312,7 @@ export function CalendarPage() {
               cards={cards.data}
               onOpenCard={openCard}
               onAddPost={addPost}
+              onShowDay={setDayList}
             />
           </div>
           <IdeaPanel
@@ -362,6 +366,17 @@ export function CalendarPage() {
             card={panel.card}
             newDate={panel.date}
             clientId={client.data.id}
+          />
+        )}
+      </ModalPresence>
+      <ModalPresence open={!!dayList}>
+        {dayList && (
+          <DayListDialog
+            day={dayList}
+            cards={(cards.data ?? []).filter((c) => c.date === dayList)}
+            onClose={() => setDayList(null)}
+            onOpenCard={openCard}
+            onAddPost={addPost}
           />
         )}
       </ModalPresence>

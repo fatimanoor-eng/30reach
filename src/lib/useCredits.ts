@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "./auth/auth-context";
-import { formatNumber, formatShortDate } from "./format";
+import { formatNumber, formatShortDate, creditsTotal } from "./format";
 import { supabase } from "./supabase";
 
 /** Response of the `credits` Edge Function (supabase/functions/credits). */
@@ -62,9 +62,16 @@ export function formatTime(iso: string): string {
   return Number.isNaN(d.getTime()) ? "" : hourMinute.format(d);
 }
 
-/** Credits, the same words everywhere (sidebar, rail tooltip, More, Settings, toasts): "919 left of 1,000". */
-export const creditsLeft = (remaining: number, plan: number) =>
-  `${formatNumber(remaining)} left of ${formatNumber(plan)}`;
+/**
+ * Credits, the same words everywhere (sidebar, rail tooltip, More, Usage, toasts): "919 left of 1,000", or
+ * "5,000 left" when Firecrawl's plan total isn't there or is smaller than what's left (creditsTotal).
+ */
+export const creditsLeft = (remaining: number, plan: number | null | undefined) => {
+  const total = creditsTotal(remaining, plan);
+  return total === null
+    ? `${formatNumber(remaining)} left`
+    : `${formatNumber(remaining)} left of ${formatNumber(total)}`;
+};
 
 /** One line for tooltips / screen readers. */
 export function creditsSummary(state: CreditsState): string {

@@ -22,11 +22,11 @@ describe("CreditsMeter", () => {
     expect(meter).toHaveAttribute("aria-valuemax", "1000");
   });
 
-  it("more credits than the plan: real number shown, bar capped at full", () => {
+  it("more credits than the plan: just what's left (no false 'of'), bar capped at full", () => {
     const { container } = render(
       <CreditsMeter state={{ status: "ready", credits: { ...credits, remaining: 1021 } }} />,
     );
-    expect(screen.getByText("1,021 left of 1,000")).toBeInTheDocument();
+    expect(screen.getByText("1,021 left")).toBeInTheDocument();
     expect(container.querySelector<HTMLElement>("[role=meter] > div")!.style.width).toBe("100%");
     const meter = screen.getByRole("meter");
     expect(meter).toHaveAttribute("aria-valuenow", "1021");

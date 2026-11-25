@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ModalPresence } from "../../components/ModalPresence";
@@ -31,6 +31,7 @@ import { ManualStep } from "./add/ManualStep";
 import { ReviewStep } from "./add/ReviewStep";
 import { ScanningStep } from "./add/ScanningStep";
 import { WebsiteStep } from "./add/WebsiteStep";
+import type { ManualValues } from "./add/add-client-state";
 
 /** The manual form has no scan or review: Website → Details → First pull (Fatima, 25 Nov). */
 const MANUAL_STEPS = ["Website", "Details", "First pull"];
@@ -67,6 +68,19 @@ export function AddClientPage() {
     setState((s) => ({ ...s, ...(typeof patch === "function" ? patch(s) : patch) }));
 
   const started = state.step !== "website" || manualDirty || !!state.scan;
+  // Polish: the manual form's entries survive Back (and a reload).
+  const keepManual = useCallback((manual: ManualValues) => setState((s) => ({ ...s, manual })), []);
+  /**
+   * Back (every step after Website): Scanning / Manual / Review → Website, keeping what was entered and
+   * what was already scanned. None once the client exists (First pull): it can't be un-created.
+   */
+  const back =
+    state.step === "scanning" ||
+    state.step === "manual" ||
+    state.step === "unreadable" ||
+    state.step === "review"
+      ? () => update({ step: "website" })
+      : undefined;
   const manualPath = state.step === "manual" || state.step === "unreadable";
   function leave() {
     clearFlow();
@@ -165,10 +179,13 @@ export function AddClientPage() {
         <WebsiteStep
           initial={state.website.replace(/^https?:\/\//, "")}
           onScan={(website) =>
-            // Same site after Back: return to Review with the edits kept (nothing is paid again).
-            state.draft && state.website === website
+            // Same site after Back: return to Review with the edits kept, or carry on the scan where it
+            // stopped (its paid steps are kept): nothing is paid again.
+            state.website === website && state.draft
               ? update({ step: "review" })
-              : setState({ ...START, website, step: "scanning", scanId: crypto.randomUUID() })
+              : state.website === website && state.scanId && state.scan
+                ? update({ step: "scanning" })
+                : setState({ ...START, website, step: "scanning", scanId: crypto.randomUUID() })
           }
           onManual={() => update({ step: "manual", unreadable: null })}
         />
@@ -196,6 +213,8 @@ export function AddClientPage() {
           initialWebsite={state.website}
           unreadable={state.step === "unreadable" ? state.unreadable : null}
           onDirty={setManualDirty}
+          saved={state.manual}
+          onValues={keepManual}
           onTryAgain={() =>
             update({
               step: "scanning",
@@ -247,6 +266,7 @@ export function AddClientPage() {
       step={manualPath ? 2 : STEP_NUMBER[state.step]}
       steps={manualPath ? MANUAL_STEPS : undefined}
       onClose={close}
+      onBack={back}
     >
       {body}
       <ModalPresence open={leaving}>

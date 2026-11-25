@@ -18,10 +18,10 @@ const avatarTone: Record<CompareColor, "white" | "pop" | "blue"> = {
 };
 
 /**
- * Pill avatar: 28 px (not 24) with tighter tracking (−0.05em), so wide initials like "WW" keep ~4 px
- * of space each side (was ~1 px). Text stays at the 11 px minimum (text-label); it can't shrink further.
+ * Pill avatar: 28 px, normal tracking, semibold; at most 2 capitals (avatarText: "Hi" → "HI", "WW" stays),
+ * so wide initials keep room each side. Text stays at the 11 px minimum (text-label).
  */
-const PILL_AVATAR = "size-7 tracking-tighter";
+const PILL_AVATAR = "size-7";
 
 const pillBase =
   "inline-flex h-11 shrink-0 items-center gap-2 rounded-full border pr-3 pl-1.5 text-body-sm transition-colors md:h-9";

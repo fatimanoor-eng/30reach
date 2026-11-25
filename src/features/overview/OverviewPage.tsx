@@ -79,13 +79,16 @@ function Dashboard({
     <>
       <PageHeader
         title="Overview"
+        // Polish: "Last pulled …" on its own line under the title (tablet / desktop; phones below).
+        subline={
+          <LastPulled
+            startedAt={latest.started_at}
+            carried={latest.carried}
+            className="hidden md:flex"
+          />
+        }
         actions={
           <>
-            <LastPulled
-              startedAt={latest.started_at}
-              carried={latest.carried}
-              className="hidden md:flex"
-            />
             {/* Wrapper hides it on mobile: SegmentedControl sets inline-flex, which beats `hidden`. */}
             <span className="hidden md:inline-flex">
               <DateRangeControl />

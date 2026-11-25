@@ -291,6 +291,14 @@ export function IdeasPage() {
                   imageUrl={imageFor(idea)}
                   now={now}
                   onOpen={(plan) => openDetail(idea.id, plan)}
+                  onStartSelect={
+                    allowed.has(idea.id)
+                      ? () => {
+                          setPicked(new Set([idea.id]));
+                          setSelecting(true);
+                        }
+                      : undefined
+                  }
                   selection={
                     selecting
                       ? {

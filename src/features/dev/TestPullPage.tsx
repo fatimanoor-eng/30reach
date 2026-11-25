@@ -16,7 +16,7 @@ import {
   pullTask,
 } from "../../lib/pulls/api";
 import { type PullProgress, PullInterrupted, runPull } from "../../lib/pulls/run-pull";
-import { formatNumber, formatShortDate, plural } from "../../lib/format";
+import { formatNumber, formatShortDate, plural, creditsOf } from "../../lib/format";
 import { PLATFORM_NAME, PLATFORMS, TARGET_KEY } from "../../lib/platforms";
 import { supabase } from "../../lib/supabase";
 import { useClient } from "../../lib/useClient";
@@ -213,7 +213,7 @@ export function TestPullPage() {
               <dt className="text-muted">Credits left</dt>
               <dd>
                 {preview.data.credits
-                  ? `${formatNumber(preview.data.credits.remaining)} of ${formatNumber(preview.data.credits.plan)}`
+                  ? creditsOf(preview.data.credits.remaining, preview.data.credits.plan)
                   : "—"}
               </dd>
               <dt className="text-muted">Window</dt>

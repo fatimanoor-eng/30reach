@@ -1,5 +1,5 @@
-import { formatNumber, formatShortDate } from "../../lib/format";
-import { useCredits } from "../../lib/useCredits";
+import { formatNumber, formatShortDate, creditsFraction, creditsTotal } from "../../lib/format";
+import { useCredits, creditsLeft } from "../../lib/useCredits";
 import { useGroqMeter, useUsageSizes } from "../settings/settings-api";
 import {
   DB_LIMIT_BYTES,
@@ -32,9 +32,9 @@ export function FreeTierMeters({ now }: { now: number }) {
     >
       <MeterCard
         label="Firecrawl"
-        value={c ? `${formatNumber(c.remaining)} left of ${formatNumber(c.plan)}` : null}
-        fraction={c ? c.remaining / c.plan : null}
-        low={c ? runningLow(c.remaining, c.plan) : false}
+        value={c ? creditsLeft(c.remaining, c.plan) : null}
+        fraction={c ? creditsFraction(c.remaining, creditsTotal(c.remaining, c.plan) ?? 0) : null}
+        low={c ? runningLow(c.remaining, creditsTotal(c.remaining, c.plan) ?? 0) : false}
         tone="flash"
         caption={
           credits.status === "error"

@@ -109,11 +109,12 @@ export function initialSelection(preview: PullStartResponse): Platform[] {
   return out;
 }
 
-/** The cost shown on a platform's row: "~12 credits", or YouTube's "free (Google's daily allowance)". */
+/** The cost shown on a platform's row: "~12 credits", or YouTube's "free" (ⓘ: Google's daily allowance). */
 export const rowCost = (preview: PullStartResponse, p: Platform) =>
-  p === "youtube"
-    ? "free (Google’s daily allowance)"
-    : `~${plural(platformEstimate(preview, p).expected, "credit")}`;
+  p === "youtube" ? "free" : `~${plural(platformEstimate(preview, p).expected, "credit")}`;
+
+/** YouTube's ⓘ next to "free" in the Refresh dialog. */
+export const YOUTUBE_FREE_TIP = "Google’s daily allowance";
 
 /**
  * Under an unticked platform (18b): its data stays, copied from the last pull: "Keeps the 16 Nov data".
