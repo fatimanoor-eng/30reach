@@ -1623,3 +1623,30 @@ describe("YouTube in Blip (Slice 18)", () => {
     expect(sys).toMatch(/YouTube ideas are searchable and useful/);
   });
 });
+
+describe("carried platforms in Blip's data (Slice 18b)", () => {
+  it("older_data names the platforms that weren't pulled this time, with their date", () => {
+    const s = buildSummary({
+      clientName: "OBU Health",
+      brands: [{ id: "c1", name: "Hims" }],
+      pull: {
+        id: "p2",
+        started_at: "2026-11-25T10:00:00Z",
+        carried: { tiktok: "2026-11-16T16:20:00Z" },
+      },
+      posts: [],
+      followers: [],
+      previous: null,
+    });
+    expect(s.summary.older_data).toEqual({ TikTok: "16 Nov 2026" });
+    const none = buildSummary({
+      clientName: "OBU Health",
+      brands: [],
+      pull: { id: "p2", started_at: "2026-11-25T10:00:00Z", carried: {} },
+      posts: [],
+      followers: [],
+      previous: null,
+    });
+    expect(none.summary.older_data).toBeUndefined();
+  });
+});

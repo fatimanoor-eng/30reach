@@ -31,6 +31,8 @@ export type PullStartResponse = {
   pageCap: number;
   windowDays: number;
   isTest: boolean;
+  /** 18b: a YouTube task hit Google's daily limit today (Pacific): YouTube starts unticked. */
+  youtubeLimitToday?: boolean;
 };
 
 export type PullTaskResponse = {
@@ -54,6 +56,8 @@ export type PullFinishResponse = {
   credits: CreditsReading | null;
   problems: PullProblem[];
   deleted: number;
+  /** 18b: platforms copied from the previous pull → the date their data comes from. */
+  carried?: Partial<Record<Platform, string>>;
 };
 
 export type FnResult<T> =

@@ -200,7 +200,8 @@ export type Followers = { competitor_id: string; platform: Platform; followers: 
 export type PullData = {
   clientName: string;
   brands: SummaryBrand[];
-  pull: { id: string; started_at: string };
+  /** carried (18b): platforms copied from an older pull → the date their data comes from. */
+  pull: { id: string; started_at: string; carried?: Partial<Record<Platform, string>> | null };
   posts: SummaryPost[];
   followers: Followers[];
   previous: { id: string; started_at: string; posts: SummaryPost[] } | null;
@@ -241,6 +242,8 @@ export function bestFormat(posts: SummaryPost[]): Format | null {
 export type Summary = {
   client: string;
   pull_date: string;
+  /** 18b: platforms not pulled this time, with the date their data is from ("TikTok": "16 Nov 2026"). */
+  older_data?: Record<string, string>;
   window_days: 30;
   time_zone: "US Eastern";
   engagement_means: typeof ENGAGEMENT_MEANS;
@@ -425,6 +428,16 @@ export function buildSummary(
   const summary: Summary = {
     client: data.clientName,
     pull_date: dayMonthYear(data.pull.started_at),
+    ...(data.pull.carried && Object.keys(data.pull.carried).length
+      ? {
+          older_data: Object.fromEntries(
+            Object.entries(data.pull.carried).map(([p, d]) => [
+              PLATFORM_LABEL[p as Platform] ?? p,
+              dayMonthYear(d as string),
+            ]),
+          ),
+        }
+      : {}),
     window_days: 30,
     time_zone: "US Eastern",
     engagement_means: ENGAGEMENT_MEANS,

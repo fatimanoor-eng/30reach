@@ -2,23 +2,25 @@ import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { BlipError } from "../../components/blip/BlipPoses";
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 import { formatNumber, formatShortDate, plural } from "../../lib/format";
 import { PLATFORM_ICON, PLATFORMS } from "../../lib/platforms";
 import { type Platform, pullStart, type PullStartResponse } from "../../lib/pulls/api";
 import { useClient, useClientPath } from "../../lib/useClient";
 import { usePull } from "./pull-context";
+import { useSavedPulls } from "../overview/useOverviewData";
 import {
   availablePlatforms,
   durationText,
-  fittingPlatforms,
+  initialSelection,
+  keepsLine,
   noAccountsText,
   otherPullingText,
   PLATFORM_LABEL,
-  platformEstimate,
   refreshIntro,
+  rowCost,
   selectionCost,
+  YOUTUBE_LIMIT_ALONE,
 } from "./pull-text";
 
 const TITLE = "Refresh competitor data?";
@@ -32,7 +34,8 @@ class NothingToPull extends Error {
 
 /**
  * 05 Refresh — confirm cost (dialog) / M03 (bottom sheet). The estimate comes from pull-start with
- * preview: true (live balance, 0 credits). If the maximum doesn't fit, it shows 05f instead.
+ * preview: true (live balance, 0 credits). Not enough credits for everything (05f): the same picker with a
+ * warning (18b).
  */
 export function RefreshDialog() {
   const { refreshOpen, closeRefresh, clientId } = usePull();
@@ -94,20 +97,29 @@ export function RefreshDialog() {
   if (preview.data.status === "running") return <AlreadyRunning />;
   if (preview.data.status === "other_running")
     return <OtherClientPulling name={preview.data.clientName ?? "Another client"} />;
-  return preview.data.status === "insufficient" ? (
-    <NotEnoughCredits preview={preview.data} />
-  ) : (
-    <ConfirmCost preview={preview.data} />
-  );
+  // 05f (not enough credits for everything) is the same picker with a warning (18b).
+  return <ConfirmCost preview={preview.data} />;
 }
 
-/** 05 / M03 */
+/**
+ * 05 / M03, and 05f (18b): one picker. Every platform the client tracks, ticked by default (YouTube unticked
+ * when Google's daily limit already ran out today), each with its cost and a live total. Unticked platforms
+ * aren't pulled: the pull copies their data from the last one ("Keeps the 16 Nov data"), so nothing goes
+ * blank. Not enough credits for a full pull: a warning, and as many platforms ticked as fit, in the usual
+ * order; Pull now waits until the selection fits.
+ */
 function ConfirmCost({ preview }: { preview: PullStartResponse }) {
   const { closeRefresh, start } = usePull();
+  const latest = useSavedPulls().data?.latest ?? null;
   const platforms = availablePlatforms(preview);
-  const [selected, setSelected] = useState<Platform[]>(platforms);
+  const [selected, setSelected] = useState<Platform[]>(() => initialSelection(preview));
   const cost = selectionCost(preview, selected);
-  const after = Math.max(0, preview.credits.remaining - cost.expected);
+  const left = preview.credits.remaining;
+  const fits = cost.max <= left;
+  const short = preview.status === "insufficient";
+  const reset = formatShortDate(preview.credits.resetsAt);
+  const after = Math.max(0, left - cost.expected);
+  const dataFrom = (p: Platform) => (latest ? (latest.carried?.[p] ?? latest.started_at) : null);
 
   const toggle = (p: Platform) =>
     setSelected((s) =>
@@ -118,32 +130,56 @@ function ConfirmCost({ preview }: { preview: PullStartResponse }) {
     <ResponsiveDialog
       open
       onClose={closeRefresh}
-      title={TITLE}
+      title={short ? "Not enough credits for a full pull" : TITLE}
       description={refreshIntro(preview)}
       primary={{
         label: "Pull now",
         icon: <RefreshCw size={16} />,
-        disabled: selected.length === 0,
+        disabled: selected.length === 0 || !fits,
         onClick: () => void start(selected),
       }}
     >
       <div className="flex flex-col gap-4">
+        {short && (
+          <p
+            role={fits ? undefined : "alert"}
+            className="rounded-tile bg-spark-tint px-4 py-3 text-small text-spark-text"
+          >
+            You have {plural(left, "credit")} left{reset ? ` until ${reset}` : ""}. Untick platforms
+            until it fits; they keep their last data.
+          </p>
+        )}
         <fieldset className="divide-y divide-line overflow-hidden rounded-tile border border-line">
           <legend className="sr-only">Platforms to pull</legend>
           {platforms.map((p) => {
             const Icon = PLATFORM_ICON[p];
+            const on = selected.includes(p);
+            const limit = p === "youtube" && preview.youtubeLimitToday;
+            const note = limit ? YOUTUBE_LIMIT_ALONE : on ? null : keepsLine(dataFrom(p));
             return (
-              <label key={p} className="flex min-h-12 cursor-pointer items-center gap-3 px-4 py-2">
+              <label key={p} className="flex min-h-12 cursor-pointer items-start gap-3 px-4 py-3">
                 <input
                   type="checkbox"
-                  checked={selected.includes(p)}
+                  checked={on}
                   onChange={() => toggle(p)}
-                  className="size-5 shrink-0 accent-ink"
+                  className="mt-0.5 size-5 shrink-0 accent-ink"
                 />
-                <Icon size={18} />
-                <span className="flex-1 text-body">{PLATFORM_LABEL[p]}</span>
-                <span className="font-mono text-small text-muted">
-                  ~{plural(platformEstimate(preview, p).expected, "credit")}
+                <Icon size={18} className="mt-0.5 shrink-0" />
+                <span className="min-w-0 flex-1">
+                  {/* One cost: on the right from tablet up; on phones it wraps under the name. */}
+                  <span className="flex flex-wrap items-baseline gap-x-3">
+                    <span className="text-body">{PLATFORM_LABEL[p]}</span>
+                    <span className="basis-full font-mono text-small text-muted md:ml-auto md:basis-auto md:text-right">
+                      {rowCost(preview, p)}
+                    </span>
+                  </span>
+                  {note && (
+                    <span
+                      className={`block text-small ${limit ? "text-spark-text" : "text-muted"}`}
+                    >
+                      {note}
+                    </span>
+                  )}
                 </span>
               </label>
             );
@@ -152,10 +188,12 @@ function ConfirmCost({ preview }: { preview: PullStartResponse }) {
 
         <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 rounded-tile bg-soft px-4 py-3 text-small">
           <dt className="text-muted">Estimated cost</dt>
-          <dd className="text-right font-mono">up to {plural(cost.max, "credit")}</dd>
+          <dd className={`text-right font-mono ${fits ? "" : "text-spark-text"}`}>
+            up to {plural(cost.max, "credit")}
+          </dd>
           <dt className="text-muted">Credits left this month</dt>
           <dd className="text-right font-mono">
-            {formatNumber(preview.credits.remaining)} of {formatNumber(preview.credits.plan)}
+            {formatNumber(left)} of {formatNumber(preview.credits.plan)}
           </dd>
           <dt className="text-muted">After this pull</dt>
           <dd className="text-right font-mono">about {formatNumber(after)}</dd>
@@ -200,75 +238,6 @@ function OtherClientPulling({ name }: { name: string }) {
       primary={{ label: "OK", onClick: closeRefresh }}
       cancelLabel={null}
     />
-  );
-}
-
-/** 05f: the full pull's maximum doesn't fit what's left. */
-function NotEnoughCredits({ preview }: { preview: PullStartResponse }) {
-  const { closeRefresh, start } = usePull();
-  const fits = fittingPlatforms(preview);
-  const [choice, setChoice] = useState<Platform | "wait">(fits[0] ?? "wait");
-  const reset = formatShortDate(preview.credits.resetsAt);
-
-  return (
-    <ResponsiveDialog
-      open
-      onClose={closeRefresh}
-      align="center"
-      illustration={<BlipError />}
-      title="Not enough credits for a full pull"
-      primary={
-        choice === "wait"
-          ? { label: "OK", onClick: closeRefresh }
-          : { label: `Pull ${PLATFORM_LABEL[choice]} only`, onClick: () => void start([choice]) }
-      }
-    >
-      <div className="flex flex-col gap-4 text-left">
-        <p className="text-body-sm text-muted">
-          This pull needs up to {plural(preview.estimate.max, "credit")}, and you have{" "}
-          {formatNumber(preview.credits.remaining)} left{reset ? ` until ${reset}` : ""}. The free
-          plan can’t buy more.
-        </p>
-        <fieldset className="divide-y divide-line overflow-hidden rounded-tile border border-line">
-          <legend className="sr-only">What to do</legend>
-          {fits.map((p) => (
-            <Option
-              key={p}
-              checked={choice === p}
-              onChange={() => setChoice(p)}
-              title={`Pull ${PLATFORM_LABEL[p]} only`}
-              text={`about ${plural(platformEstimate(preview, p).expected, "credit")} · fits what’s left`}
-            />
-          ))}
-          <Option
-            checked={choice === "wait"}
-            onChange={() => setChoice("wait")}
-            title="Wait for the reset"
-            text={
-              reset ? `Full pull on ${reset} when credits reset` : "Full pull when credits reset"
-            }
-          />
-        </fieldset>
-      </div>
-    </ResponsiveDialog>
-  );
-}
-
-function Option(props: { checked: boolean; onChange: () => void; title: string; text: string }) {
-  return (
-    <label className="flex min-h-14 cursor-pointer items-start gap-3 px-4 py-3">
-      <input
-        type="radio"
-        name="not-enough-credits"
-        checked={props.checked}
-        onChange={props.onChange}
-        className="mt-0.5 size-5 shrink-0 accent-ink"
-      />
-      <span>
-        <span className="block text-body">{props.title}</span>
-        <span className="block text-small text-muted">{props.text}</span>
-      </span>
-    </label>
   );
 }
 

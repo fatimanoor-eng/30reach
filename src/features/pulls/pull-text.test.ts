@@ -4,7 +4,12 @@ import type { TaskProgress } from "../../lib/pulls/run-pull";
 import {
   availablePlatforms,
   durationText,
-  fittingPlatforms,
+  initialSelection,
+  keepsLine,
+  onlyYouTubeLimit,
+  rowCost,
+  YOUTUBE_LIMIT,
+  YOUTUBE_LIMIT_ALONE,
   mobileProgressLine,
   noAccountsText,
   otherPullingText,
@@ -95,14 +100,36 @@ describe("costs (05 / 05f)", () => {
     expect(selectionCost(preview(588), ["instagram", "tiktok"])).toEqual({ expected: 60, max: 96 });
   });
 
-  it("offers only platforms that fit what's left", () => {
-    expect(fittingPlatforms(preview(64))).toEqual(["instagram", "tiktok"]);
-    expect(fittingPlatforms(preview(40))).toEqual([]);
+  it("18b: everything ticked when it fits; otherwise as many as fit, in the usual order", () => {
+    expect(initialSelection(preview(588))).toEqual(["instagram", "tiktok"]);
+    expect(initialSelection(preview(64))).toEqual(["instagram"]); // 48 fits, 48 + 48 doesn't
+    expect(initialSelection(preview(40))).toEqual([]);
+    const withYt = (left: number, limit = false): PullStartResponse => ({
+      ...preview(left),
+      youtubeLimitToday: limit,
+      estimate: {
+        ...preview(left).estimate,
+        perPlatform: {
+          ...preview(left).estimate.perPlatform,
+          youtube: { tasks: 3, expected: 0, max: 0 },
+        },
+      },
+    });
+    // YouTube is free, so it always fits; unticked when today's limit already ran out.
+    expect(initialSelection(withYt(10))).toEqual(["youtube"]);
+    expect(initialSelection(withYt(588, true))).toEqual(["instagram", "tiktok"]);
+  });
+
+  it("row costs and the line under an unticked platform", () => {
+    expect(rowCost(preview(588), "instagram")).toBe("~36 credits");
+    expect(rowCost(preview(588), "youtube")).toBe("free (Google’s daily allowance)");
+    expect(keepsLine("2026-11-16T16:20:00Z")).toBe("Keeps the 16 Nov data");
+    expect(keepsLine(null)).toBe("Not pulled this time");
   });
 
   it("intro mentions the pull it replaces", () => {
     expect(refreshIntro(preview(588, "2026-11-06T10:00:00Z"))).toBe(
-      "This pulls the latest public posts for 6 brands and replaces the saved pull from 6 Nov.",
+      "This pulls the latest public posts for 6 brands and replaces the saved pull from 6 Nov. Platforms you untick keep their last data.",
     );
     expect(refreshIntro(preview(588))).toBe(
       "This pulls the latest public posts for 6 brands from the last 30 days.",
@@ -197,9 +224,24 @@ describe("YouTube (Slice 18)", () => {
         { brand: "Ro", platform: "youtube", code: "quota" },
         { brand: "Hims", platform: "youtube", code: "quota" },
       ]),
-    ).toBe(
-      "YouTube’s free daily limit ran out, so some YouTube channels weren’t pulled. Try again tomorrow.",
+    ).toBe(YOUTUBE_LIMIT);
+    expect(YOUTUBE_LIMIT).toBe(
+      "YouTube’s free daily limit ran out. The other platforms were pulled. YouTube will work again tomorrow.",
     );
+    // Only YouTube was tried (the pull failed): no "other platforms".
+    expect(
+      problemSentence([{ brand: "Ro", platform: "youtube", code: "quota" }], {
+        othersPulled: false,
+      }),
+    ).toBe(YOUTUBE_LIMIT_ALONE);
+    // The limit first, then the other problems.
+    expect(
+      problemSentence([
+        { brand: "Ro", platform: "youtube", code: "quota" },
+        { brand: "Found", platform: "tiktok", code: "not_found" },
+      ]),
+    ).toBe(`${YOUTUBE_LIMIT} Found’s TikTok handle wasn’t found.`);
+    expect(onlyYouTubeLimit([{ brand: "Ro", platform: "youtube", code: "quota" }])).toBe(true);
     expect(problemSentence([{ brand: "Ro", platform: "youtube", code: "not_found" }])).toBe(
       "Ro’s YouTube handle wasn’t found.",
     );

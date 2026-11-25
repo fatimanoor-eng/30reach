@@ -5,8 +5,8 @@ import { ModalPresence } from "../../components/ModalPresence";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { PLATFORM_ICON, PLATFORM_NAME, PLATFORM_SHORT_NAME } from "../../lib/platforms";
 import { useVisiblePlatforms } from "../../lib/useVisiblePlatforms";
-import { formatClock, formatShortDate, plural } from "../../lib/format";
-import { daysSince, isStale } from "./metrics";
+import type { Platform } from "../../lib/platforms";
+import { lastPulledLine } from "./metrics";
 import {
   NINETY_DAYS_TOOLTIP,
   type PlatformPage,
@@ -14,19 +14,23 @@ import {
   usePlatformNav,
 } from "./filters";
 
-/** "● Last pulled 16 Nov, 16:20" (green) / "● Last pulled 6 Nov · 10 days ago" (amber, > 7 days). */
+/**
+ * "● Last pulled 16 Nov, 16:20" (green) / "● Last pulled 6 Nov · 10 days ago" (amber, > 7 days). 18b: data
+ * carried from an older pull says so ("· TikTok from 16 Nov"; a carried platform's page: "From the 16 Nov
+ * pull"), and the oldest data shown decides amber.
+ */
 export function LastPulled({
   startedAt,
+  carried,
+  platform,
   className = "",
 }: {
   startedAt: string;
+  carried?: Partial<Record<Platform, string>> | null;
+  platform?: Platform;
   className?: string;
 }) {
-  const stale = isStale(startedAt);
-  const days = daysSince(startedAt);
-  const text = stale
-    ? `Last pulled ${formatShortDate(startedAt)} · ${plural(days, "day")} ago`
-    : `Last pulled ${formatShortDate(startedAt)}, ${formatClock(startedAt)}`;
+  const { text, stale } = lastPulledLine({ startedAt, carried, platform, names: PLATFORM_NAME });
   return (
     <p
       className={`items-center gap-2 font-mono text-small ${stale ? "text-amber-text" : "text-muted"} ${className}`}

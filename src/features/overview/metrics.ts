@@ -4,7 +4,7 @@
 // Facebook (Slice 16b): `likes` = all reactions, `shares` = shares, views on videos / reels only (shown,
 // never ranked).
 
-import { formatCompact, plural } from "../../lib/format";
+import { formatClock, formatCompact, formatShortDate, plural } from "../../lib/format";
 import { type Platform, PLATFORM_NAME } from "../../lib/platforms";
 
 export type OverviewPost = {
@@ -50,18 +50,24 @@ export const engagement = (p: OverviewPost) => (p.likes ?? 0) + (p.comments ?? 0
 const countable = (p: OverviewPost) => !p.counts_hidden;
 
 /** Platform + brands + date range. The range counts back from the PULL time, not today. */
+export type Carried = Partial<Record<Platform, string>> | null | undefined;
+
+/**
+ * 18b: a platform carried from an older pull counts its window back from that pull's date (its own
+ * snapshot), not the new pull's.
+ */
 export function filterPosts(
   posts: OverviewPost[],
   f: Filters,
   pullStartedAt: string,
+  carried?: Carried,
 ): OverviewPost[] {
-  const end = Date.parse(pullStartedAt);
-  const start = end - f.days * DAY_MS;
   return posts.filter((p) => {
     if (f.platform !== "all" && p.platform !== f.platform) return false;
     if (f.brandIds.length && !f.brandIds.includes(p.competitor_id)) return false;
+    const end = Date.parse(carried?.[p.platform] ?? pullStartedAt);
     const t = p.posted_at ? Date.parse(p.posted_at) : NaN;
-    return t >= start && t <= end;
+    return t >= end - f.days * DAY_MS && t <= end;
   });
 }
 
@@ -390,6 +396,46 @@ export function daysSince(iso: string, now = Date.now()): number {
 }
 export const isStale = (iso: string, now = Date.now()) => daysSince(iso, now) > STALE_AFTER_DAYS;
 
+/**
+ * The "Last pulled" line (Slice 18b: some platforms may be carried from an older pull).
+ * - A platform page whose platform was carried: "From the 16 Nov pull" (amber + "· 9 days ago" when stale).
+ * - Otherwise "Last pulled 25 Nov, 10:20", and on Overview the carried ones: "· TikTok, LinkedIn from 16 Nov".
+ * Amber when the oldest data shown is more than 7 days old.
+ */
+export function lastPulledLine(o: {
+  startedAt: string;
+  carried?: Partial<Record<Platform, string>> | null;
+  /** a platform page; omitted = Overview (all platforms) */
+  platform?: Platform;
+  names: Record<Platform, string>;
+  now?: number;
+}): { text: string; stale: boolean } {
+  const now = o.now ?? Date.now();
+  const carried = o.carried ?? {};
+  const ago = (iso: string) => `${plural(daysSince(iso, now), "day")} ago`;
+  if (o.platform && carried[o.platform]) {
+    const from = carried[o.platform]!;
+    const stale = isStale(from, now);
+    return {
+      text: `From the ${formatShortDate(from)} pull${stale ? ` · ${ago(from)}` : ""}`,
+      stale,
+    };
+  }
+  const own = isStale(o.startedAt, now)
+    ? `Last pulled ${formatShortDate(o.startedAt)} · ${ago(o.startedAt)}`
+    : `Last pulled ${formatShortDate(o.startedAt)}, ${formatClock(o.startedAt)}`;
+  const older = o.platform ? [] : (Object.entries(carried) as [Platform, string][]);
+  // "TikTok, LinkedIn from 16 Nov · YouTube from 2 Nov": grouped by date, oldest last.
+  const byDate = new Map<string, Platform[]>();
+  for (const [p, d] of [...older].sort((a, b) => b[1].localeCompare(a[1])))
+    byDate.set(d, [...(byDate.get(d) ?? []), p]);
+  const parts = [...byDate].map(
+    ([d, ps]) => `${ps.map((p) => o.names[p]).join(", ")} from ${formatShortDate(d)}`,
+  );
+  const oldest = [o.startedAt, ...older.map(([, d]) => d)].sort()[0];
+  return { text: [own, ...parts].join(" · "), stale: isStale(oldest, now) };
+}
+
 // ───────────────────────────────────────────── 05e What's new
 export type WhatsNew = {
   newPostIds: Set<string>;
@@ -398,6 +444,8 @@ export type WhatsNew = {
   rankDelta: Map<string, number>;
   /** "21 new posts · Hims moved up to #1 · new tag #dryjanuary" */
   summary: string[];
+  /** 18b: platforms not pulled this time (carried over): left out of the comparison. */
+  notPulled: Platform[];
 };
 
 /**
@@ -411,10 +459,19 @@ export function whatsNew(
   latestStartedAt: string,
   previousStartedAt: string,
   brands: BrandRef[],
+  carried: { latest?: Carried; previous?: Carried } = {},
 ): WhatsNew {
-  const before = new Set(previous.map((p) => `${p.platform}:${p.external_id}`));
-  const now = filterPosts(latest, f, latestStartedAt);
-  const then = filterPosts(previous, f, previousStartedAt);
+  // 18b: platforms carried into the latest pull weren't pulled: compare them with themselves (the same
+  // copy), so they add no new posts, no new tags and move no ranks. Only pulled platforms change.
+  const notPulled = Object.keys(carried.latest ?? {}) as Platform[];
+  const comparable = [
+    ...previous.filter((p) => !notPulled.includes(p.platform)),
+    ...latest.filter((p) => notPulled.includes(p.platform)),
+  ];
+  const thenCarried = { ...(carried.previous ?? {}), ...(carried.latest ?? {}) };
+  const before = new Set(comparable.map((p) => `${p.platform}:${p.external_id}`));
+  const now = filterPosts(latest, f, latestStartedAt, carried.latest);
+  const then = filterPosts(comparable, f, previousStartedAt, thenCarried);
   const fresh = now.filter((p) => !before.has(`${p.platform}:${p.external_id}`));
 
   const inScope = f.brandIds.length ? brands.filter((b) => f.brandIds.includes(b.id)) : brands;
@@ -435,7 +492,7 @@ export function whatsNew(
     summary.push(`${name} moved up to #${rankNow.get(mover[0])}`);
   }
 
-  const oldTags = new Set(previous.flatMap((p) => p.hashtags ?? []));
+  const oldTags = new Set(comparable.flatMap((p) => p.hashtags ?? []));
   const counts = new Map<string, number>();
   for (const p of now)
     for (const t of p.hashtags ?? []) if (!oldTags.has(t)) counts.set(t, (counts.get(t) ?? 0) + 1);
@@ -447,5 +504,15 @@ export function whatsNew(
     newCount: fresh.length,
     rankDelta,
     summary,
+    notPulled,
   };
+}
+
+/** "TikTok and LinkedIn weren’t pulled this time, so they aren’t compared." */
+export function notPulledNote(platforms: Platform[]): string {
+  const names = platforms.map((p) => PLATFORM_NAME[p]);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
+  return `${list} ${names.length > 1 ? "weren’t" : "wasn’t"} pulled this time, so ${
+    names.length > 1 ? "they aren’t" : "it isn’t"
+  } compared.`;
 }

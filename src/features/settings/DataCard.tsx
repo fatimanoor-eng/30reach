@@ -233,7 +233,7 @@ function ExportList({ onDone }: { onDone: () => void }) {
         }
         downloadCsv(
           file("posts"),
-          postsCsv(latest.posts, competitors.data ?? [], latest.startedAt),
+          postsCsv(latest.posts, competitors.data ?? [], latest.startedAt, latest.carried),
         );
       } else if (kind === "ideas") {
         downloadCsv(file("ideas"), ideasCsv(await fetchIdeasForExport(c.id)));

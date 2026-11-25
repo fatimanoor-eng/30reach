@@ -39,6 +39,8 @@ export function postsCsv(
   posts: ExportPost[],
   brands: { id: string; name: string }[],
   pullStartedAt: string,
+  /** 18b: platforms copied from an older pull → that pull's date (their real "pull from"). */
+  carried: Record<string, string> = {},
 ): string {
   const name = new Map(brands.map((b) => [b.id, b.name]));
   const rows = [...posts].sort((a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? ""));
@@ -57,7 +59,7 @@ export function postsCsv(
     { label: "Caption", value: (p) => p.caption },
     { label: "Hashtags", value: (p) => (p.hashtags ?? []).map((t) => `#${t}`).join(" ") },
     { label: "Link", value: (p) => p.url },
-    { label: "Pull from (UTC)", value: () => pullStartedAt },
+    { label: "Pull from (UTC)", value: (p) => carried[p.platform] ?? pullStartedAt },
   ];
   return toCsv(rows, cols);
 }

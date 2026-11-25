@@ -205,7 +205,7 @@ export function useIdeaCount(clientId: string | undefined) {
 export async function fetchLatestPullPosts(clientId: string) {
   const { data: pull, error } = await supabase
     .from("pulls")
-    .select("id, started_at")
+    .select("id, started_at, carried")
     .eq("client_id", clientId)
     .eq("is_test", false)
     .in("status", ["done", "partial"])
@@ -214,7 +214,7 @@ export async function fetchLatestPullPosts(clientId: string) {
     .maybeSingle();
   if (error) throw error;
   if (!pull) return null;
-  const p = pull as { id: string; started_at: string };
+  const p = pull as { id: string; started_at: string; carried?: Record<string, string> | null };
   const { data, error: postsError } = await supabase
     .from("posts")
     .select(
@@ -223,7 +223,11 @@ export async function fetchLatestPullPosts(clientId: string) {
     .eq("pull_id", p.id)
     .eq("hidden", false);
   if (postsError) throw postsError;
-  return { startedAt: p.started_at, posts: (data ?? []) as ExportPost[] };
+  return {
+    startedAt: p.started_at,
+    carried: p.carried ?? {},
+    posts: (data ?? []) as ExportPost[],
+  };
 }
 
 export async function fetchIdeasForExport(clientId: string) {

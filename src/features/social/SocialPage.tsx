@@ -76,7 +76,14 @@ export function SocialPage({ platform }: { platform: Platform }) {
         crumbs={crumbs}
         actions={
           <>
-            {latest && <LastPulled startedAt={latest.started_at} className="hidden md:flex" />}
+            {latest && (
+              <LastPulled
+                startedAt={latest.started_at}
+                carried={latest.carried}
+                platform={platform}
+                className="hidden md:flex"
+              />
+            )}
             {/* Wrapper hides it on mobile: SegmentedControl sets inline-flex, which beats `hidden`. */}
             <span className="hidden md:inline-flex">
               <DateRangeControl />
@@ -93,7 +100,12 @@ export function SocialPage({ platform }: { platform: Platform }) {
       </div>
       {latest && (
         <div className="mb-4 flex items-center justify-between gap-3 md:hidden">
-          <LastPulled startedAt={latest.started_at} className="flex min-w-0" />
+          <LastPulled
+            startedAt={latest.started_at}
+            carried={latest.carried}
+            platform={platform}
+            className="flex min-w-0"
+          />
           <DateRangeSelect />
         </div>
       )}
@@ -185,6 +197,7 @@ function SocialBody({
     latestPosts.data,
     { platform, days, brandIds: [] },
     latest.started_at,
+    latest.carried,
   );
   const posts = selected.length
     ? allBrandPosts.filter((p) => selected.includes(p.competitor_id))

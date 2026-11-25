@@ -81,7 +81,11 @@ function Dashboard({
         title="Overview"
         actions={
           <>
-            <LastPulled startedAt={latest.started_at} className="hidden md:flex" />
+            <LastPulled
+              startedAt={latest.started_at}
+              carried={latest.carried}
+              className="hidden md:flex"
+            />
             {/* Wrapper hides it on mobile: SegmentedControl sets inline-flex, which beats `hidden`. */}
             <span className="hidden md:inline-flex">
               <DateRangeControl />
@@ -90,7 +94,11 @@ function Dashboard({
           </>
         }
       />
-      <LastPulled startedAt={latest.started_at} className="-mt-3 mb-4 flex md:hidden" />
+      <LastPulled
+        startedAt={latest.started_at}
+        carried={latest.carried}
+        className="-mt-3 mb-4 flex md:hidden"
+      />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {/* Wrapper hides it on phones: SegmentedControl sets inline-flex, which beats `hidden`. */}
         <span className="hidden md:inline-flex">
@@ -125,7 +133,7 @@ function Dashboard({
     );
   }
 
-  const posts = filterPosts(latestPosts.data, f, latest.started_at);
+  const posts = filterPosts(latestPosts.data, f, latest.started_at, latest.carried);
   const news =
     previous && previousPosts.data
       ? whatsNew(
@@ -135,6 +143,7 @@ function Dashboard({
           latest.started_at,
           previous.started_at,
           brands,
+          { latest: latest.carried, previous: previous.carried },
         )
       : null;
 
@@ -146,6 +155,7 @@ function Dashboard({
           latestPullId={latest.id}
           previousStartedAt={previous.started_at}
           summary={news.summary}
+          notPulled={news.notPulled}
         />
       )}
 

@@ -236,9 +236,12 @@ export function parseYouTubePage(body: YouTubePageBody): PageResult {
  */
 export const YOUTUBE_KEEP_DAYS = 30;
 export function youtubeExpiredPulls(
-  pulls: readonly { id: string; started_at: string }[],
+  pulls: readonly { id: string; started_at: string; carried?: { youtube?: string } | null }[],
   nowMs: number,
 ): string[] {
   const limit = nowMs - YOUTUBE_KEEP_DAYS * 24 * 60 * 60 * 1000;
-  return pulls.filter((p) => Date.parse(p.started_at) < limit).map((p) => p.id);
+  // A pull's YouTube data may be carried from an older pull (18b): its own date counts.
+  return pulls
+    .filter((p) => Date.parse(p.carried?.youtube ?? p.started_at) < limit)
+    .map((p) => p.id);
 }

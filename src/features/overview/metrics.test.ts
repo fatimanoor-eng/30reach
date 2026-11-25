@@ -7,7 +7,9 @@ import {
   type Filters,
   isStale,
   kpis,
+  lastPulledLine,
   leaderboard,
+  notPulledNote,
   type OverviewPost,
   formatName,
   postStats,
@@ -307,6 +309,95 @@ describe("Facebook (Slice 16b)", () => {
     expect(formatName("carousel", [fb])).toBe("Albums");
     expect(formatName("carousel", [fb, post({ platform: "instagram", format: "carousel" })])).toBe(
       "Carousels",
+    );
+  });
+});
+
+describe("carried platforms (Slice 18b)", () => {
+  const NOW = Date.parse("2026-11-25T12:00:00Z");
+  const names = {
+    instagram: "Instagram",
+    tiktok: "TikTok",
+    linkedin: "LinkedIn",
+    facebook: "Facebook",
+    x: "X",
+    youtube: "YouTube",
+  } as const;
+  const f: Filters = { platform: "all", days: 30, brandIds: [] };
+
+  it("the Last pulled line names carried platforms, and a carried page says its own pull", () => {
+    expect(
+      lastPulledLine({
+        startedAt: "2026-11-25T10:00:00Z",
+        carried: { tiktok: "2026-11-16T16:20:00Z", linkedin: "2026-11-16T16:20:00Z" },
+        names,
+        now: NOW,
+      }),
+    ).toMatchObject({
+      // (the clock is in the machine's time zone)
+      text: expect.stringMatching(/^Last pulled 25 Nov, \d\d:\d\d · TikTok, LinkedIn from 16 Nov$/),
+      stale: true, // 16 Nov is 8 days ago: the oldest data shown decides
+    });
+    expect(
+      lastPulledLine({
+        startedAt: "2026-11-25T10:00:00Z",
+        carried: { tiktok: "2026-11-20T16:20:00Z" },
+        platform: "tiktok",
+        names,
+        now: NOW,
+      }),
+    ).toEqual({ text: "From the 20 Nov pull", stale: false });
+    expect(
+      lastPulledLine({
+        startedAt: "2026-11-25T10:00:00Z",
+        carried: { tiktok: "2026-11-16T16:20:00Z" },
+        platform: "tiktok",
+        names,
+        now: NOW,
+      }),
+    ).toEqual({ text: "From the 16 Nov pull · 8 days ago", stale: true });
+    expect(
+      lastPulledLine({
+        startedAt: "2026-11-25T10:00:00Z",
+        carried: {},
+        platform: "instagram",
+        names,
+        now: NOW,
+      }),
+    ).toMatchObject({
+      text: expect.stringMatching(/^Last pulled 25 Nov, \d\d:\d\d$/),
+      stale: false,
+    });
+  });
+
+  it("a carried platform keeps its own 30-day window", () => {
+    // Posted 20 Oct: outside 30 days before 25 Nov, inside 30 days before 16 Nov.
+    const old = post({ platform: "tiktok", posted_at: "2026-10-20T10:00:00Z" });
+    expect(filterPosts([old], f, "2026-11-25T10:00:00Z")).toHaveLength(0);
+    expect(
+      filterPosts([old], f, "2026-11-25T10:00:00Z", { tiktok: "2026-11-16T16:20:00Z" }),
+    ).toHaveLength(1);
+  });
+
+  it("What's new compares only the pulled platforms", () => {
+    const ig = post({ id: "ig-new", platform: "instagram", posted_at: "2026-11-24T10:00:00Z" });
+    // TikTok carried: the copy in the latest pull isn't "new", even though it's not in the previous one.
+    const tt = post({
+      id: "tt",
+      platform: "tiktok",
+      external_id: "tt-1",
+      posted_at: "2026-11-14T10:00:00Z",
+    });
+    const w = whatsNew([ig, tt], [], f, "2026-11-25T10:00:00Z", "2026-11-16T16:20:00Z", brands, {
+      latest: { tiktok: "2026-11-16T16:20:00Z" },
+    });
+    expect([...w.newPostIds]).toEqual(["ig-new"]);
+    expect(w.notPulled).toEqual(["tiktok"]);
+    expect(notPulledNote(["tiktok", "linkedin"])).toBe(
+      "TikTok and LinkedIn weren’t pulled this time, so they aren’t compared.",
+    );
+    expect(notPulledNote(["youtube"])).toBe(
+      "YouTube wasn’t pulled this time, so it isn’t compared.",
     );
   });
 });

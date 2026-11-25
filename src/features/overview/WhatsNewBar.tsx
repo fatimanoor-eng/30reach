@@ -1,9 +1,11 @@
+import type { Platform } from "../../lib/platforms";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { useAskBlip } from "../../app/ask-blip-context";
 import { formatShortDate } from "../../lib/format";
 import { WHAT_CHANGED } from "../blip/blip-rules";
+import { notPulledNote } from "./metrics";
 
 const DISMISSED_KEY = "30reach:whats-new-dismissed"; // = id of the latest pull it was dismissed for
 
@@ -23,10 +25,13 @@ export function WhatsNewBar({
   latestPullId,
   previousStartedAt,
   summary,
+  notPulled = [],
 }: {
   latestPullId: string;
   previousStartedAt: string;
   summary: string[];
+  /** 18b: platforms not pulled this time (carried over), left out of the comparison. */
+  notPulled?: Platform[];
 }) {
   const askBlip = useAskBlip();
   const location = useLocation();
@@ -61,7 +66,12 @@ export function WhatsNewBar({
       <span className="rounded-sm bg-flash px-1.5 py-0.5 font-mono text-label text-ink uppercase">
         New since {formatShortDate(previousStartedAt)}
       </span>
-      <p className="min-w-0 flex-1 text-body-sm">{summary.join(" · ")}</p>
+      <p className="min-w-0 flex-1 text-body-sm">
+        {summary.join(" · ")}
+        {notPulled.length > 0 && (
+          <span className="block text-small text-sidebar-text">{notPulledNote(notPulled)}</span>
+        )}
+      </p>
       <div className="flex items-center gap-1">
         <button
           type="button"

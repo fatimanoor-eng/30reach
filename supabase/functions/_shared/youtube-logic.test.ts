@@ -259,5 +259,18 @@ describe("30-day rule (YouTube developer policies)", () => {
         now,
       ),
     ).toEqual(["old"]);
+    // 18b: a new pull whose YouTube was carried from an old pull counts from that date.
+    expect(
+      youtubeExpiredPulls(
+        [
+          {
+            id: "new",
+            started_at: "2026-11-24T10:00:00Z",
+            carried: { youtube: "2026-10-20T10:00:00Z" },
+          },
+        ],
+        now,
+      ),
+    ).toEqual(["new"]);
   });
 });

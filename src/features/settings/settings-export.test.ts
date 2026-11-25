@@ -192,3 +192,31 @@ describe("posts CSV with Facebook (Slice 16c)", () => {
     expect(album).toContain("WeightWatchers,facebook,carousel,2026-11-14T15:00:00Z,59,11,,11,no,");
   });
 });
+
+describe("posts CSV with carried platforms (18b)", () => {
+  it("a carried platform's rows say the pull its data comes from", () => {
+    const csv = postsCsv(
+      [
+        {
+          competitor_id: "c1",
+          platform: "tiktok",
+          format: "video",
+          posted_at: "2026-11-10T10:00:00Z",
+          url: "https://tiktok.com/@a/1",
+          caption: "x",
+          hashtags: [],
+          likes: 1,
+          comments: 0,
+          views: 10,
+          shares: 0,
+          counts_hidden: false,
+        },
+      ],
+      [{ id: "c1", name: "Hims" }],
+      "2026-11-25T10:00:00Z",
+      { tiktok: "2026-11-16T16:20:00Z" },
+    );
+    expect(csv).toContain("2026-11-16T16:20:00Z");
+    expect(csv).not.toContain("2026-11-25T10:00:00Z");
+  });
+});

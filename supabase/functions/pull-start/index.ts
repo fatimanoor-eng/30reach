@@ -3,7 +3,8 @@
 // POST { clientId, platforms?: Platform[] (instagram … youtube), preview?: boolean,
 //        test?: { competitorId, platform } }   ← test mode: one brand × one platform, 2-page cap
 //
-// → { status: "preview" | "insufficient" | "started", estimate, credits, lastPullAt, brands, pullId? }
+// → { status: "preview" | "insufficient" | "started", estimate, credits, lastPullAt, brands,
+//     youtubeLimitToday (18b: a YouTube task hit Google's daily limit today, Pacific), pullId? }
 // → 404 { error: "no_client" } · 409 { error: "client_archived" } (Slice 17c: archived clients aren't pulled)
 //   · 409 { error: "demo_client" } (Slice 17f: the Demo client's data is made up; pulls are off)
 // → 409 { status: "running", pullId } if a pull is already running for this client;
@@ -17,6 +18,7 @@
 // Credits check uses the MAXIMUM possible cost (Σ task page cap × 2; LinkedIn tasks cap at 2 pages,
 // Facebook keeps the pull's cap of 4), so a pull can't overspend.
 
+import { lastRealCredits, pacificDayStart } from "../_shared/carry-logic.ts";
 import {
   estimate,
   type RunningPull,
@@ -26,7 +28,6 @@ import {
   PLATFORMS,
   TARGET_COLUMN,
   type TaskKey,
-  taskKey,
   TEST_PAGE_CAP,
   trackedPlatforms,
   WINDOW_DAYS,
@@ -127,29 +128,37 @@ export default {
     }
 
     // Estimate from the last successful real pull (per brand × platform), else spike defaults.
-    const { data: lastPull } = await admin
+    // 18b: a platform carried over (not ticked last time) costs 0 there, so read the pull that really
+    // pulled it: the newest of the last two real pulls without a "carried" task for it.
+    const { data: lastPulls } = await admin
       .from("pulls")
       .select("id, started_at")
       .eq("client_id", clientId)
       .eq("is_test", false)
       .in("status", ["done", "partial"])
       .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const lastCredits = new Map<string, number>();
-    if (lastPull) {
+      .limit(2);
+    const lastPull = lastPulls?.[0] ?? null;
+    const recent: Parameters<typeof lastRealCredits>[0][number][] = [];
+    for (const p of lastPulls ?? []) {
       const { data: lastTasks } = await admin
         .from("pull_tasks")
-        .select("competitor_id, platform, credits_used")
-        .eq("pull_id", lastPull.id)
+        .select("competitor_id, platform, credits_used, error_code")
+        .eq("pull_id", p.id)
         .eq("status", "done");
-      for (const t of lastTasks ?? []) {
-        lastCredits.set(
-          taskKey({ competitorId: t.competitor_id, platform: t.platform }),
-          t.credits_used,
-        );
-      }
+      recent.push({ tasks: lastTasks ?? [] });
     }
+    const lastCredits = lastRealCredits(recent);
+
+    // A YouTube task hit the daily limit today (any client: the quota is the whole project's), Pacific day.
+    const { data: quotaHit } = await admin
+      .from("pull_tasks")
+      .select("id")
+      .eq("platform", "youtube")
+      .eq("error_code", "quota")
+      .gte("finished_at", new Date(pacificDayStart(Date.now())).toISOString())
+      .limit(1);
+    const youtubeLimitToday = (quotaHit ?? []).length > 0;
     const pageCap = isTest ? TEST_PAGE_CAP : PAGE_CAP;
     const est = estimate(tasks, lastCredits, pageCap);
 
@@ -162,6 +171,7 @@ export default {
       estimate: est,
       credits,
       lastPullAt: lastPull?.started_at ?? null,
+      youtubeLimitToday,
       brands: new Set(tasks.map((t) => t.competitorId)).size,
       pageCap,
       windowDays: WINDOW_DAYS,

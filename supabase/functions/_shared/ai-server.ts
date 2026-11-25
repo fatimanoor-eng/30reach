@@ -159,7 +159,7 @@ export async function loadPull(
     db.from("clients").select("name").eq("id", clientId).maybeSingle(),
     db
       .from("pulls")
-      .select("id, started_at")
+      .select("id, started_at, carried")
       .eq("client_id", clientId)
       .eq("is_test", false)
       .in("status", ["done", "partial"])
@@ -170,7 +170,11 @@ export async function loadPull(
   if (pullsError) return { ok: false, error: "load_failed" };
   if (!pulls?.length) return { ok: false, error: "no_pull" };
 
-  const [latest, prev] = pulls as { id: string; started_at: string }[];
+  const [latest, prev] = pulls as {
+    id: string;
+    started_at: string;
+    carried?: Partial<Record<Platform, string>> | null;
+  }[];
   const [brands, posts, prevPosts, tasks] = await Promise.all([
     db.from("competitors").select("id, name").eq("client_id", clientId),
     db.from("posts").select(POST_COLUMNS).eq("pull_id", latest.id).eq("hidden", false),

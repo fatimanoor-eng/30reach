@@ -22,7 +22,13 @@ import type { Competitor } from "../../lib/useCompetitors";
 import { CREDITS_QUERY_KEY, creditsLeft } from "../../lib/useCredits";
 import { PullContext, type PullOwner, type PullUiState } from "./pull-context";
 import { PullProgressDialog } from "./PullProgressDialog";
-import { otherPullingText, problemSentence, targetNoun, tookLabel } from "./pull-text";
+import {
+  onlyYouTubeLimit,
+  otherPullingText,
+  problemSentence,
+  targetNoun,
+  tookLabel,
+} from "./pull-text";
 import { RefreshDialog } from "./RefreshDialog";
 
 const deps = { listTasks, pullTask, pullFinish };
@@ -113,7 +119,10 @@ export function PullProvider({ children }: { children: ReactNode }) {
           : undefined;
         toast.show({
           title: `${label} finished with ${plural(r.problems.length, "problem")}`,
-          detail: `${problemSentence(r.problems)} Everything else updated.`,
+          // YouTube's daily limit (18b) already says the other platforms were pulled.
+          detail: onlyYouTubeLimit(r.problems)
+            ? problemSentence(r.problems)
+            : `${problemSentence(r.problems)} Everything else updated.`,
           pose: "error",
           action: handleProblem
             ? {
@@ -133,7 +142,9 @@ export function PullProvider({ children }: { children: ReactNode }) {
       } else {
         toast.show({
           title: `${label} failed. Nothing changed.`,
-          detail: problemSentence(r.problems) || "No posts came back from Firecrawl.",
+          detail:
+            problemSentence(r.problems, { othersPulled: false }) ||
+            "No posts came back from Firecrawl.",
           pose: "error",
           action: { label: "Try again", onClick: openRefresh },
         });

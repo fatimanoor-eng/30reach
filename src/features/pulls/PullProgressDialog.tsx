@@ -6,7 +6,12 @@ import type { Platform } from "../../lib/pulls/api";
 import type { TaskProgress } from "../../lib/pulls/run-pull";
 import { MQ_TABLET_UP, useMediaQuery } from "../../lib/useMediaQuery";
 import { usePull } from "./pull-context";
-import { mobileProgressLine, PLATFORM_LABEL } from "./pull-text";
+import {
+  mobileProgressLine,
+  PLATFORM_LABEL,
+  YOUTUBE_LIMIT,
+  YOUTUBE_LIMIT_ALONE,
+} from "./pull-text";
 
 /**
  * 05b Pulling — in progress (card) / M04 (sheet). Old data stays visible underneath.
@@ -63,12 +68,18 @@ export function PullProgressDialog() {
             {tasks.length ? mobileProgressLine(tasks) : "Warming up…"}
           </p>
         )}
+        {/* 18b: YouTube's free daily allowance ran out during this pull. */}
+        {tasks.some((t) => t.errorCode === "quota") && (
+          <p role="status" className="text-small text-spark-text">
+            {tasks.some((t) => t.platform !== "youtube") ? YOUTUBE_LIMIT : YOUTUBE_LIMIT_ALONE}
+          </p>
+        )}
       </div>
     </ResponsiveDialog>
   );
 }
 
-/** Brand × platform grid: ✓ done · "pulling" · "waiting" · "not found" / "failed" in red. */
+/** Brand × platform grid: ✓ done · "pulling" · "waiting" · "not found" / "daily limit" / "failed" in red. */
 function BrandGrid({ tasks }: { tasks: TaskProgress[] }) {
   const platforms = PLATFORMS.filter((p) => tasks.some((t) => t.platform === p));
   const brands = [...new Set(tasks.map((t) => t.brand))];
@@ -123,7 +134,11 @@ function Cell({ task, platform }: { task?: TaskProgress; platform: Platform }) {
       <span className="font-mono text-label text-muted">waiting</span>
     ) : (
       <span className="font-mono text-label text-spark">
-        {task.errorCode === "not_found" ? "not found" : "failed"}
+        {task.errorCode === "not_found"
+          ? "not found"
+          : task.errorCode === "quota"
+            ? "daily limit"
+            : "failed"}
       </span>
     );
   return (

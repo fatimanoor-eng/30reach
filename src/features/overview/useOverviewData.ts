@@ -1,9 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabase";
 import { useClient } from "../../lib/useClient";
+import type { Platform } from "../../lib/platforms";
 import type { OverviewPost } from "./metrics";
 
-export type SavedPull = { id: string; started_at: string; status: "done" | "partial" };
+export type SavedPull = {
+  id: string;
+  started_at: string;
+  status: "done" | "partial";
+  /** 18b: platforms copied from an older pull (not pulled this time) → the date their data is from. */
+  carried?: Partial<Record<Platform, string>> | null;
+};
 
 const POST_COLUMNS =
   "id, competitor_id, platform, external_id, url, posted_at, format, caption, hashtags, likes, comments, views, shares, counts_hidden, thumbnail_path, duration_seconds";
@@ -33,7 +40,7 @@ export function useSavedPulls() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pulls")
-        .select("id, started_at, status")
+        .select("id, started_at, status, carried")
         .eq("client_id", clientId!)
         .eq("is_test", false)
         .in("status", ["done", "partial"])
@@ -55,12 +62,14 @@ export function usePullPosts(pullId: string | null | undefined) {
     queryFn: async () => {
       const [{ data, error }, { data: pull }] = await Promise.all([
         supabase.from("posts").select(POST_COLUMNS).eq("pull_id", pullId!).eq("hidden", false),
-        supabase.from("pulls").select("started_at").eq("id", pullId!).maybeSingle(),
+        supabase.from("pulls").select("started_at, carried").eq("id", pullId!).maybeSingle(),
       ]);
       if (error) throw error;
+      // A carried YouTube (18b) counts from its own date, not this pull's.
+      const p = pull as { started_at?: string; carried?: { youtube?: string } | null } | null;
       return withoutExpiredYouTube(
         (data ?? []) as OverviewPost[],
-        (pull as { started_at?: string } | null)?.started_at,
+        p?.carried?.youtube ?? p?.started_at,
       );
     },
   });

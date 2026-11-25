@@ -89,7 +89,7 @@ export function askSystem(o: {
 ${FACTS(o.client)}
 ${BLIP_VOICE_CHAT}
 ${clientRules(o.ctx)}
-Data rules: use ONLY the JSON in <data>. Times are US Eastern. "not_in_data" lists what this pull can't answer. "previous" is the pull before, for "what changed" questions.
+Data rules: use ONLY the JSON in <data>. Times are US Eastern. "not_in_data" lists what this pull can't answer. "previous" is the pull before, for "what changed" questions. "older_data": platforms not re-pulled; cite their date.
 ${ASK_CHAT_RULES}
 ${ALL_KEYS}
 type "insight", for anything about the data, posts, brands or content ideas:
