@@ -363,7 +363,15 @@ export default {
         (platform === "x" ? followersOf(competitor!.id) : null) ??
         task.followers ??
         (platform === "facebook" ? (competitor?.facebook_followers ?? null) : null),
-      error_code: !decision.more && decision.reason === "budget" ? "budget" : null,
+      // X leader (17g fix): "page_cap" when the combined search stopped at its 3 pages with more to read,
+      // so the X page can say it shows only the latest ~60 posts. A done task's code isn't a problem.
+      error_code: decision.more
+        ? null
+        : decision.reason === "budget"
+          ? "budget"
+          : platform === "x" && !xSolo && decision.reason === "page_cap"
+            ? "page_cap"
+            : null,
       finished_at: decision.more ? null : new Date().toISOString(),
     });
     if (!decision.more)

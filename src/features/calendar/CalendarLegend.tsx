@@ -1,13 +1,16 @@
-import { PLATFORMS } from "../../lib/platforms";
 import { PLATFORM_BAR, PLATFORM_LABEL, STATUS_LABEL, STATUSES } from "./calendar-ui";
 import { AiTag, StatusDot } from "./CardTile";
 import { EventToggles } from "./EventToggles";
+import { useClientPlatforms } from "./platform-options";
 import type { EventKind } from "./events";
 import type { EventToggles as Toggles } from "./event-toggles";
 
 const Sep = () => <li aria-hidden="true">·</li>;
 
-/** 08 legend row (tablet and desktop): platform bars · status dots · AI tag, then the SHOW toggles. */
+/**
+ * 08 legend row (tablet and desktop): platform bars (the client's platforms only) · status dots · AI tag,
+ * then the SHOW toggles.
+ */
 export function CalendarLegend({
   toggles,
   onToggle,
@@ -15,13 +18,14 @@ export function CalendarLegend({
   toggles: Toggles;
   onToggle: (kind: EventKind) => void;
 }) {
+  const platforms = useClientPlatforms();
   return (
     <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
       <ul
         aria-label="Legend"
         className="flex flex-wrap items-center gap-x-5 gap-y-2 text-small text-muted"
       >
-        {PLATFORMS.map((p) => (
+        {platforms.map((p) => (
           <li key={p} className="flex items-center gap-1.5">
             <span aria-hidden="true" className={`h-3 w-[3px] ${PLATFORM_BAR[p]}`} />
             {PLATFORM_LABEL[p]}

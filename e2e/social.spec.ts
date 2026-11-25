@@ -275,6 +275,11 @@ test("X page (Slice 17g) — views, likes, replies, reposts; text posts are Post
     mobile ? /Social/ : /X/,
   );
   await expect(page.getByRole("heading", { name: "Top posts on X" })).toBeVisible();
+  // Only Ro and LifeMD have X accounts (17g fix: not "6 brands"). Captions are hidden on phones.
+  if (!mobile)
+    await expect(page.getByText("2 brands · 30 days").filter({ visible: true })).toBeVisible();
+  // This pull's search didn't reach its cap: no note.
+  await expect(page.getByText(/Showing the latest ~60 X posts/)).toHaveCount(0);
   if (!mobile)
     await expect(
       page.getByText(/likes \+ replies \/ post · \d+ avg reposts/).filter({ visible: true }),
@@ -298,6 +303,23 @@ test("X page (Slice 17g) — views, likes, replies, reposts; text posts are Post
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("X", { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "Cancel" }).click();
+});
+
+test("X: a note when the pull's search stopped at its cap (17g fix)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  await setup(page, [LATEST], { x: true });
+  await page.route("**/rest/v1/pull_tasks**", (r) =>
+    r.fulfill(json(r.request().url().includes("error_code=eq.page_cap") ? [{ id: "t-x" }] : [])),
+  );
+  await ready(page, "/x");
+  await expect(
+    page.getByText(
+      "Showing the latest ~60 X posts across brands. A pull reads at most 3 pages of X search for all brands together, so older posts in this range aren’t counted.",
+    ),
+  ).toBeVisible();
+  // Other platforms never show it.
+  await ready(page, "/instagram");
+  await expect(page.getByText(/Showing the latest ~60 X posts/)).toHaveCount(0);
 });
 
 test("platforms nobody has an account on are hidden; a direct link keeps its empty state", async ({

@@ -622,6 +622,45 @@ test("calendar — LinkedIn card: Blue bar, LinkedIn tint and formats (Slice 15c
   await expect(dialog.getByRole("listbox", { name: "Format" })).toBeVisible();
 });
 
+test("calendar — legend and platform chips show only the client's platforms (17g fix)", async ({
+  page,
+}) => {
+  await setup(page);
+  // This client tracks Instagram and TikTok only (registered after setup, so it wins).
+  await page.route("**/rest/v1/client_platforms**", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        ["instagram", "tiktok"].map((platform) => ({
+          platform,
+          state: "on",
+          source: "website",
+          account_handle: "obuhealth",
+          account_url: null,
+        })),
+      ),
+    }),
+  );
+  await open(page);
+  if (isDesktop(page)) {
+    const legend = page.getByRole("list", { name: "Legend" });
+    await expect(legend).toContainText("Instagram");
+    await expect(legend).toContainText("TikTok");
+    await expect(legend).not.toContainText("LinkedIn");
+    await expect(legend).not.toContainText("Facebook");
+  }
+  // A LinkedIn card keeps LinkedIn in its chip; the other untracked platforms aren't offered.
+  await open(page, "/calendar?date=2026-12-24&card=k10");
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Platform: LinkedIn" }).click();
+  await expect(dialog.getByRole("listbox", { name: "Platform" }).getByRole("option")).toHaveText([
+    "Instagram",
+    "TikTok",
+    "LinkedIn",
+  ]);
+});
+
 test("calendar — Facebook card: Fresh bar, Facebook tint, Album; Approved pill stays visible (Slice 16c)", async ({
   page,
 }, info) => {

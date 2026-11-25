@@ -49,6 +49,30 @@ export function usePullPosts(pullId: string | null | undefined) {
   });
 }
 
+/**
+ * Did this pull's X search stop at its page cap (Slice 17g fix)? pull-task marks the X leader task
+ * `error_code = 'page_cap'` then. False for pulls made before that, and while it loads.
+ */
+export function useXCapped(pullId: string | null | undefined, enabled = true) {
+  const q = useQuery({
+    queryKey: ["x_capped", pullId],
+    enabled: enabled && !!pullId,
+    staleTime: Infinity, // a saved pull never changes
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pull_tasks")
+        .select("id")
+        .eq("pull_id", pullId!)
+        .eq("platform", "x")
+        .eq("error_code", "page_cap")
+        .limit(1);
+      if (error) throw error;
+      return (data ?? []).length > 0;
+    },
+  });
+  return q.data === true;
+}
+
 /** Signed URLs for thumbnails in the private post-thumbs bucket (1 hour). */
 export function useThumbnails(paths: string[]) {
   const key = [...paths].sort();

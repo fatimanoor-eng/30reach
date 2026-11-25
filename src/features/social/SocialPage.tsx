@@ -18,13 +18,19 @@ import {
   PlatformNav,
   PlatformPicker,
 } from "../overview/OverviewControls";
-import { type SavedPull, usePullPosts, useSavedPulls } from "../overview/useOverviewData";
+import {
+  type SavedPull,
+  usePullPosts,
+  useSavedPulls,
+  useXCapped,
+} from "../overview/useOverviewData";
 import { RefreshButton } from "../pulls/RefreshButton";
 import { FormatsSideBySideCard, HashtagOverlapCard, HeadToHeadCard } from "./CompareCards";
 import { BestTimesCard, FormatsCard, HashtagsCard, SocialTopPosts } from "./SocialCards";
 import {
   facebookCapNote,
   facebookCappedBrands,
+  X_CAP_NOTE,
   formatsByBrand,
   formatStats,
   hashtagOverlap,
@@ -160,6 +166,7 @@ function SocialBody({
   const { days } = useOverviewFilters();
   const { selected } = useBrandSelection();
   const latestPosts = usePullPosts(latest.id);
+  const xCapped = useXCapped(latest.id, platform === "x");
 
   if (latestPosts.isError) {
     return (
@@ -212,11 +219,14 @@ function SocialBody({
     );
   }
 
-  // Facebook stops at 12 posts per brand: say so when that cut the range (Slice 16b).
+  // Facebook stops at 12 posts per brand (16b); X at ~60 posts across brands (17g): say so when that
+  // cut the range.
   const capNote =
     platform === "facebook"
       ? facebookCapNote(facebookCappedBrands(latestPosts.data, chosen.length ? chosen : brands))
-      : null;
+      : platform === "x" && xCapped
+        ? X_CAP_NOTE
+        : null;
   const cap = capNote && (
     <p className="mt-3 flex items-start gap-2 text-small text-muted">
       <Info size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
@@ -239,7 +249,16 @@ function SocialBody({
     );
   }
 
-  const kpis = socialKpis({ posts, allBrandPosts, brands, selected, platform, days });
+  // "N brands" and "#2 of N" count brands with an account on this platform, not every competitor.
+  const onPlatform = brands.filter((b) => competitors.some((c) => c.id === b.id && hasHandle(c)));
+  const kpis = socialKpis({
+    posts,
+    allBrandPosts,
+    brands: onPlatform,
+    selected,
+    platform,
+    days,
+  });
   return (
     <>
       <div className="mt-6 grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">

@@ -368,3 +368,10 @@ export function facebookCapNote(capped: BrandRef[]): string | null {
     names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
   return `Showing the latest ${FACEBOOK_POST_CAP} Facebook posts for ${list}. A pull reads at most ${FACEBOOK_POST_CAP} per brand, so older posts in this range aren’t counted.`;
 }
+
+// ───────────────────────────────────────────── X search cap (17g fix)
+/** One X search covers every brand: at most 3 pages × ~20 posts (pull-logic X_PAGE_CAP). */
+export const X_POST_CAP = 60;
+
+/** The note under the X page's cards when the pull's combined search stopped at its cap. */
+export const X_CAP_NOTE = `Showing the latest ~${X_POST_CAP} X posts across brands. A pull reads at most 3 pages of X search for all brands together, so older posts in this range aren’t counted.`;

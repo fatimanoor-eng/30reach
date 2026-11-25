@@ -7,7 +7,7 @@ import { useToast } from "../../components/toast-context";
 import { MQ_TABLET_UP, useMediaQuery } from "../../lib/useMediaQuery";
 import type { CardPlatform } from "../calendar/calendar-ui";
 import type { IsoDay } from "../calendar/events/dates";
-import { formatFor, formatOptions, PLATFORM_OPTIONS } from "../calendar/platform-options";
+import { formatFor, formatOptions, useClientPlatformOptions } from "../calendar/platform-options";
 import { SelectChip } from "../calendar/SelectChip";
 import { ideaCardTitle, plannedLabel, planSummary, suggestedDay, type Idea } from "./idea-rules";
 import { todayIso } from "../calendar/events/dates";
@@ -43,6 +43,8 @@ export function PlanIt({
     suggestedDay(idea.source_snapshot, todayIso()),
   );
   const [platform, setPlatform] = useState<CardPlatform | null>(idea.platform);
+  // The client's platforms, plus the idea's own if the client doesn't track it.
+  const platformOptions = useClientPlatformOptions(idea.platform);
   const [formatRequest, setFormatRequest] = useState(0);
   const [format, setFormat] = useState<string | null>(() =>
     formatFor(idea.platform, idea.format ?? idea.source_snapshot?.format),
@@ -86,7 +88,7 @@ export function PlanIt({
           label="Platform"
           placeholder="Platform"
           value={platform}
-          options={PLATFORM_OPTIONS}
+          options={platformOptions}
           onChange={(p) => {
             const kept = formatFor(p, format);
             setPlatform(p);

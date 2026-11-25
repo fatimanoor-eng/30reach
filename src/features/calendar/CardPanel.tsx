@@ -16,7 +16,11 @@ import { dateRelation, pastAndNotPosted, whoLine } from "./card-time";
 import { deleteCard, saveCard, type CardFields } from "./cards-api";
 import { todayIso, type IsoDay } from "./events/dates";
 import { shortDay } from "./format";
-import { formatFor, formatOptions as optionsFor, PLATFORM_OPTIONS } from "./platform-options";
+import {
+  formatFor,
+  formatOptions as optionsFor,
+  useClientPlatformOptions,
+} from "./platform-options";
 import { DateChip, SelectChip } from "./SelectChip";
 import { StatusPills } from "./StatusPills";
 import { Tooltip } from "../../components/Tooltip";
@@ -66,6 +70,8 @@ export function CardPanel({
   const queryClient = useQueryClient();
   const toast = useToast();
   const [fields, setFields] = useState<CardFields>(() => fieldsFrom(card, newDate));
+  // The client's platforms, plus the card's own if the client stopped tracking it.
+  const platformOptions = useClientPlatformOptions(card?.platform ?? null);
   // What's on the server (as opened, then as last saved). Anything else is an unsaved change,
   // including a picked hook or caption suggestion: closing then asks "Discard changes?".
   const [baseline, setBaseline] = useState(() => JSON.stringify(fieldsFrom(card, newDate)));
@@ -316,7 +322,7 @@ export function CardPanel({
               label="Platform"
               placeholder="Platform"
               value={fields.platform}
-              options={PLATFORM_OPTIONS}
+              options={platformOptions}
               onChange={(p) => {
                 setPlatform(p);
                 // Next step: the format menu opens by itself when the format is still empty.
