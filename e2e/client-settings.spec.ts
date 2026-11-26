@@ -140,7 +140,7 @@ test("Edit brand: name, website taken by another client, colour", async ({ page 
   await drawer.getByRole("textbox", { name: "Brand colour" }).fill("#12ab9");
   await expect(drawer.getByText("Use a hex colour like #C8493F.")).toBeVisible();
   await drawer.getByRole("textbox", { name: "Brand colour" }).fill("#12ab90");
-  await drawer.getByLabel("Name").fill("OBU Health Co");
+  await drawer.getByLabel("Name", { exact: true }).fill("OBU Health Co");
   await drawer.getByRole("button", { name: "Save" }).click();
   await expect(drawer).toBeHidden();
   expect(calls.find((c) => c.method === "PATCH")?.body).toMatchObject({
@@ -306,7 +306,7 @@ test("manual Add client (15f): checks, then the new client's Overview", async ({
   await ready(page, "/add-client");
   // 17d: the website step comes first; the manual form is behind "No website?".
   await page.getByRole("button", { name: "No website? Add the details by hand" }).click();
-  await expect(page.getByLabel("Name")).toBeFocused();
+  await expect(page.getByLabel("Name", { exact: true })).toBeFocused();
   await noSidewaysScroll(page);
   if (isMobile(page)) await tapTargetsOk(page);
   await expect(page).toHaveScreenshot(`add-client-${info.project.name}.png`, { fullPage: true });
@@ -315,7 +315,7 @@ test("manual Add client (15f): checks, then the new client's Overview", async ({
   // Required fields, a website another client uses, a bad handle.
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("A name is needed.")).toBeVisible();
-  await page.getByLabel("Name").fill("Acme Studio");
+  await page.getByLabel("Name", { exact: true }).fill("Acme Studio");
   await page.getByLabel("Website").fill("https://www.obuhealth.com/");
   await expect(page.getByText("OBU Health already uses obuhealth.com")).toBeVisible();
   await page.getByLabel("Website").fill("acme.studio");
@@ -376,7 +376,7 @@ test("Close asks before leaving a started form", async ({ page }, info) => {
   await ready(page, "/overview");
   await page.goto("/add-client");
   await page.getByRole("button", { name: "No website? Add the details by hand" }).click();
-  await page.getByLabel("Name").fill("Half done");
+  await page.getByLabel("Name", { exact: true }).fill("Half done");
   await page.getByRole("button", { name: "Close" }).filter({ visible: true }).click();
   const dialog = page.getByRole("dialog", { name: "Leave Add client?" });
   await expect(dialog).toContainText("Nothing is saved.");

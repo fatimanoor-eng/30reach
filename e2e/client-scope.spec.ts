@@ -139,7 +139,7 @@ test("Ask Blip uses the current client only; switching clients starts a fresh co
   dialog = await openAskBlip(page);
   await expect(dialog.getByText("What should we post this week?")).toHaveCount(0);
   await expect(dialog.getByText("Here’s what I see for All The Best Co.")).toHaveCount(0);
-  await ask(dialog, "Anything new?");
+  await ask(dialog, "Which format works best?");
   await expect.poll(() => sent.length).toBe(3);
   expect(sent[2]).toMatchObject({ clientId: OBU.id, history: [] });
 });

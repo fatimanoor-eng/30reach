@@ -1013,3 +1013,89 @@ test("Ask Blip — follow-up chips come from the answer; history grows (Smart Bl
   expect(last.question).toBe("What about Ro on TikTok?");
   expect(last.history.map((t) => t.q)).toEqual(["What changed since the last pull?"]);
 });
+
+test("Ask Blip round 2 — a general answer ties back and says it may be out of date", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  await setup(page, {
+    "ask-blip": (r) =>
+      r.fulfill(
+        json({
+          type: "chat",
+          message: "A carousel is a post with several swipeable images or videos.",
+          tieBack: "In this pull, Hims’ carousels average 2.1K likes.",
+          mayBeOutdated: true,
+        }),
+      ),
+  });
+  await open(page, "/overview");
+  const dialog = await openAskBlip(page);
+  await dialog
+    .getByRole("textbox", { name: "Ask Blip a question" })
+    .fill("What exactly is a carousel post on Instagram?");
+  await page.keyboard.press("Enter");
+  await idle(dialog);
+  await expect(said(dialog, "In this pull, Hims’ carousels average 2.1K likes.")).toBeVisible();
+  await expect(said(dialog, /I may be out of date on this/)).toBeVisible();
+});
+
+test("Ask Blip round 2 — Plan it and Draft caption on an answer", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  const { added } = await setup(page, {
+    "ask-blip": (r) => r.fulfill(json(ANSWER)),
+    "suggest-caption": (r) =>
+      r.fulfill(
+        json({
+          captions: [
+            "Got a question? Our clinicians answer in 30 seconds.",
+            "Your questions, answered.",
+          ],
+        }),
+      ),
+  });
+  await open(page, "/overview");
+  const dialog = await openAskBlip(page);
+  await dialog.getByRole("button", { name: "Give me 3 post ideas for OBU" }).click();
+  await idle(dialog);
+  // Draft caption: two options to copy, nothing saved or posted.
+  await dialog.getByRole("button", { name: "Draft caption" }).click();
+  const drafts = dialog.getByLabel("Caption drafts");
+  await expect(
+    drafts.getByText("Got a question? Our clinicians answer in 30 seconds."),
+  ).toBeVisible();
+  await expect(drafts.getByRole("button", { name: "Copy" })).toHaveCount(2);
+  expect(added).toHaveLength(0);
+  // Plan it: the idea goes on the board, then it opens there with Plan it open (a person picks the day).
+  await dialog.getByRole("button", { name: "Plan it" }).click();
+  await expect.poll(() => added.length).toBe(1);
+  await expect(page).toHaveURL(/\/ideas\?idea=.*&plan=1/);
+});
+
+test("Ask Blip — first pull: no “what changed” chip; asking it gets the first-pull line", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  const { sent } = await setup(page, {});
+  await page.route("**/rest/v1/pulls**", (r) =>
+    r.fulfill(json(r.request().url().includes("status=eq.running") ? null : [LATEST])),
+  );
+  await open(page, "/overview");
+  const dialog = await openAskBlip(page);
+  await expect(dialog.getByRole("button", { name: "Give me 3 post ideas for OBU" })).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "What changed since the last pull?" }),
+  ).toHaveCount(0);
+  await dialog
+    .getByRole("textbox", { name: "Ask Blip a question" })
+    .fill("What changed since last time?");
+  await page.keyboard.press("Enter");
+  await idle(dialog);
+  await expect(
+    said(
+      dialog,
+      "This is the first pull, so there’s nothing to compare yet. The next Refresh will show what changed.",
+    ),
+  ).toBeVisible();
+  expect(sent["ask-blip"] ?? []).toHaveLength(0); // answered in code, no tokens
+});

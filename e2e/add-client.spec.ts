@@ -401,9 +401,9 @@ test("a reload mid-flow carries on without scanning again", async ({ page }, inf
   await expect(page.getByRole("heading", { level: 1, name: "Review All The Best Co" })).toBeVisible(
     { timeout: 10_000 },
   );
-  await page.getByLabel("Name").fill("All The Best Co.");
+  await page.getByLabel("Name", { exact: true }).fill("All The Best Co.");
   await page.reload();
-  await expect(page.getByLabel("Name")).toHaveValue("All The Best Co.");
+  await expect(page.getByLabel("Name", { exact: true })).toHaveValue("All The Best Co.");
   expect(calls.scans).toHaveLength(7);
   expect(calls.suggest).toHaveLength(1);
 });
@@ -457,13 +457,13 @@ test("Back on every step after Website keeps what was entered and never scans ag
   await expect(page.getByRole("heading", { level: 1, name: "Review All The Best Co" })).toBeVisible(
     { timeout: 10_000 },
   );
-  await page.getByLabel("Name").fill("All The Best Co.");
+  await page.getByLabel("Name", { exact: true }).fill("All The Best Co.");
   // The shell's Back (top bar); Review's own Back stays in its footer.
   await page.getByRole("button", { name: "Back", exact: true }).first().click();
   await expect(page.getByLabel("Website")).toHaveValue("all-the-best.co");
   await page.getByRole("button", { name: "Scan website" }).click();
   // Same site: Review again with the edit kept; nothing scanned or charged again.
-  await expect(page.getByLabel("Name")).toHaveValue("All The Best Co.");
+  await expect(page.getByLabel("Name", { exact: true })).toHaveValue("All The Best Co.");
   expect(calls.scans).toHaveLength(7);
   expect(calls.suggest).toHaveLength(1);
   if (isMobile(page)) await tapTargetsOk(page);
@@ -476,10 +476,10 @@ test("Back from the manual form keeps its entries (polish)", async ({ page }, in
   await stubFlow(page);
   await ready(page, "/add-client");
   await page.getByRole("button", { name: /No website\?/ }).click();
-  await page.getByLabel("Name").fill("Northwind Clinic");
+  await page.getByLabel("Name", { exact: true }).fill("Northwind Clinic");
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await page.getByRole("button", { name: /No website\?/ }).click();
-  await expect(page.getByLabel("Name")).toHaveValue("Northwind Clinic");
+  await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Northwind Clinic");
 });
 
 test("Discovery 2.0 review: Big in your space unticked with followers; ticking reads its site; smart add", async ({

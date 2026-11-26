@@ -226,13 +226,14 @@ test("05b / M04 pulling → 05c progress → 05d complete", async ({ page }, inf
   const card = page.getByRole("dialog", { name: "Blip’s scanning the competition…" });
   await expect(card).toBeVisible();
   await expect(card.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "42");
-  if (info.project.name === "mobile-390") {
-    // 2 tasks in parallel: the first TikTok task starts alongside the 6th Instagram one.
-    await expect(card.getByText("Instagram 5 of 6 brands · TikTok 0 of 6 brands")).toBeVisible();
-  } else {
-    await expect(card.getByRole("row", { name: /Found/ })).toBeVisible();
+  // 27 Nov: one line per brand at every size, a status icon per platform (no columns to overflow).
+  const list = card.getByRole("list", { name: "Pull progress by brand" });
+  await expect(list.getByRole("listitem").filter({ hasText: "Found" })).toBeVisible();
+  await expect(list.getByRole("img", { name: "Instagram: done" }).first()).toBeVisible();
+  await expect(list.getByRole("img", { name: "TikTok: waiting" }).first()).toBeAttached();
+  await noSidewaysScroll(page);
+  if (info.project.name !== "mobile-390")
     await expect(card.getByText("Credits used so far · 20")).toBeVisible();
-  }
   expect(startBodies.at(-1)).toMatchObject({
     clientId: "client-1",
     platforms: ["instagram", "tiktok"],
