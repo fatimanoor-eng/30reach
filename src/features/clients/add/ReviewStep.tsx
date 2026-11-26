@@ -1,4 +1,4 @@
-import { Globe, Lock, Plus } from "lucide-react";
+import { ArrowUpRight, Globe, Lock, Plus } from "lucide-react";
 import { BackButton } from "./BackButton";
 import { Checkbox } from "../../../components/Checkbox";
 import { useId, useState, type ComponentType } from "react";
@@ -620,20 +620,39 @@ function CompetitorRow({
       ? [c.followers ? followersLabel(c.followers.count) : null, tabletUp ? c.why : null]
       : [tabletUp ? c.why : null];
   const sub = second.filter(Boolean).join(" · ");
+  const rest = c.manual ? "added by hand" : c.about;
   return (
-    <li className="border-t border-line py-3 first:border-t-0">
-      <div className="flex items-center gap-3">
-        <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3">
-          <Checkbox checked={c.ticked} onChange={(e) => tick(c, e.target.checked)} />
-          <CompetitorMark c={c} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-body-sm">{c.name}</span>
-            <span className="block truncate text-small text-muted">
-              {competitorMeta(c, { short: !tabletUp })}
-            </span>
-            {sub && <span className="block truncate text-small text-muted">{sub}</span>}
+    <li className="border-t border-line py-1.5 first:border-t-0">
+      {/* UI polish 26 Nov: the whole row toggles; its link and "add" don't (they're their own controls). */}
+      <label className="-mx-2 flex min-h-14 cursor-pointer items-center gap-3 rounded-control px-2 py-1.5 hover:bg-bg">
+        <Checkbox
+          size="lg"
+          checked={c.ticked}
+          onChange={(e) => tick(c, e.target.checked)}
+          aria-label={`Track ${c.name}`}
+        />
+        <CompetitorMark c={c} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-body-sm">{c.name}</span>
+          <span className="block truncate text-small text-muted">
+            {c.website ? (
+              <a
+                href={c.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${c.domain} (opens in a new tab)`}
+                className="-my-3.5 inline-flex min-h-11 items-center gap-0.5 py-3.5 hover:text-ink hover:underline md:my-0 md:min-h-0 md:py-0"
+              >
+                {c.domain}
+                <ArrowUpRight size={12} aria-hidden="true" className="shrink-0" />
+              </a>
+            ) : (
+              competitorMeta(c, { short: true })
+            )}
+            {tabletUp && rest ? ` · ${rest}` : ""}
           </span>
-        </label>
+          {sub && <span className="block truncate text-small text-muted">{sub}</span>}
+        </span>
         <span className="flex shrink-0 items-center gap-1.5">
           {c.scanning ? (
             <span className="font-mono text-label text-muted uppercase">Reading…</span>
@@ -661,7 +680,7 @@ function CompetitorRow({
             })
           )}
         </span>
-      </div>
+      </label>
       <span className="sr-only">
         {c.scanned === false
           ? "Site not read yet: ticking reads it (1 credit)"

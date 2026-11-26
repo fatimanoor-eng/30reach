@@ -7,7 +7,13 @@ import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import { ModalPresence } from "../../../components/ModalPresence";
 import { plural } from "../../../lib/format";
 import { MQ_TABLET_UP, useMediaQuery } from "../../../lib/useMediaQuery";
-import { checklistRows, reviewDefaults, type RowState, SCAN_UP_FRONT } from "./add-client-rules";
+import {
+  checklistRows,
+  reviewDefaults,
+  type RowState,
+  SCAN_UP_FRONT,
+  scanStep,
+} from "./add-client-rules";
 import {
   isFailure,
   readAccounts,
@@ -175,6 +181,14 @@ export function ScanningStep({
     { short: !tabletUp },
   );
   const host = state.website.replace(/^https?:\/\//, "");
+  const step = scanStep({
+    website: state.website,
+    scan: state.scan,
+    suggestions: state.suggestions,
+    accountsRead: state.accountsRead,
+    searching,
+    finished,
+  });
 
   return (
     <div className="mx-auto flex max-w-110 flex-col items-center px-4 py-6 text-center md:max-w-110 md:py-12">
@@ -204,25 +218,38 @@ export function ScanningStep({
           </div>
         </div>
       ) : (
-        <ol
-          aria-label="Scan progress"
-          aria-live="polite"
-          className="mt-6 w-full divide-y divide-line overflow-hidden rounded-card border border-line bg-surface text-left"
-        >
-          {rows.map((r) => (
-            <li key={r.key} className="flex min-h-11 items-center gap-3 px-4 py-2.5 md:min-h-10">
-              <RowDot state={r.state} />
-              <span
-                className={`min-w-0 flex-1 truncate text-body-sm ${r.state === "muted" || r.state === "next" ? "text-muted" : ""}`}
+        <>
+          {/* UI polish 26 Nov: where the scan is, in words. */}
+          <p className="mt-6 w-full text-left mono-label text-muted" aria-live="polite">
+            Step {step.n} of {step.of} · <span className="text-ink">{step.label}</span>
+          </p>
+          <ol
+            aria-label="Scan progress"
+            className="mt-2 w-full divide-y divide-line overflow-hidden rounded-card border border-line bg-surface text-left"
+          >
+            {rows.map((r) => (
+              <li
+                key={r.key}
+                aria-current={r.state === "active" ? "step" : undefined}
+                className={`flex min-h-11 items-center gap-3 px-4 py-2.5 md:min-h-10 ${r.state === "active" ? "bg-soft" : ""}`}
               >
-                {r.label}
-              </span>
-              {r.meta && (
-                <span className="shrink-0 font-mono text-label text-muted uppercase">{r.meta}</span>
-              )}
-            </li>
-          ))}
-        </ol>
+                <RowDot state={r.state} />
+                <span
+                  className={`min-w-0 flex-1 truncate text-body-sm ${r.state === "active" ? "font-semibold text-ink" : r.state === "muted" || r.state === "next" ? "text-muted" : ""}`}
+                >
+                  {r.label}
+                </span>
+                {r.meta && (
+                  <span
+                    className={`shrink-0 font-mono text-label uppercase ${r.state === "active" ? "text-ink" : "text-muted"}`}
+                  >
+                    {r.meta}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </>
       )}
 
       <div className="mt-5 flex w-full items-center justify-between gap-4">
@@ -264,11 +291,12 @@ function RowDot({ state }: { state: RowState }) {
       </span>
     );
   if (state === "active")
+    // A turning ring (a pulsing Flash dot with reduced motion).
     return (
-      <span
-        aria-label="In progress"
-        className="size-5 shrink-0 rounded-full bg-flash motion-safe:animate-pulse"
-      />
+      <span aria-label="In progress" className="relative inline-flex size-5 shrink-0">
+        <span className="absolute inset-0 rounded-full border-2 border-line-strong" />
+        <span className="absolute inset-0 rounded-full border-2 border-ink border-t-transparent border-r-transparent motion-safe:animate-spin motion-reduce:animate-pulse motion-reduce:border-flash motion-reduce:bg-flash" />
+      </span>
     );
   if (state === "muted")
     return <span aria-hidden="true" className="size-5 shrink-0 rounded-full bg-soft" />;

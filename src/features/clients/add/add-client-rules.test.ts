@@ -8,6 +8,7 @@ import {
   platformRowsForCreate,
   noAccountsFound,
   reviewDefaults,
+  scanStep,
   reviewErrors,
   type SiteScan,
   type Suggestion,
@@ -73,6 +74,31 @@ const suggestions = [
   sug("Pasadena Floral Design", "pasadenafloraldesign.com", [ig("pfd")]),
 ];
 
+describe("scan step line (UI polish 26 Nov)", () => {
+  const base = {
+    website: scan.website,
+    scan,
+    suggestions: null,
+    accountsRead: 0,
+    searching: false,
+  };
+  it("counts the four steps", () => {
+    expect(scanStep({ ...base, scan: null })).toEqual({
+      n: 1,
+      of: 4,
+      label: "Reading the website",
+    });
+    expect(scanStep(base).n).toBe(2);
+    expect(scanStep({ ...base, searching: true })).toEqual({
+      n: 3,
+      of: 4,
+      label: "Finding competitors",
+    });
+    expect(scanStep({ ...base, suggestions }).label).toBe("Reading their social accounts");
+    expect(scanStep({ ...base, suggestions, finished: true }).label).toBe("Opening Review");
+  });
+});
+
 describe("15c checklist", () => {
   it("before the page is read", () => {
     const rows = checklistRows({
@@ -131,12 +157,12 @@ describe("15d review defaults", () => {
       ["youtube", "team", false], // Slice 18
     ]);
   });
-  it("pre-ticks the first 4 with an account 30reach pulls", () => {
+  it("pre-ticks the top 4 closest rivals, accounts found or not (UI polish 26 Nov)", () => {
     expect(d.competitors.filter((c) => c.ticked).map((c) => c.name)).toEqual([
       "Carnaby & Vine",
+      "Giften Market", // no links on its site: ticked, with "No accounts found · add"
       "Baskits",
       "Gourmet Gift 4U",
-      "Jacob Maarse Florist",
     ]);
     expect(summaryLine(d)).toBe("4 COMPETITORS · 2 PLATFORMS · FIRST PULL IS NEXT");
     expect(summaryLine(d, { short: true })).toBe("4 COMPETITORS · 2 PLATFORMS");
@@ -250,6 +276,7 @@ describe("Create rows", () => {
       ticked: true,
       inputs: { instagram: "@giftenmarket" },
     };
+    d.competitors[4] = { ...d.competitors[4], ticked: true }; // the 5th rival, ticked by hand
     d.competitors.push({ ...d.competitors[0], key: "dup" });
     const rows = competitorRowsForCreate(d, parse);
     expect(rows.map((r) => [r.name, r.initials, r.instagram_handle])).toEqual([

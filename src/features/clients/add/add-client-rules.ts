@@ -52,6 +52,9 @@ export type Suggestion = {
   followers?: SnippetFollowers | null;
 };
 
+/** The top closest rivals ticked by default (UI polish 26 Nov: with or without accounts found). */
+export const PRE_TICKED = 4;
+
 /** Closest rivals whose home pages are read during the scan (the rest, and big brands, on tick). */
 export const SCAN_UP_FRONT = 8;
 
@@ -170,6 +173,22 @@ export function checklistRows(
   return rows;
 }
 
+/**
+ * The line above the checklist (UI polish, 26 Nov): "Step 3 of 4 · Finding competitors". Reading the site
+ * → its content profile → finding competitors → reading their accounts (then Review opens).
+ */
+export function scanStep(p: ScanProgress & { finished?: boolean }): {
+  n: number;
+  of: 4;
+  label: string;
+} {
+  if (!p.scan) return { n: 1, of: 4, label: "Reading the website" };
+  if (p.finished) return { n: 4, of: 4, label: "Opening Review" };
+  if (p.suggestions) return { n: 4, of: 4, label: "Reading their social accounts" };
+  if (p.searching) return { n: 3, of: 4, label: "Finding competitors" };
+  return { n: 2, of: 4, label: "Building the content profile" };
+}
+
 // ───────────────────────────────────────────── 15d review
 export type PlatformDraft = {
   platform: FoundPlatform;
@@ -224,13 +243,11 @@ export type ReviewDraft = {
   competitors: CompetitorDraft[];
 };
 
-const supportedAccounts = (accounts: readonly FoundAccount[] | null) =>
-  (accounts ?? []).filter((a) => isSupported(a.platform));
-
 /**
  * Review defaults (15d): the scan's fields; platforms linked on the site are ALWAYS ON (website rows),
  * Instagram / TikTok / LinkedIn / Facebook / X not on the site are team rows, off; competitors pre-ticked:
- * the first 4 whose site links a platform 30reach pulls.
+ * the top 4 closest rivals, accounts found or not (UI polish 26 Nov: a rival without links keeps
+ * "No accounts found · add"). Big in your space stays unticked.
  */
 export function reviewDefaults(
   scan: SiteScan,
@@ -253,7 +270,6 @@ export function reviewDefaults(
       input: "",
       account: null,
     }));
-  let ticks = 0;
   return {
     name: scan.name,
     description: scan.description,
@@ -271,11 +287,7 @@ export function reviewDefaults(
     rules: scan.rules.map((r) => ({ ...r, source: "blip" as const })),
     platforms: [...site, ...team],
     competitors: [
-      ...suggestions.map((s) => {
-        const tick = ticks < 4 && supportedAccounts(s.accounts).length > 0;
-        if (tick) ticks++;
-        return draftOf(s, "rival", tick);
-      }),
+      ...suggestions.map((s, i) => draftOf(s, "rival", i < PRE_TICKED)),
       // Big in your space: unticked; their pages are read only if someone ticks them.
       ...big.map((s) => draftOf(s, "big", false)),
     ],
