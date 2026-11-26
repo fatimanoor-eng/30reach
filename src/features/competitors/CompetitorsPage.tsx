@@ -1,3 +1,4 @@
+import { displayName } from "../../lib/names";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
@@ -304,7 +305,7 @@ export function CompetitorsPage() {
                     <th scope="row" className="py-4 pl-6 font-normal">
                       <span className="flex items-center gap-3 text-body">
                         <BrandAvatar initials={c.initials} logoPath={c.logo_path} size="md" />
-                        {c.name}
+                        <span title={c.short_name ? c.name : undefined}>{displayName(c)}</span>
                       </span>
                     </th>
                     <td className="py-4 pr-4">{accountChips(c)}</td>
@@ -324,7 +325,9 @@ export function CompetitorsPage() {
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="flex min-w-0 items-center gap-3 text-body">
                     <BrandAvatar initials={c.initials} logoPath={c.logo_path} size="md" />
-                    <span className="truncate">{c.name}</span>
+                    <span className="truncate" title={c.short_name ? c.name : undefined}>
+                      {displayName(c)}
+                    </span>
                   </h2>
                   {statusChip(c)}
                 </div>

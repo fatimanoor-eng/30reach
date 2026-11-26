@@ -65,8 +65,11 @@ export const FACTS = (client: string) =>
 // ───────────────────────────────────────────── 1. Ask Blip
 /** Complete examples (every key), placeholders only so nothing made up gets copied. */
 export const ASK_INSIGHT_EXAMPLE = (client: string) =>
-  `{"type":"insight","message":"","lead":"<key insight>","points":["<point with a real number> [p3]","<point>"],"for_client":"For ${client}: <one idea>","post_refs":["p3"],"in_data":true,"follow_ups":["<short next question?>","<another?>"]}`;
-export const ASK_CHAT_EXAMPLE = `{"type":"chat","message":"<1-2 sentences>","lead":"","points":[],"for_client":"","post_refs":[],"in_data":false,"follow_ups":[]}`;
+  `{"type":"insight","message":"","tie_back":"","may_be_outdated":false,"lead":"<key insight>","points":["<point with a real number> [p3]","<point>"],"for_client":"For ${client}: <one idea>","post_refs":["p3"],"in_data":true,"follow_ups":["<short next question?>","<another?>"]}`;
+export const ASK_CHAT_EXAMPLE = `{"type":"chat","message":"<1-2 sentences>","tie_back":"","may_be_outdated":false,"lead":"","points":[],"for_client":"","post_refs":[],"in_data":false,"follow_ups":[]}`;
+/** Round 2: a general question answered from the model's own knowledge, then tied back to the data. */
+export const ASK_GENERAL_EXAMPLE = `{"type":"general","message":"<2-3 sentences>","tie_back":"<one line>","may_be_outdated":true,"lead":"","points":[],"for_client":"","post_refs":[],"in_data":false,"follow_ups":[]}`;
+export const ASK_GENERAL_RULES = `General question (how something works, a term, social media practice; not this pull): type "general". message: 2-3 natural sentences from what you know, no made-up numbers. tie_back: one gentle line back to the client's data. may_be_outdated: true if it can change (features, algorithms, rules). Never medical, diet, dosage, legal or financial advice.`;
 
 /** When Ask Blip answers as a teammate instead of with data (AI_PROMPTS.md §1, "Chat mode"). */
 export const ASK_CHAT_RULES = `Chat mode: use type "chat" for small talk: greetings, hype, thanks, feelings, or questions that aren't about the data.
@@ -90,15 +93,20 @@ ${FACTS(o.client)}
 ${BLIP_VOICE_CHAT}
 ${clientRules(o.ctx)}
 Data rules: use ONLY the JSON in <data>. Times are US Eastern. "not_in_data" lists what this pull can't answer. "previous" is the pull before, for "what changed" questions. "older_data": platforms not re-pulled; cite their date.
+"also_called": other names for the same brand; a question naming one is about that brand. Use the short names you see.
+"previous" null = first pull: nothing to compare yet; the next Refresh shows changes. Plain words only: no field names, null or JSON.
 Numbers: compare brands of different sizes by engagement_rate_pct; followers_change = gained since the previous pull (null = unknown, don't guess); raw numbers only within one platform.
 ${ASK_CHAT_RULES}
+${ASK_GENERAL_RULES}
 ${ALL_KEYS}
 type "insight", for anything about the data, posts, brands or content ideas:
 ${ASK_INSIGHT_EXAMPLE(o.client)}
 - lead: one line. points: 2-4, with real numbers from <data>. for_client: one practical idea, no emoji. post_refs: top_posts refs used. in_data: false if <data> can't answer.
 - follow_ups: 2-3 next questions about THIS answer, under 60 chars, ending in "?", answerable from <data>.
 type "chat", for small talk:
-${ASK_CHAT_EXAMPLE}${o.firstName ? `\nThe person's first name is ${o.firstName}.` : ""}`;
+${ASK_CHAT_EXAMPLE}
+type "general":
+${ASK_GENERAL_EXAMPLE}${o.firstName ? `\nThe person's first name is ${o.firstName}.` : ""}`;
 }
 
 /**
@@ -109,15 +117,16 @@ export function askLightSystem(o: {
   client: string;
   firstName: string | null;
   today: string;
-  /** Industry + checks only: small talk doesn't need the brief. */
-  ctx?: Pick<ClientContext, "industry" | "checks">;
+  /** Industry, other names + checks only: small talk doesn't need the brief. */
+  ctx?: Pick<ClientContext, "industry" | "checks" | "alsoCalled">;
 }) {
   return `${todayLine(o.today)} You are Blip, the energetic, caring research buddy. A teammate, not a chatbot. Mirror their tone and length; use their first name only now and then.
-${FACTS(o.client)}${o.ctx?.industry ? ` ${o.client}: ${o.ctx.industry}.` : ""}
+${FACTS(o.client)}${o.ctx?.industry ? ` ${o.client}: ${o.ctx.industry}.` : ""}${o.ctx?.alsoCalled ? ` ${o.ctx.alsoCalled}` : ""}
 ${ASK_CHAT_RULES}
 ${brandRules(o.ctx?.checks ?? NO_CHECKS)}
-You can't see the pull data in this reply. Never invent numbers, posts or brands. If they need data, say so warmly in one line and suggest a data question, like "What changed since the last pull?".
-Return ONLY JSON: {"message": "..."}.${o.firstName ? `\nThe person's first name is ${o.firstName}.` : ""}`;
+You can't see the pull data in this reply. Never invent numbers, posts or brands. If they need data, say so warmly in one line and suggest a data question, like "Who's winning on TikTok?".
+${ASK_GENERAL_RULES.replace("the client's data", "a data question they could ask")}
+Return ONLY JSON: {"type":"chat"|"general","message":"...","tie_back":"","may_be_outdated":false}.${o.firstName ? `\nThe person's first name is ${o.firstName}.` : ""}`;
 }
 
 const earlier = (history: { q: string; a: string }[]) =>

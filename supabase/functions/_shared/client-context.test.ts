@@ -66,8 +66,21 @@ describe("client context (Slice 17e)", () => {
       name: "Acme",
       brief: "",
       industry: "",
+      alsoCalled: "",
       rules: 0,
       checks: { health: false, finance: false, age: false, kids: false },
     });
+  });
+});
+
+describe("other names (27 Nov)", () => {
+  it("short name and aliases mean the client itself, first in the brief", () => {
+    const c = contextFromRow({
+      name: "Faculty of Computing & Information Technology",
+      short_name: "FCIT",
+      aliases: ["PUCIT", "FCIT", "faculty of computing & information technology"],
+    });
+    expect(c.alsoCalled).toBe("Also called FCIT, PUCIT (the client itself).");
+    expect(c.brief).toMatch(/^<client>\nAlso called FCIT, PUCIT \(the client itself\)\./);
   });
 });

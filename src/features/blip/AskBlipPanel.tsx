@@ -4,7 +4,13 @@ import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } fr
 import { useNavigate } from "react-router";
 import { BlipError, BlipIdle, BlipThinking } from "../../components/blip/BlipPoses";
 import { useNativeModal } from "../../components/useNativeModal";
-import { AI_COPY, answerText, type BlipChat, type BlipInsight } from "../../lib/ai/ai-api";
+import {
+  AI_COPY,
+  answerText,
+  type BlipChat,
+  type BlipInsight,
+  suggestCaption,
+} from "../../lib/ai/ai-api";
 import { useProfile } from "../../lib/auth/useProfile";
 import { useCompetitors } from "../../lib/useCompetitors";
 import { useClient, useClientPath } from "../../lib/useClient";
@@ -74,7 +80,8 @@ export function AskBlipPanel({
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const clientId = client.data?.id;
-  const clientName = client.data?.name ?? "the client";
+  // Short name where space is tight: chips, the input's hint, the header line (27 Nov).
+  const clientName = client.data?.short_name?.trim() || client.data?.name || "the client";
   const firstName = firstNameOf(profile.data?.full_name);
   const noPull = pulls.isSuccess && !latest;
 
@@ -144,7 +151,11 @@ export function AskBlipPanel({
   // Smart Blip round 1: after an answer, its own follow-ups; otherwise the usual starters.
   const chips = chipsFor(
     messages,
-    suggestions(clientName, topBrand(blipPosts ?? [], competitors.data ?? [])),
+    suggestions(
+      clientName,
+      topBrand(blipPosts ?? [], competitors.data ?? []),
+      !!pulls.data?.previous,
+    ),
   );
   const pullDate = latest ? (formatShortDate(latest.started_at) ?? "").toUpperCase() : null;
 
@@ -270,9 +281,9 @@ export function AskBlipPanel({
                       animate={!!m.animate && !reduced}
                       onDone={() => finishReveal(m.id)}
                       clientId={clientId ?? null}
-                      onOpenIdea={(ideaId) => {
+                      onOpenIdea={(ideaId, plan) => {
                         onClose();
-                        navigate(path(`/ideas?idea=${ideaId}`));
+                        navigate(path(`/ideas?idea=${ideaId}${plan ? "&plan=1" : ""}`));
                       }}
                     />
                   </BlipSays>
@@ -299,7 +310,7 @@ export function AskBlipPanel({
                 onClick={() => ask(c)}
                 className="inline-flex min-h-11 shrink-0 items-center md:min-h-0"
               >
-                <span className="rounded-full bg-bg px-2.5 py-1 font-mono text-label whitespace-nowrap text-ink hover:bg-soft">
+                <span className="rounded-full bg-bg px-2.5 py-1 text-left font-mono text-label whitespace-nowrap text-ink hover:bg-soft md:whitespace-normal">
                   {c}
                 </span>
               </button>
@@ -399,7 +410,10 @@ function TypingDots() {
   );
 }
 
-/** Small talk: just the line, revealed word by word. No Copy, sources or "Add idea". */
+/**
+ * Small talk: just the line, revealed word by word. No Copy, sources or "Add idea". A general answer
+ * (round 2) adds its tie-back line and, for things that change, "I may be out of date on this".
+ */
 function ChatReply({
   answer,
   animate,
@@ -423,6 +437,16 @@ function ChatReply({
       <p className="text-body-sm" aria-hidden={animate || undefined}>
         {text}
       </p>
+      {!animate && (answer.tieBack || answer.mayBeOutdated) && (
+        <div className={`flex flex-col gap-1.5 ${fadeIn ? "blip-fade-in" : ""}`}>
+          {answer.tieBack && <p className="text-body-sm">{answer.tieBack}</p>}
+          {answer.mayBeOutdated && (
+            <p className="font-mono text-label text-muted">
+              From what I know, no live internet: I may be out of date on this.
+            </p>
+          )}
+        </div>
+      )}
       {!animate && answer.suggestions && answer.suggestions.length > 0 && (
         <div className={`flex flex-wrap gap-1.5 ${fadeIn ? "blip-fade-in" : ""}`}>
           {answer.suggestions.map((q) => (
@@ -487,7 +511,8 @@ function Answer({
   animate: boolean;
   onDone: () => void;
   clientId: string | null;
-  onOpenIdea: (ideaId: string) => void;
+  /** `plan`: open it with Plan it already open (round 2 "Plan it"). */
+  onOpenIdea: (ideaId: string, plan?: boolean) => void;
 }) {
   // Reveal order: lead, points, "For {client}:"; then sources and actions fade in.
   const segments = [answer.lead, ...answer.points, answer.forClient];
@@ -504,8 +529,34 @@ function Answer({
   const [saved, setSaved] = useState<{ id: string } | "saving" | "error" | null>(null);
   const [copied, setCopied] = useState(false);
 
-  async function addIdea() {
+  const [captions, setCaptions] = useState<string[] | "loading" | "error" | null>(null);
+
+  /** Round 2 "Plan it": the idea goes on the board (once), then opens there with Plan it open. */
+  async function planIt() {
+    const idea = saved && typeof saved === "object" ? saved : await addIdea();
+    if (idea) onOpenIdea(idea.id, true);
+  }
+
+  /** Round 2 "Draft caption": two options in the platform's style (suggest-caption, ~1.5–2K tokens). */
+  async function draftCaption() {
     if (!clientId || !answer.idea) return;
+    setCaptions("loading");
+    const first = answer.sources[0];
+    try {
+      const r = await suggestCaption(clientId, {
+        title: answer.idea,
+        hook: null,
+        platform: first?.platform ?? null,
+        format: first?.format ?? null,
+      });
+      setCaptions(r.captions.length ? r.captions.slice(0, 2) : "error");
+    } catch {
+      setCaptions("error");
+    }
+  }
+
+  async function addIdea(): Promise<{ id: string } | null> {
+    if (!clientId || !answer.idea) return null;
     setSaved("saving");
     const first = answer.sources[0];
     try {
@@ -528,8 +579,10 @@ function Answer({
       });
       setSaved(idea);
       void queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      return idea;
     } catch {
       setSaved("error");
+      return null;
     }
   }
 
@@ -604,6 +657,26 @@ function Answer({
                   {saved === "saving" ? "Adding…" : "Add idea to board"}
                 </button>
               ))}
+            {answer.idea && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void planIt()}
+                  disabled={saved === "saving" || !clientId}
+                  className="min-h-11 min-w-11 text-blue hover:underline disabled:opacity-60 md:min-h-0 md:min-w-0"
+                >
+                  Plan it
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void draftCaption()}
+                  disabled={captions === "loading" || !clientId}
+                  className="min-h-11 text-blue hover:underline disabled:opacity-60 md:min-h-0"
+                >
+                  {captions === "loading" ? "Drafting…" : "Draft caption"}
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={() => void copy()}
@@ -617,8 +690,46 @@ function Answer({
               </span>
             )}
           </div>
+          {captions === "error" && (
+            <p role="alert" className="text-small text-spark-text">
+              Couldn’t draft a caption just now. Try again in a minute.
+            </p>
+          )}
+          {Array.isArray(captions) && (
+            <div className="flex flex-col gap-2" aria-label="Caption drafts">
+              {captions.map((c, i) => (
+                <CaptionDraft key={i} text={c} n={i + 1} />
+              ))}
+            </div>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** One caption draft (round 2), with Copy. The team edits it later on a card; nothing is posted. */
+function CaptionDraft({ text, n }: { text: string; n: number }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex flex-col gap-1.5 rounded-control bg-bg px-3 py-2.5">
+      <p className="mono-label text-muted">Caption {n}</p>
+      <p className="text-small whitespace-pre-line">{text}</p>
+      <button
+        type="button"
+        onClick={() =>
+          void navigator.clipboard
+            .writeText(text)
+            .then(() => {
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 2000);
+            })
+            .catch(() => {})
+        }
+        className="inline-flex min-h-11 items-center self-start text-small font-medium text-blue hover:underline md:min-h-0"
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
     </div>
   );
 }

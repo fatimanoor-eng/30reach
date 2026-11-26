@@ -112,6 +112,20 @@ export function followersChange(
     : null;
 }
 
+/** Brand label → its full name (when a short name is shown) and aliases; null when nobody has any. */
+export function alsoCalled(brands: readonly SummaryBrand[]): Record<string, string[]> | null {
+  const out: Record<string, string[]> = {};
+  for (const b of brands) {
+    const label = b.short_name?.trim() || b.name;
+    const names = [label !== b.name ? b.name : "", ...(b.aliases ?? [])]
+      .map((n) => n.trim())
+      .filter((n, i, all) => n && n !== label && all.indexOf(n) === i)
+      .slice(0, 4);
+    if (names.length) out[label] = names;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 /** 2 decimals, for small percentages (0.35). */
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
@@ -221,7 +235,13 @@ export type SummaryPost = {
   shares: number | null;
   counts_hidden: boolean;
 };
-export type SummaryBrand = { id: string; name: string };
+export type SummaryBrand = {
+  id: string;
+  name: string;
+  /** 27 Nov: shown in the summary when set ("ABCU"); other names go in also_called. */
+  short_name?: string | null;
+  aliases?: string[] | null;
+};
 export type Followers = {
   competitor_id: string;
   platform: Platform;
@@ -327,6 +347,8 @@ export type Summary = {
     pull_date: string;
     brands: { brand: string; platform: Platform; posts: number; avg_engagement: number }[];
   };
+  /** 27 Nov: other names per brand label ("ABCU": ["Acme Business & Commerce University"]). */
+  also_called?: Record<string, string[]>;
   not_in_data: string[];
 };
 
@@ -392,7 +414,8 @@ export function buildSummary(
   data: PullData,
   opts: { topPosts?: number; captionChars?: number } = {},
 ): { summary: Summary; refs: string[]; labels: string[]; json: string } {
-  const name = new Map(data.brands.map((b) => [b.id, b.name]));
+  // Short names keep chips and answers readable (27 Nov); the full name and aliases go in also_called.
+  const name = new Map(data.brands.map((b) => [b.id, b.short_name?.trim() || b.name]));
   const brandName = (id: string) => name.get(id) ?? "Unknown";
   const prevIds = data.previous ? new Set(data.previous.posts.map((p) => p.external_id)) : null;
 
@@ -504,6 +527,7 @@ export function buildSummary(
     })),
     top_hashtags,
     previous,
+    ...(alsoCalled(data.brands) ? { also_called: alsoCalled(data.brands)! } : {}),
     not_in_data: NOT_IN_DATA,
   };
   const json = JSON.stringify(summary);
@@ -790,8 +814,10 @@ const strArray = { type: "array", items: { type: "string" } };
 export const ASK_SCHEMA = {
   name: "blip_answer",
   schema: strictObject({
-    type: { type: "string", enum: ["insight", "chat"] },
+    type: { type: "string", enum: ["insight", "chat", "general"] },
     message: { type: "string" },
+    tie_back: { type: "string" },
+    may_be_outdated: { type: "boolean" },
     lead: { type: "string" },
     points: strArray,
     for_client: { type: "string" },
@@ -804,7 +830,12 @@ export const ASK_SCHEMA = {
 /** Light mode (no data sent): chat only. */
 export const ASK_LIGHT_SCHEMA = {
   name: "blip_chat",
-  schema: strictObject({ message: { type: "string" } }),
+  schema: strictObject({
+    type: { type: "string", enum: ["chat", "general"] },
+    message: { type: "string" },
+    tie_back: { type: "string" },
+    may_be_outdated: { type: "boolean" },
+  }),
 };
 
 export const PLAN_SCHEMA = {
@@ -974,12 +1005,58 @@ export type AskInsight = {
   /** 0–3 next questions about this answer, shown as chips (Smart Blip round 1). */
   followUps: string[];
 };
-/** Small talk (greetings, hype, thanks, feelings, off-topic): 1–2 sentences, then back to the data. */
-export type AskChat = { type: "chat"; message: string };
+/**
+ * Small talk (greetings, hype, thanks, feelings, off-topic): 1–2 sentences, then back to the data. A
+ * general question (round 2: "what is a carousel?") is a chat too, from the model's own knowledge, with a
+ * tie-back to the client's data and a flag when the answer may be out of date.
+ */
+export type AskChat = {
+  type: "chat";
+  message: string;
+  /** One line linking back to the client's data (or, in light mode, a data question to ask). */
+  tieBack?: string;
+  /** Platform features, algorithms, numbers that change: "I may be out of date on this". */
+  mayBeOutdated?: boolean;
+};
 export type AskAnswer = AskInsight | AskChat;
 
 const cleanChat = (s: string, max: number, labels: string[] = []) =>
-  clip(humanizeRefs(s, labels), max);
+  clip(plainWords(humanizeRefs(s, labels)), max);
+
+/** Field names Blip might echo from <data>, in plain words (27 Nov: "null" showed on a first pull). */
+const FIELD_WORDS: Record<string, string> = {
+  engagement_rate_pct: "engagement rate",
+  followers_change: "follower change",
+  avg_engagement: "average engagement",
+  avg_likes: "average likes",
+  avg_comments: "average comments",
+  avg_views: "average views",
+  avg_reposts: "average reposts",
+  avg_shares: "average shares",
+  small_sample: "small sample",
+  best_slot: "best time",
+  new_since_previous: "new posts",
+  top_posts: "top posts",
+  top_hashtags: "top hashtags",
+  older_data: "earlier pull",
+  not_in_data: "not in this pull",
+  in_data: "in the data",
+  pull_date: "pull date",
+  total_posts: "posts",
+  window_days: "days",
+};
+
+/**
+ * Internal words never reach the person: field names become plain words, any other snake_case loses its
+ * underscores, and "null" / "undefined" / "NaN" become "not available". Quoted JSON-ish bits lose quotes.
+ */
+export function plainWords(s: string): string {
+  return s
+    .replace(/\b[a-z]+(?:_[a-z]+)+\b/g, (w) => FIELD_WORDS[w] ?? w.replace(/_/g, " "))
+    .replace(/\b(?:is|was|are|were) (?:null|undefined)\b/gi, "isn’t available")
+    .replace(/\b(?:null|undefined|NaN)\b/g, "not available")
+    .replace(/"(previous|followers|older data|earlier pull)"/gi, "$1");
+}
 
 const EMOJI =
   /\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|\u{FE0F}|\u{200D}\p{Extended_Pictographic})*|\p{Regional_Indicator}{1,2}/gu;
@@ -1012,7 +1089,7 @@ export function validateAskAnswer(
   const hasLead = isStr(raw.lead) && !!cleanChat(raw.lead, 300);
   const hasMessage = isStr(raw.message) && !!raw.message.trim();
   const type =
-    raw.type === "chat" && (hasMessage || !hasLead)
+    (raw.type === "chat" || raw.type === "general") && (hasMessage || !hasLead)
       ? "chat"
       : raw.type === "insight" || hasLead
         ? "insight"
@@ -1072,9 +1149,24 @@ export function cleanFollowUps(raw: unknown, labels: string[] = []): string[] {
 /** A chat reply (light mode, or type "chat"): clipped, ≤ 2 emoji, no p-refs. Empty → null (retry). */
 export function validateLightAnswer(raw: unknown, labels: string[] = []): AskChat | null {
   if (!isObj(raw) || !isStr(raw.message)) return null;
-  const message = capEmoji(cleanChat(raw.message, CHAT_CHARS, labels), CHAT_EMOJI);
-  return message ? { type: "chat", message } : null;
+  const general = raw.type === "general";
+  // General answers get a little more room (2-3 sentences); small talk stays short.
+  const message = capEmoji(
+    cleanChat(raw.message, general ? GENERAL_CHARS : CHAT_CHARS, labels),
+    CHAT_EMOJI,
+  );
+  if (!message) return null;
+  const tieBack = isStr(raw.tie_back) ? capEmoji(cleanChat(raw.tie_back, 200, labels), 1) : "";
+  return {
+    type: "chat",
+    message,
+    ...(tieBack ? { tieBack } : {}),
+    ...(raw.may_be_outdated === true ? { mayBeOutdated: true } : {}),
+  };
 }
+
+/** A general-knowledge answer: 2–3 sentences. */
+export const GENERAL_CHARS = 420;
 
 /** "For OBU Health: try a weekly Q&A 🎯" → "Try a weekly Q&A" (the text saved as an AI idea). */
 export function ideaFromAnswer(forClient: string, clientName: string): string {

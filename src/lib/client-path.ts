@@ -6,6 +6,9 @@ export type ClientSummary = {
   id: string;
   slug: string;
   name: string;
+  /** 27 Nov: shown where space is tight; other names Blip treats as the client. */
+  short_name?: string | null;
+  aliases?: string[];
   initials: string | null;
   brand_color: string | null;
   is_demo: boolean;

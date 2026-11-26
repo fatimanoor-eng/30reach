@@ -71,6 +71,9 @@ export type BlipChat = {
   message: string;
   /** Starting points under the line (hesitation replies, written in code): tapping one asks it. */
   suggestions?: string[];
+  /** General questions (round 2): one line back to the client's data, and "may be out of date". */
+  tieBack?: string;
+  mayBeOutdated?: boolean;
 };
 export type BlipAnswer = BlipInsight | BlipChat;
 
@@ -80,7 +83,7 @@ export const askBlip = (clientId: string, question: string, history: AskTurn[], 
 
 /** An answer as one short text: the history Blip gets for follow-ups, and what "Copy" copies. */
 export function answerText(a: BlipAnswer): string {
-  if (a.type === "chat") return a.message;
+  if (a.type === "chat") return [a.message, a.tieBack].filter(Boolean).join("\n");
   return [a.lead, ...a.points.map((p, i) => `${i + 1}. ${p}`), a.forClient]
     .filter(Boolean)
     .join("\n");

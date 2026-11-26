@@ -30,7 +30,7 @@ import {
   type SiteProfile,
   validateProfile,
 } from "../_shared/site-logic.ts";
-import { domainStem, normName } from "../_shared/discovery-logic.ts";
+import { domainStem, looksLikeBrandSite, normName } from "../_shared/discovery-logic.ts";
 // Never import logo-image.ts directly (26 Nov outage): logo-safe loads it lazily and cannot throw.
 import { saveLogoSafely, signedLogoUrlSafely } from "../_shared/logo-safe.ts";
 import { logoCandidates } from "../_shared/logo-logic.ts";
@@ -98,6 +98,8 @@ export default {
     const body = await readJson(req);
     const mode = body.mode === "accounts" ? "accounts" : body.mode === "find" ? "find" : "client";
     const findName = typeof body.name === "string" ? body.name.trim().slice(0, 60) : "";
+    // Accounts mode (27 Nov): the competitor's name, to check the page is really theirs.
+    const brand = typeof body.brand === "string" ? body.brand.trim().slice(0, 80) : findName;
     let url = siteUrl(body.url);
     if (mode === "find" ? !findName : !url) return json({ error: "bad_url" }, 400);
     const admin = ctx.supabaseAdmin;
@@ -169,6 +171,23 @@ export default {
     }
     const accounts = accountsFromLinks(page.links);
     if (mode !== "client") {
+      // Not the brand's own page (a document host, a directory: the FAST-NUCES / Scribd case): its accounts
+      // and logo belong to someone else, so none are kept ("No accounts found · add" in Review).
+      const site = domainOf(url!) ?? "";
+      const handles = accounts.map(
+        (a) => a.handle ?? (a.url ?? "").split("/").filter(Boolean).pop() ?? "",
+      );
+      if (!looksLikeBrandSite(site, handles, brand)) {
+        return json({
+          status: "ok",
+          credits: spent,
+          accounts: [],
+          logoPath: null,
+          logoUrl: null,
+          name: brand,
+          notBrandSite: true,
+        });
+      }
       // Competitor: a small square logo from the same page (branding has no surcharge; 0 extra credits).
       const logoPath = await saveLogoSafely(
         admin,
@@ -246,6 +265,8 @@ export default {
           rules: [],
           queries: [],
           scope: "local",
+          shortName: "",
+          aliases: [],
         };
     if (!profile.description) profile.description = s(meta.description)?.slice(0, 400) ?? "";
 

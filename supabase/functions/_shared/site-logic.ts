@@ -1,5 +1,6 @@
 // Slice 17d: Add client from a website. Pure rules for `scan-site` and `suggest-competitors` (tested in
 // site-logic.test.ts with the 24 Nov spike pages). No network here.
+import { cleanAliases, cleanShortName } from "./names.ts";
 import { facebookPageUrl, linkedInSlug } from "./pull-logic.ts";
 
 /** Platforms 30reach pulls today (the rest are "found, coming later"). */
@@ -158,9 +159,12 @@ export function domainOf(url: string): string | null {
   }
 }
 
-/** Sites that are never a competitor: marketplaces, review sites, forums, social networks, news. */
+/**
+ * Sites that are never a competitor: marketplaces, review sites, forums, social networks, news; and
+ * (27 Nov) document / profile hosts: FAST-NUCES was "found" on a Scribd page, so it got Scribd's accounts.
+ */
 const NOT_COMPETITOR =
-  /(^|\.)(yelp|reddit|amazon|etsy|ebay|walmart|target|costco|wikipedia|youtube|facebook|instagram|tiktok|pinterest|linkedin|twitter|x|quora|tripadvisor|trustpilot|bbb|nextdoor|thumbtack|groupon|google|apple|nytimes|forbes|cnn|bbc|healthline|webmd|goodrx|everydayhealth|yahoo|msn|medium|substack)\.[a-z.]+$/;
+  /(^|\.)(yelp|reddit|amazon|etsy|ebay|walmart|target|costco|wikipedia|wikiwand|youtube|facebook|instagram|tiktok|pinterest|linkedin|twitter|x|quora|tripadvisor|trustpilot|bbb|nextdoor|thumbtack|groupon|google|apple|nytimes|forbes|cnn|bbc|healthline|webmd|goodrx|everydayhealth|yahoo|msn|medium|substack|scribd|slideshare|issuu|academia|researchgate|coursehero|studocu|docplayer|yumpu|pdfcoffee|prezi|quizlet|chegg|archive|glassdoor|indeed|crunchbase|zoominfo|rocketreach|github)\.[a-z.]+$/;
 
 /** Never suggested as a competitor (also for brands named in text, Discovery 2.0). */
 export const isNotCompetitor = (domain: string) => NOT_COMPETITOR.test(domain);
@@ -252,6 +256,9 @@ export type SiteProfile = {
   rules: { id: string; rule: string; why: string; quote: string }[];
   queries: string[];
   scope: "local" | "national";
+  /** 27 Nov: what people call it ("ABCU"), "" if the name is already short; other names ("ACU"). */
+  shortName: string;
+  aliases: string[];
 };
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -279,8 +286,12 @@ export function validateProfile(
     .map((q) => str(q, 120))
     .filter(Boolean)
     .slice(0, 2);
+  const name = str(r.name, 80) || fallbackName;
+  const shortName = cleanShortName(r.short_name, name);
   return {
-    name: str(r.name, 80) || fallbackName,
+    name,
+    shortName,
+    aliases: cleanAliases(r.aliases, name, shortName),
     description: str(r.description, 400),
     country: /^[A-Z]{2}$/.test(country) ? country : "US",
     language: /^[a-z]{2}$/.test(language) ? language : "en",
@@ -348,6 +359,8 @@ export const PROFILE_SCHEMA = {
     content_rules: { type: "array", items: obj({ rule: S, why: S, quote: S }) },
     search_queries: { type: "array", items: S },
     scope: { type: "string", enum: ["local", "national"] },
+    short_name: S,
+    aliases: { type: "array", items: S },
   }),
 };
 
@@ -372,6 +385,7 @@ export function profileSystem(): string {
     "- content_rules: 0–4 posting rules a careful marketer would follow for THIS brand. Each needs why (one sentence) and quote: words copied exactly from the page that the rule is based on. No legal requirements you can't see on the page.",
     "- search_queries: exactly 2 web searches. 1: what the product does, in plain words a shopper would type, WITHOUT the brand name (e.g. 'coupon codes tested at checkout'). 2: a list search for the category (e.g. 'best coupon apps and sites'). For a local business add the city to both.",
     "- scope: local (one city / region) or national.",
+    "- short_name: what people call it in 1-2 words if the name is long (e.g. 'ABCU' for 'Acme Business & Commerce University'); '' if it's already short. aliases: other names people use for the SAME organisation (acronyms, old names; e.g. 'ACU', 'ABC Uni'); [] if none.",
   ].join("\n");
 }
 export const profileUser = (url: string, page: string) => `Website: ${url}\n\n${page}`;

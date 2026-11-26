@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  GENERAL_CHARS,
+  plainWords,
   cleanFollowUps,
   trimHistory,
   followersChange,
@@ -1123,7 +1125,7 @@ describe("prompts", () => {
     expect(p).toMatch(/suggest a data question/);
     expect(p).toContain("first name is Fatima");
     expect(p).not.toContain("<data>");
-    expect(p.length).toBeLessThan(1950); // ≈ 490 tokens incl. the rules and the industry line (17e)
+    expect(p.length).toBeLessThan(2400); // ≈ 580 tokens: rules, industry line (17e), general questions (round 2)
     const u = askLightUser({
       history: [{ q: "what's working?", a: "Carousels." }],
       question: "huh?",
@@ -1196,10 +1198,10 @@ describe("prompts", () => {
       hooksSystem({ client: "OBU Health", platform: null, today: TODAY, ctx: OBU_CTX }),
       captionsSystem({ client: "OBU Health", platform: "instagram", today: TODAY, ctx: OBU_CTX }),
     ].map((s) => s.length);
-    // ≈ 1K tokens. Ask Blip is the biggest (voice + chat rules + the client brief, Slice 17e; + numbers and
-    // follow-up rules, Smart Blip round 1, ≈ +90 tokens); its ~2.5K-token data summary is the real cost,
-    // which light mode skips for small talk.
-    expect(Math.max(...sizes)).toBeLessThan(4000);
+    // ≈ 1.15K tokens. Ask Blip is the biggest (voice + chat rules + the client brief, Slice 17e; numbers
+    // and follow-ups, Smart Blip round 1; first pull, plain words and general questions, round 2); its
+    // ~2.5K-token data summary is the real cost, which light mode skips for small talk.
+    expect(Math.max(...sizes)).toBeLessThan(4900); // ≈ 1.2K tokens
   });
 
   it("the client's brief and rules follow the client (Slice 17e)", () => {
@@ -1751,5 +1753,81 @@ describe("follow-up chips (Smart Blip round 1)", () => {
       [],
     );
     expect(a).toMatchObject({ type: "insight", followUps: ["Which format is next?"] });
+  });
+});
+
+describe("plainWords (no internal terms in answers, 27 Nov)", () => {
+  it("turns field names and null into plain words", () => {
+    expect(plainWords("previous is null, so no followers_change yet")).toBe(
+      "previous isn’t available, so no follower change yet",
+    );
+    expect(plainWords("Hims has the best engagement_rate_pct")).toBe(
+      "Hims has the best engagement rate",
+    );
+    expect(plainWords("some_other_field and null")).toBe("some other field and not available");
+    expect(plainWords("Reels lead with 2.1K likes")).toBe("Reels lead with 2.1K likes");
+  });
+  it("is applied to every answer", () => {
+    const a = validateAskAnswer(
+      { type: "insight", lead: "followers_change is null", points: ["x"] },
+      [],
+    );
+    expect(a).toMatchObject({ lead: "follower change isn’t available" });
+    expect(validateLightAnswer({ message: "older_data says null" })).toEqual({
+      type: "chat",
+      message: "earlier pull says not available",
+    });
+  });
+});
+
+describe("general questions (Smart Blip round 2)", () => {
+  it("a general answer comes back as chat with a tie-back and the outdated flag", () => {
+    const a = validateAskAnswer(
+      {
+        type: "general",
+        message:
+          "A carousel is a post with several swipeable images or videos. They keep people on a post longer.",
+        tie_back: "In this pull, Hims' carousels average 2.1K likes.",
+        may_be_outdated: true,
+        lead: "",
+        points: [],
+      },
+      [],
+    );
+    expect(a).toEqual({
+      type: "chat",
+      message:
+        "A carousel is a post with several swipeable images or videos. They keep people on a post longer.",
+      tieBack: "In this pull, Hims' carousels average 2.1K likes.",
+      mayBeOutdated: true,
+    });
+  });
+  it("small talk stays short and has no extras", () => {
+    expect(
+      validateLightAnswer({
+        type: "chat",
+        message: "hehe 😄",
+        tie_back: "",
+        may_be_outdated: false,
+      }),
+    ).toEqual({
+      type: "chat",
+      message: "hehe 😄",
+    });
+    const long = "x ".repeat(300);
+    expect(
+      validateLightAnswer({ type: "chat", message: long })!.message.length,
+    ).toBeLessThanOrEqual(CHAT_CHARS);
+    expect(
+      validateLightAnswer({ type: "general", message: long })!.message.length,
+    ).toBeLessThanOrEqual(GENERAL_CHARS);
+  });
+  it("the prompts ask for it, and keep the advice rule", () => {
+    const full = askSystem({ client: "OBU Health", firstName: null, today: "2026-11-27" });
+    const light = askLightSystem({ client: "OBU Health", firstName: null, today: "2026-11-27" });
+    for (const p of [full, light]) {
+      expect(p).toMatch(/may_be_outdated/);
+      expect(p).toMatch(/medical, diet, dosage/);
+    }
   });
 });

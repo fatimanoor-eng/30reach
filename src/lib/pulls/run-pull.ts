@@ -57,7 +57,8 @@ export function progressOf(tasks: TaskProgress[]): PullProgress {
 
 export const toProgress = (t: TaskRow): TaskProgress => ({
   id: t.id,
-  brand: t.competitors?.name ?? "Unknown brand",
+  // Short names fit the progress list (27 Nov).
+  brand: t.competitors?.short_name?.trim() || t.competitors?.name || "Unknown brand",
   platform: t.platform,
   status: t.status,
   pages: t.pages,

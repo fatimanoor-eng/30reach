@@ -159,6 +159,11 @@ function BrandCard({ client, onEdit }: { client: ClientDetails; onEdit: () => vo
         <Row label="Country">
           {countryName(client.country)} · {languageName(client.language)}
         </Row>
+        {(client.short_name || client.aliases?.length > 0) && (
+          <Row label="Other names">
+            {[client.short_name, ...(client.aliases ?? [])].filter(Boolean).join(" · ")}
+          </Row>
+        )}
         <Row label="Industry">{client.industry || <span className="text-muted">Not set</span>}</Row>
         <Row label="Brand colour">
           {client.brand_color ? (

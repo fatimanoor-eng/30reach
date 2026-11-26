@@ -24,6 +24,8 @@ export type Found = {
   /** One line: why it's suggested. */
   why: string;
   group: Group;
+  /** 27 Nov: what people call it ("ABCU"); "" when the name is already short. */
+  shortName?: string;
   /** Its business model in a few words ("Coupon platform", "Retailer with coupons"), from Groq. */
   model?: string;
   /**
@@ -53,6 +55,41 @@ export function normName(name: string): string {
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/^the /, "")
     .trim();
+}
+
+/**
+ * Does a domain stem or handle plausibly name this brand? (27 Nov, the Scribd case.) Its name joined
+ * ("fastnuces"), a name word of 4+ letters, the initials (2+: "nust"), or the text inside the name (3+).
+ */
+export function resemblesName(text: string, name: string): boolean {
+  const t = text.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const words = normName(name).split(" ").filter(Boolean);
+  if (!t || !words.length) return true; // nothing to judge
+  const joined = words.join("");
+  // "National University of Sciences and Technology" → "nust" (small words don't count).
+  const initials = words
+    .filter((w) => !/^(of|and|the|for|de|la|in|at|a|an)$/.test(w))
+    .map((w) => w[0])
+    .join("");
+  return (
+    (joined.length >= 2 && t.includes(joined)) ||
+    words.some((w) => w.length >= 4 && t.includes(w)) ||
+    (initials.length >= 2 && t.startsWith(initials)) ||
+    (t.length >= 3 && joined.includes(t))
+  );
+}
+
+/**
+ * A competitor's page we read: is it really theirs? Not when neither its domain nor any account it links
+ * resembles the brand's name (a document host, a directory). Then its accounts and logo are dropped.
+ */
+export function looksLikeBrandSite(
+  domain: string,
+  handles: readonly string[],
+  name: string,
+): boolean {
+  if (!name.trim()) return true;
+  return resemblesName(domainStem(domain), name) || handles.some((h) => resemblesName(h, name));
 }
 
 /** "worthepenny.com" → "worthepenny"; "www.coupons.com" → "coupons". */
@@ -117,7 +154,7 @@ export function namedInResults(
 }
 
 // ───────────────────────────────────────────── Groq's answers → suggestions
-type Model = { model?: string; same_model?: boolean };
+type Model = { model?: string; same_model?: boolean; short_name?: string };
 type SortItem = Model & {
   i: number;
   kind: string;
@@ -140,7 +177,9 @@ function modelFields(x: Model | undefined, why: string) {
   const model = str(x?.model, 40);
   const sameModel = typeof x?.same_model === "boolean" ? x.same_model : undefined;
   const lead = model && !why.toLowerCase().startsWith(model.toLowerCase()) ? model : "";
+  const shortName = typeof x?.short_name === "string" ? x.short_name.trim().slice(0, 24) : "";
   return {
+    ...(shortName ? { shortName } : {}),
     why: [lead, why].filter(Boolean).join(" · ").slice(0, 120),
     ...(model ? { model } : {}),
     ...(sameModel !== undefined ? { sameModel } : {}),
@@ -328,6 +367,7 @@ export const DISCOVER_SCHEMA = {
         group: GROUP,
         model: S,
         same_model: B,
+        short_name: S,
       }),
     },
     brands: {
@@ -340,6 +380,7 @@ export const DISCOVER_SCHEMA = {
         group: GROUP,
         model: S,
         same_model: B,
+        short_name: S,
       }),
     },
     client_model: S,
@@ -358,6 +399,7 @@ export const HOP_SCHEMA = {
         group: { type: "string", enum: ["rival", "big", "skip"] },
         model: S,
         same_model: B,
+        short_name: S,
       }),
     },
   }),
@@ -369,6 +411,7 @@ const FACTS =
 /** Relevance (26 Nov): The Krazy Coupon Lady's top "rivals" were Food4Less and Kroger. */
 const MODEL = [
   "First decide the client's business model in 2–4 words (client_model): how it makes money, e.g. 'Coupon platform', 'Telehealth clinic', 'Gift box shop'.",
+  "For every brand also give short_name: what people call it if the name is long (e.g. 'ABCU'), else ''.",
   "For every brand give model (its own business model, same style: e.g. 'Coupon platform' vs 'Retailer with coupons') and same_model: true ONLY if it makes money the same way as the client. A store that merely offers coupons is not a coupon platform.",
 ].join("\n");
 

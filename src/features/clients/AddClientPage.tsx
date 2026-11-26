@@ -1,3 +1,4 @@
+import { parseAliases, shortNameValue } from "../../lib/names";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router";
@@ -121,6 +122,8 @@ export function AddClientPage() {
         {
           client: {
             name: d.name.trim().slice(0, 80),
+            short_name: shortNameValue(d.shortName ?? "", d.name),
+            aliases: parseAliases(d.aliases ?? "", d.name, d.shortName ?? ""),
             initials: initialsFor(d.name),
             website: d.website,
             description: d.description.trim() || null,
@@ -182,7 +185,7 @@ export function AddClientPage() {
       const row = state.draft?.competitors.find((c) => c.key === key);
       if (!row) return;
       patchRow(key, { scanning: true });
-      void readAccounts(state.scanId, row.website).then((r) => {
+      void readAccounts(state.scanId, row.website, row.name).then((r) => {
         if (isFailure(r) || !r.accounts) {
           patchRow(
             key,

@@ -12,8 +12,14 @@ import {
   namedInResults,
   normName,
   discoverSystem,
+  looksLikeBrandSite,
 } from "./discovery-logic.ts";
-import { cleanResults, isNotCompetitor, type SearchResult } from "./site-logic.ts";
+import {
+  accountsFromLinks,
+  cleanResults,
+  isNotCompetitor,
+  type SearchResult,
+} from "./site-logic.ts";
 
 /*
  * Discovery 2.0 test case (spike 25 Nov 2026): The Coupon Chaser (thecouponchaser.com) must surface
@@ -328,5 +334,37 @@ describe("relevance — The Krazy Coupon Lady (26 Nov)", () => {
   it("asks Groq for the business model", () => {
     expect(discoverSystem()).toMatch(/same_model/);
     expect(discoverSystem()).toMatch(/A store that merely offers coupons is not a coupon platform/);
+  });
+});
+
+describe("is this page really the brand's? (27 Nov, FAST-NUCES on Scribd)", () => {
+  it("a document host's own accounts don't belong to the brand", () => {
+    expect(looksLikeBrandSite("scribd.com", ["scribd"], "FAST-NUCES")).toBe(false);
+    expect(isNotCompetitor("scribd.com")).toBe(true);
+    expect(isNotCompetitor("www.slideshare.net")).toBe(true);
+  });
+  it("real brand sites pass by domain or by their accounts", () => {
+    expect(looksLikeBrandSite("nu.edu.pk", ["fastnuces"], "FAST-NUCES")).toBe(true);
+    expect(
+      looksLikeBrandSite("nust.edu.pk", [], "National University of Sciences and Technology"),
+    ).toBe(true);
+    expect(looksLikeBrandSite("forhims.com", ["hims"], "Hims")).toBe(true);
+    expect(looksLikeBrandSite("ro.co", [], "Ro")).toBe(true);
+    expect(looksLikeBrandSite("weightwatchers.com", [], "WeightWatchers")).toBe(true);
+    expect(looksLikeBrandSite("bnu.edu.pk", [], "Beaconhouse National University")).toBe(true);
+  });
+  it("placeholder links are never accounts", () => {
+    expect(
+      accountsFromLinks([
+        "#",
+        "javascript:void(0)",
+        "",
+        "https://www.instagram.com/",
+        "https://instagram.com/#",
+        "https://www.facebook.com/",
+        "https://twitter.com/home",
+        "https://www.tiktok.com/",
+      ]),
+    ).toEqual([]);
   });
 });

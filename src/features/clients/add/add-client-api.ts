@@ -33,7 +33,12 @@ type PageRead = {
 };
 
 /** A competitor's home page → the accounts it links and a square logo (1 credit). Null when unreadable. */
-export async function readAccounts(scanId: string, url: string): Promise<PageRead | ScanFailure> {
+export async function readAccounts(
+  scanId: string,
+  url: string,
+  /** The competitor's name: the page's accounts are kept only if the page is really theirs (27 Nov). */
+  brand?: string,
+): Promise<PageRead | ScanFailure> {
   const res = await callFunction<{
     status: "ok" | "unreadable";
     credits: number;
@@ -41,7 +46,7 @@ export async function readAccounts(scanId: string, url: string): Promise<PageRea
     accounts?: FoundAccount[];
     logoPath?: string | null;
     logoUrl?: string | null;
-  }>("scan-site", { url, mode: "accounts", scanId });
+  }>("scan-site", { url, mode: "accounts", scanId, ...(brand ? { brand } : {}) });
   if (res.ok)
     return {
       name: res.data.name ?? "",
@@ -134,6 +139,8 @@ export const isFailure = (v: unknown): v is ScanFailure =>
 export type CreateInput = {
   client: {
     name: string;
+    short_name: string | null;
+    aliases: string[];
     initials: string;
     website: string;
     description: string | null;
@@ -157,6 +164,7 @@ export type CreateInput = {
   }[];
   competitors: {
     name: string;
+    short_name: string | null;
     initials: string;
     logo_path: string | null;
     logo_source: "site" | null;

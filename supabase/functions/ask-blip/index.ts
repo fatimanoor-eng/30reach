@@ -23,7 +23,6 @@ import {
   ASK_SCHEMA,
   buildSummary,
   firstName,
-  ideaFromAnswer,
   parseAskInput,
   todayContext,
   validateAskAnswer,
@@ -33,10 +32,10 @@ import { askLightSystem, askLightUser, askSystem, askUser } from "../_shared/ai-
 import {
   aiFailure,
   groqJson,
+  insightResponse,
   loadClientContext,
   loadFailure,
   loadPull,
-  sourcePost,
 } from "../_shared/ai-server.ts";
 import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
 
@@ -117,19 +116,7 @@ export default {
     if (!result.ok) return aiFailure(result);
 
     const a = result.value;
-    if (a.type === "chat") return json({ type: "chat", message: a.message });
-    return json({
-      type: "insight",
-      lead: a.lead,
-      points: a.points,
-      forClient: a.forClient,
-      idea: ideaFromAnswer(a.forClient, client),
-      inData: a.inData,
-      sources: a.postIds
-        .map((id) => loaded.posts.get(id))
-        .filter((p) => !!p)
-        .map((p) => sourcePost(p!, loaded.data.brands)),
-      pull: { id: loaded.data.pull.id, startedAt: loaded.data.pull.started_at },
-    });
+    if (a.type === "chat") return json(a);
+    return json(insightResponse(a, loaded, client));
   }),
 };

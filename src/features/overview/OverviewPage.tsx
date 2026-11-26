@@ -1,3 +1,4 @@
+import { displayName } from "../../lib/names";
 import { PageHeader } from "../../app/PageHeader";
 import { BrandPills } from "../../components/BrandPills";
 import { Card } from "../../components/Card";
@@ -71,9 +72,11 @@ function Dashboard({
   const previousPosts = usePullPosts(previous?.id);
   const followers = useFollowerTable(latest.id, previous?.id);
 
-  const brands: BrandRef[] = competitors.map(({ id, name, initials, logo_path }) => ({
+  // Short names on pills, the leaderboard and charts (27 Nov); the full name stays in fullName.
+  const brands: BrandRef[] = competitors.map(({ id, name, short_name, initials, logo_path }) => ({
     id,
-    name,
+    name: displayName({ name, short_name }),
+    fullName: name,
     initials,
     logo_path,
   }));

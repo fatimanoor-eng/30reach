@@ -30,6 +30,9 @@ export type Competitor = {
   facebook_followers_at: string | null;
   /** Discovery 2.0: square 128 px logo in client-logos (site, or the Instagram / TikTok picture). */
   logo_path?: string | null;
+  /** 27 Nov: shown where space is tight ("ABCU"); other names Blip treats as this brand. */
+  short_name?: string | null;
+  aliases?: string[];
 };
 
 /** The client's competitors (brand pills, leaderboard, first-run checklist). Pill order = name. */
@@ -43,7 +46,7 @@ export function useCompetitors() {
       const { data, error } = await supabase
         .from("competitors")
         .select(
-          "id, name, initials, instagram_handle, tiktok_handle, linkedin_url, facebook_url, x_handle, youtube_handle, instagram_status, tiktok_status, linkedin_status, facebook_status, x_status, youtube_status, youtube_channel_id, youtube_subscribers, facebook_followers, facebook_followers_at, logo_path",
+          "id, name, initials, instagram_handle, tiktok_handle, linkedin_url, facebook_url, x_handle, youtube_handle, instagram_status, tiktok_status, linkedin_status, facebook_status, x_status, youtube_status, youtube_channel_id, youtube_subscribers, facebook_followers, facebook_followers_at, logo_path, short_name, aliases",
         )
         .eq("client_id", clientId!)
         .order("name");

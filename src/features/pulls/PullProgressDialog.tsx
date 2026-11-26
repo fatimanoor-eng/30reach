@@ -2,13 +2,13 @@ import { Check } from "lucide-react";
 import { BlipScanning } from "../../components/blip/BlipPoses";
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 import { PLATFORM_ICON, PLATFORMS } from "../../lib/platforms";
-import type { Platform } from "../../lib/pulls/api";
 import type { TaskProgress } from "../../lib/pulls/run-pull";
 import { MQ_TABLET_UP, useMediaQuery } from "../../lib/useMediaQuery";
 import { usePull } from "./pull-context";
 import {
   mobileProgressLine,
   PLATFORM_LABEL,
+  taskProblem,
   YOUTUBE_LIMIT,
   YOUTUBE_LIMIT_ALONE,
 } from "./pull-text";
@@ -61,12 +61,20 @@ export function PullProgressDialog() {
             style={{ width: `${fraction * 100}%` }}
           />
         </div>
-        {tabletUp ? (
-          <BrandGrid tasks={tasks} />
-        ) : (
-          <p className="text-center font-mono text-small text-muted" aria-live="polite">
-            {tasks.length ? mobileProgressLine(tasks) : "Warming up…"}
-          </p>
+        {/* 27 Nov: one compact line per brand at every size (the grid overflowed: long names, X cut off). */}
+        <BrandList tasks={tasks} />
+        <p className="sr-only" aria-live="polite">
+          {tasks.length ? mobileProgressLine(tasks) : ""}
+        </p>
+        {/* Problems in plain words, one per brand × platform. */}
+        {tasks.some((t) => t.status === "failed" && t.errorCode !== "quota") && (
+          <ul className="flex flex-col gap-1 text-small text-spark-text" role="status">
+            {tasks
+              .filter((t) => t.status === "failed" && t.errorCode !== "quota")
+              .map((t) => (
+                <li key={t.id}>{taskProblem(t)}</li>
+              ))}
+          </ul>
         )}
         {/* 18b: YouTube's free daily allowance ran out during this pull. */}
         {tasks.some((t) => t.errorCode === "quota") && (
@@ -79,72 +87,80 @@ export function PullProgressDialog() {
   );
 }
 
-/** Brand × platform grid: ✓ done · "pulling" · "waiting" · "not found" / "daily limit" / "failed" in red. */
-function BrandGrid({ tasks }: { tasks: TaskProgress[] }) {
+/**
+ * One line per brand (27 Nov redesign): its short name (truncated), then a small icon per platform with
+ * its status: waiting (faded), pulling (turning ring), done (✓ badge), problem (! badge). No columns, so
+ * nothing overflows at 390 / 768 / 1440.
+ */
+function BrandList({ tasks }: { tasks: TaskProgress[] }) {
+  if (!tasks.length) return <p className="font-mono text-small text-muted">Warming up…</p>;
   const platforms = PLATFORMS.filter((p) => tasks.some((t) => t.platform === p));
   const brands = [...new Set(tasks.map((t) => t.brand))];
-  if (!tasks.length) return <p className="font-mono text-small text-muted">Warming up…</p>;
-
   return (
-    // Border lives on a wrapper: tables (border-collapse) don't draw rounded borders.
-    <div className="overflow-hidden rounded-tile border border-line">
-      <table className="w-full text-left text-body-sm">
-        <caption className="sr-only">Pull progress by brand and platform</caption>
-        <thead className="sr-only">
-          <tr>
-            <th scope="col">Brand</th>
-            {platforms.map((p) => (
-              <th key={p} scope="col">
-                {PLATFORM_LABEL[p]}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line">
-          {brands.map((brand) => (
-            <tr key={brand}>
-              <th scope="row" className="px-4 py-2.5 font-normal">
-                {brand}
-              </th>
-              {platforms.map((p) => (
-                <td key={p} className="w-32 px-3 py-2.5">
-                  <Cell
-                    task={tasks.find((t) => t.brand === brand && t.platform === p)}
-                    platform={p}
-                  />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ul
+      aria-label="Pull progress by brand"
+      className="max-h-[40dvh] divide-y divide-line overflow-y-auto rounded-tile border border-line text-left"
+    >
+      {brands.map((brand) => (
+        <li key={brand} className="flex min-h-11 items-center gap-3 px-3 py-2 md:px-4">
+          <span className="min-w-0 flex-1 truncate text-body-sm" title={brand}>
+            {brand}
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5">
+            {platforms.map((p) => {
+              const task = tasks.find((t) => t.brand === brand && t.platform === p);
+              return task ? <StatusIcon key={p} task={task} /> : null;
+            })}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
-function Cell({ task, platform }: { task?: TaskProgress; platform: Platform }) {
-  const Icon = PLATFORM_ICON[platform];
-  if (!task) return <span className="text-muted">—</span>;
-  const status =
-    task.status === "done" ? (
-      <Check size={16} aria-label="done" />
-    ) : task.status === "running" ? (
-      <span className="font-mono text-label">pulling</span>
-    ) : task.status === "queued" ? (
-      <span className="font-mono text-label text-muted">waiting</span>
-    ) : (
-      <span className="font-mono text-label text-spark">
-        {task.errorCode === "not_found"
-          ? "not found"
-          : task.errorCode === "quota"
-            ? "daily limit"
-            : "failed"}
-      </span>
-    );
+const STATUS_WORD = {
+  queued: "waiting",
+  running: "pulling",
+  done: "done",
+  failed: "problem",
+} as const;
+
+function StatusIcon({ task }: { task: TaskProgress }) {
+  const Icon = PLATFORM_ICON[task.platform];
+  const word = STATUS_WORD[task.status as keyof typeof STATUS_WORD] ?? task.status;
+  const label = `${PLATFORM_LABEL[task.platform]}: ${word}`;
   return (
-    <span className="inline-flex items-center gap-2">
-      <Icon size={16} aria-label={PLATFORM_LABEL[platform]} className="text-muted" />
-      {status}
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className={`relative inline-flex size-7 items-center justify-center rounded-full ${
+        task.status === "queued" ? "text-line-strong" : "text-ink"
+      }`}
+    >
+      <Icon size={15} aria-hidden="true" />
+      {task.status === "running" && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full border-2 border-line border-t-ink motion-safe:animate-spin"
+        />
+      )}
+      {task.status === "done" && (
+        <span
+          aria-hidden="true"
+          className="absolute -right-0.5 -bottom-0.5 inline-flex size-3.5 items-center justify-center rounded-full bg-fresh text-white ring-2 ring-surface"
+        >
+          <Check size={9} strokeWidth={3.5} />
+        </span>
+      )}
+      {task.status === "failed" && (
+        <span
+          aria-hidden="true"
+          className="absolute -right-0.5 -bottom-0.5 inline-flex size-3.5 items-center justify-center rounded-full bg-spark font-mono text-[9px] leading-none font-bold text-white ring-2 ring-surface"
+        >
+          !
+        </span>
+      )}
     </span>
   );
 }

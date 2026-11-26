@@ -39,7 +39,15 @@ export type OverviewPost = {
   duration_seconds?: number | null;
 };
 
-export type BrandRef = { id: string; name: string; initials: string; logo_path?: string | null };
+export type BrandRef = {
+  id: string;
+  /** What's shown: the short name when there is one (27 Nov). */
+  name: string;
+  /** The full name, for tooltips. */
+  fullName?: string;
+  initials: string;
+  logo_path?: string | null;
+};
 export type PlatformFilter = "all" | Platform;
 export type Filters = { platform: PlatformFilter; days: 7 | 30; brandIds: readonly string[] };
 

@@ -32,6 +32,20 @@ export function mobileProgressLine(tasks: TaskProgress[]): string {
     .join(" · ");
 }
 
+/**
+ * One brand × platform problem in plain words (27 Nov): what happened and what to do.
+ * no_handle: the link on their site led nowhere ("#", a bare homepage), so there's nothing to pull.
+ */
+export function taskProblem(t: Pick<TaskProgress, "brand" | "platform" | "errorCode">): string {
+  const p = PLATFORM_LABEL[t.platform];
+  if (t.errorCode === "no_handle")
+    return `${t.brand}: the ${p} link on their site leads nowhere. Add the ${targetNoun(t.platform)} in Competitors.`;
+  if (t.errorCode === "not_found")
+    return `${t.brand}: that ${p} ${targetNoun(t.platform)} wasn’t found. Fix it in Competitors.`;
+  if (t.errorCode === "quota") return YOUTUBE_LIMIT_ALONE;
+  return `${t.brand}: ${p} didn’t answer this time. The next Refresh tries again.`;
+}
+
 /** YouTube's free daily API allowance ran out (resets at midnight Pacific), 18b. */
 export const YOUTUBE_LIMIT =
   "YouTube’s free daily limit ran out. The other platforms were pulled. YouTube will work again tomorrow.";

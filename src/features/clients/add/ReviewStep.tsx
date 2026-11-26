@@ -1,3 +1,4 @@
+import { NameFields } from "../../../components/NameFields";
 import { ArrowUpRight, Globe, Lock, Plus } from "lucide-react";
 import { BackButton } from "./BackButton";
 import { Checkbox } from "../../../components/Checkbox";
@@ -233,6 +234,12 @@ function BrandCard({
       </div>
       {logoError && <p className="mt-2 text-small text-spark-text">{logoError}</p>}
       <div className="mt-4 flex flex-col gap-4">
+        <NameFields
+          shortName={draft.shortName ?? ""}
+          aliases={draft.aliases ?? ""}
+          onShortName={(v) => set({ shortName: v })}
+          onAliases={(v) => set({ aliases: v })}
+        />
         <div>
           <label htmlFor={descId} className="mb-2 block mono-label text-muted">
             What they do

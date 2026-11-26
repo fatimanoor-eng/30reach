@@ -45,9 +45,14 @@ export function chipsFor(messages: Message[], starters: string[]): string[] {
   return next.length ? next : starters;
 }
 
-export function suggestions(clientName: string, topBrand: string | null): string[] {
+export function suggestions(
+  clientName: string,
+  topBrand: string | null,
+  /** No previous pull → nothing to compare: the "What changed" chip is left out (27 Nov). */
+  hasPrevious = true,
+): string[] {
   return [
-    WHAT_CHANGED,
+    ...(hasPrevious ? [WHAT_CHANGED] : []),
     ...(topBrand ? [`What’s working for ${topBrand}?`] : []),
     `Give me 3 post ideas for ${clientShort(clientName)}`,
   ];
@@ -61,7 +66,7 @@ export function topBrand(
     comments: number | null;
     counts_hidden: boolean;
   }[],
-  brands: { id: string; name: string }[],
+  brands: { id: string; name: string; short_name?: string | null }[],
 ): string | null {
   const sums = new Map<string, { total: number; n: number }>();
   for (const p of posts) {
@@ -70,7 +75,9 @@ export function topBrand(
     sums.set(p.competitor_id, { total: s.total + (p.likes ?? 0) + (p.comments ?? 0), n: s.n + 1 });
   }
   const best = [...sums].sort((a, b) => b[1].total / b[1].n - a[1].total / a[1].n)[0];
-  return best ? (brands.find((b) => b.id === best[0])?.name ?? null) : null;
+  const b = best ? brands.find((x) => x.id === best[0]) : undefined;
+  // Short name: the chip has to fit (27 Nov).
+  return b ? b.short_name?.trim() || b.name : null;
 }
 
 /** The voice guide's greeting, written by code (no Groq call just to say hi). */
@@ -242,7 +249,7 @@ export function smallTalkReply(m: SmallTalkMatch, firstName: string | null, turn
 
 // ───────────────────────────── hesitation and "how do you work?" (answered in code, no Groq call)
 
-export type HelpTalk = "hesitation" | "how";
+export type HelpTalk = "hesitation" | "how" | "first-pull";
 
 /** Normalised like small talk (lowercase, no punctuation / emoji, repeats squashed). */
 const HELP: Record<string, HelpTalk> = Object.fromEntries(
@@ -322,6 +329,17 @@ export function hesitationReply(
     message: HESITATION_LINES[turn % HESITATION_LINES.length],
     suggestions: chips.slice(0, 2),
   };
+}
+
+/** The answer to "what changed?" when there's only one pull (code, no tokens; 27 Nov). */
+export const FIRST_PULL_LINE =
+  "This is the first pull, so there’s nothing to compare yet. The next Refresh will show what changed.";
+
+/** "What changed since the last pull?", "anything new since last time", "compared to the last pull". */
+export function asksWhatChanged(text: string): boolean {
+  return /\b(what('?s| has| have)? changed|anything new|what'?s new|since (the )?last (pull|time|refresh)|compared? (to|with) (the )?(last|previous))\b/i.test(
+    text,
+  );
 }
 
 /** One line on how Blip works: it reads the saved pull; no live internet. */

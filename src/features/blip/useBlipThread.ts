@@ -7,6 +7,9 @@ import { useClient } from "../../lib/useClient";
 import { useCompetitors } from "../../lib/useCompetitors";
 import { useSavedPulls } from "../overview/useOverviewData";
 import {
+  asksWhatChanged,
+  FIRST_PULL_LINE,
+  type HelpTalk,
   clientShort,
   firstNameOf,
   hesitationReply,
@@ -43,15 +46,21 @@ export function useBlipThread(clientId: string | undefined) {
   const firstName = firstNameOf(profile.data?.full_name);
   const client = useClient();
   const competitors = useCompetitors();
-  const clientName = client.data?.name;
+  const clientName = client.data?.short_name?.trim() || client.data?.name;
   const queryClient = useQueryClient();
   // Brand and client names: a question naming one is about the data, so it never goes light.
   const names = useMemo(
-    () => [
-      ...(competitors.data ?? []).map((c) => c.name),
-      ...(clientName ? [clientName, clientShort(clientName)] : []),
-    ],
-    [competitors.data, clientName],
+    () =>
+      [
+        ...(competitors.data ?? []).flatMap((c) => [
+          c.name,
+          c.short_name ?? "",
+          ...(c.aliases ?? []),
+        ]),
+        ...(clientName ? [clientName, clientShort(clientName)] : []),
+        ...(client.data ? [client.data.name, ...(client.data.aliases ?? [])] : []),
+      ].filter(Boolean),
+    [competitors.data, clientName, client.data],
   );
   // One thread per client (Slice 17b) and per pull (Smart Blip round 1: with longer memory, an old thread
   // would talk about the old numbers). The thread is stored with the client + pull it belongs to and reads
@@ -93,7 +102,14 @@ export function useBlipThread(clientId: string | undefined) {
       if (!q || !clientId || inFlight.current) return;
       const id = nextId.current++;
       const small = matchSmallTalk(q);
-      const help = small ? null : matchHelpTalk(q);
+      // Only one pull: "what changed?" has nothing to compare (answered here; 27 Nov).
+      const saved = queryClient.getQueryData<{ latest: unknown; previous: unknown }>([
+        "pulls",
+        "saved",
+        clientId,
+      ]);
+      const firstPull = !!saved?.latest && !saved.previous && asksWhatChanged(q);
+      const help: HelpTalk | null = small ? null : firstPull ? "first-pull" : matchHelpTalk(q);
       inFlight.current = true;
       if (small || help) {
         const kind = small ? small.kind : help!;
@@ -115,6 +131,7 @@ export function useBlipThread(clientId: string | undefined) {
           : null;
         let answer: { type: "chat"; message: string; suggestions?: string[] };
         if (small) answer = { type: "chat", message: smallTalkReply(small, firstName, turn) };
+        else if (help === "first-pull") answer = { type: "chat", message: FIRST_PULL_LINE };
         else if (help === "hesitation")
           answer = {
             type: "chat",
@@ -122,6 +139,7 @@ export function useBlipThread(clientId: string | undefined) {
               suggestions(
                 clientName ?? "the client",
                 topBrand(posts ?? [], competitors.data ?? []),
+                !!saved?.previous,
               ),
               turn,
             ),

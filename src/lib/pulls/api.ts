@@ -106,7 +106,7 @@ export type TaskRow = {
   credits_used: number;
   error_code: string | null;
   competitor_id: string;
-  competitors: { name: string } | null;
+  competitors: { name: string; short_name?: string | null } | null;
 };
 
 /** Tasks of a pull (team can read pull_tasks via RLS). */
@@ -114,7 +114,7 @@ export async function listTasks(pullId: string): Promise<TaskRow[]> {
   const { data, error } = await supabase
     .from("pull_tasks")
     .select(
-      "id, platform, status, pages, posts_found, credits_used, error_code, competitor_id, competitors(name)",
+      "id, platform, status, pages, posts_found, credits_used, error_code, competitor_id, competitors(name, short_name)",
     )
     .eq("pull_id", pullId)
     .order("platform")

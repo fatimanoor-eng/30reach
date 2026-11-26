@@ -1,3 +1,5 @@
+import { NameFields } from "../../components/NameFields";
+import { aliasesText, parseAliases, shortNameValue } from "../../lib/names";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { Button } from "../../components/Button";
@@ -27,6 +29,8 @@ export function EditBrandDrawer({
   const update = useUpdateClient(client.id);
   const clients = useClients();
   const [name, setName] = useState(client.name);
+  const [shortName, setShortName] = useState(client.short_name ?? "");
+  const [aliases, setAliases] = useState(aliasesText(client.aliases));
   const [description, setDescription] = useState(client.description ?? "");
   const [website, setWebsite] = useState(client.website?.replace(/^https?:\/\//, "") ?? "");
   const [country, setCountry] = useState(client.country);
@@ -58,6 +62,8 @@ export function EditBrandDrawer({
       if (logo) logo_path = await uploadLogo(client.id, logo.file);
       await update.mutateAsync({
         name: name.trim().slice(0, 80),
+        short_name: shortNameValue(shortName, name),
+        aliases: parseAliases(aliases, name, shortName),
         description: description.trim() || null,
         website: website.trim() ? normaliseWebsite(website) : null,
         country,
@@ -153,6 +159,12 @@ export function EditBrandDrawer({
           maxLength={80}
           message={name.trim() ? undefined : "A name is needed."}
           tone={name.trim() ? "default" : "error"}
+        />
+        <NameFields
+          shortName={shortName}
+          aliases={aliases}
+          onShortName={setShortName}
+          onAliases={setAliases}
         />
         <div>
           <label htmlFor={descId} className="mb-2 block mono-label text-muted">

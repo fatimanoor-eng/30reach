@@ -1,3 +1,5 @@
+import { NameFields } from "../../components/NameFields";
+import { aliasesText, parseAliases, shortNameValue } from "../../lib/names";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "../../components/Button";
@@ -83,6 +85,8 @@ export function CompetitorPanel({
   // The row as saved so far (changes after a partial save of a new brand).
   const [saved, setSaved] = useState<Competitor | null>(competitor);
   const [name, setName] = useState(competitor?.name ?? "");
+  const [shortName, setShortName] = useState(competitor?.short_name ?? "");
+  const [aliases, setAliases] = useState(aliasesText(competitor?.aliases));
   const [initials, setInitials] = useState(competitor?.initials ?? "");
   const [initialsEdited, setInitialsEdited] = useState(!!competitor);
   const [inputs, setInputs] = useState<Record<Platform, string>>(
@@ -207,6 +211,8 @@ export function CompetitorPanel({
     // ── what gets saved: found / unchanged / cleared handles; a not-found handle keeps the old value
     const fields: CompetitorFields = {
       name: name.trim(),
+      short_name: shortNameValue(shortName, name),
+      aliases: parseAliases(aliases, name, shortName),
       initials: shownInitials.trim() || suggestInitials(name),
       instagram_handle: null,
       tiktok_handle: null,
@@ -401,6 +407,12 @@ export function CompetitorPanel({
             title="Shown on the brand pill. Suggested from the name; edit if you like."
           />
         </div>
+        <NameFields
+          shortName={shortName}
+          aliases={aliases}
+          onShortName={setShortName}
+          onAliases={setAliases}
+        />
         {PLATFORMS.map(field)}
         <p className="text-small text-muted">
           At least one handle or page. One that isn’t found costs nothing and isn’t saved.

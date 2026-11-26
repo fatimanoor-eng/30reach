@@ -29,6 +29,9 @@ export type SiteScan = {
   logoPath: string | null;
   logoUrl: string | null;
   accounts: FoundAccount[];
+  /** 27 Nov: suggested by the scan's profile. */
+  shortName?: string;
+  aliases?: string[];
 };
 
 /** Instagram followers read from a search snippet (approximate; Discovery 2.0 "Big in your space"). */
@@ -44,6 +47,8 @@ export type Suggestion = {
   unreadable?: boolean;
   /** Discovery 2.0: one line, why it's suggested. */
   why?: string;
+  /** 27 Nov: what people call it ("ABCU"), from Groq. */
+  shortName?: string;
   /** "rival" = Closest rivals (default), "big" = Big in your space. */
   group?: "rival" | "big";
   /** Same business model as the client (relevance fix 26 Nov): only these are pre-ticked. */
@@ -216,6 +221,8 @@ export type CompetitorDraft = {
   manual?: boolean;
   /** Discovery 2.0 */
   why?: string;
+  /** 27 Nov: what people call it ("ABCU"), saved as the competitor's short name. */
+  shortName?: string;
   group?: "rival" | "big";
   sameModel?: boolean;
   model?: string;
@@ -232,6 +239,9 @@ export type CompetitorDraft = {
 
 export type ReviewDraft = {
   name: string;
+  /** 27 Nov: "Short name" and "Also known as" (comma list as typed). */
+  shortName?: string;
+  aliases?: string;
   description: string;
   website: string;
   country: string;
@@ -279,6 +289,8 @@ export function reviewDefaults(
     }));
   return {
     name: scan.name,
+    shortName: scan.shortName ?? "",
+    aliases: (scan.aliases ?? []).join(", "),
     description: scan.description,
     website: scan.website,
     country: scan.country,
@@ -322,6 +334,7 @@ function draftOf(s: Suggestion, group: "rival" | "big", ticked: boolean): Compet
     inputs: {},
     why: s.why ?? "",
     group,
+    ...(s.shortName ? { shortName: s.shortName } : {}),
     ...(s.sameModel !== undefined ? { sameModel: s.sameModel } : {}),
     ...(s.model ? { model: s.model } : {}),
     scanned: s.accounts !== null || !!s.unreadable,
@@ -398,6 +411,7 @@ export function competitorRowsForCreate(d: ReviewDraft, parse: ParseAccount) {
   const seen = new Set<string>();
   const rows: {
     name: string;
+    short_name: string | null;
     initials: string;
     logo_path: string | null;
     logo_source: "site" | null;
@@ -417,6 +431,8 @@ export function competitorRowsForCreate(d: ReviewDraft, parse: ParseAccount) {
     const typed = (p: Platform) => (c.inputs[p]?.trim() ? parse(p, c.inputs[p]!).value : null);
     rows.push({
       name,
+      short_name:
+        c.shortName?.trim() && c.shortName.trim() !== name ? c.shortName.trim().slice(0, 24) : null,
       initials: suggestInitials(name.replace(/(^|\s)[^\p{L}\p{N}\s]+(?=\s|$)/gu, " ")),
       logo_path: c.logoPath ?? null,
       logo_source: c.logoPath ? "site" : null,

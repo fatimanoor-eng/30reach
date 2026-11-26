@@ -22,6 +22,9 @@ export const anyCheck = (c: Checks) => c.health || c.finance || c.age || c.kids;
 
 export type ClientRow = {
   name: string;
+  /** 27 Nov: short name and other names; Blip treats them all as the client. */
+  short_name?: string | null;
+  aliases?: string[] | null;
   description?: string | null;
   industry?: string | null;
   audience?: string | null;
@@ -38,6 +41,8 @@ export type ClientContext = {
   brief: string;
   /** Industry only: light small talk doesn't need the rest. */
   industry: string;
+  /** "Also called ABCU, ACU (the client itself)." or "" (27 Nov; light mode too). */
+  alsoCalled: string;
   /** How many content rules the client has (the claims check also checks against them). */
   rules: number;
   checks: Checks;
@@ -55,7 +60,16 @@ export function contextFromRow(row: ClientRow): ClientContext {
     .filter(Boolean)
     .slice(0, 5);
   const on = (Object.keys(checks) as CheckKind[]).filter((k) => checks[k]);
+  const names = [row.short_name, ...(row.aliases ?? [])]
+    .map((n) => one(n, 60))
+    .filter(
+      (n, i, all) =>
+        n && n.toLowerCase() !== one(row.name, 80).toLowerCase() && all.indexOf(n) === i,
+    )
+    .slice(0, 6);
+  const alsoCalled = names.length ? `Also called ${names.join(", ")} (the client itself).` : "";
   const lines = [
+    alsoCalled,
     one(row.description, 220) && `What they do: ${one(row.description, 220)}`,
     one(row.industry, 60) && `Industry: ${one(row.industry, 60)}`,
     one(row.audience, 100) && `Audience: ${one(row.audience, 100)}`,
@@ -70,6 +84,7 @@ export function contextFromRow(row: ClientRow): ClientContext {
     name: one(row.name, 80) || "the client",
     brief: inside ? `<client>\n${inside}</client>` : "",
     industry: one(row.industry, 60),
+    alsoCalled,
     rules: rules.length,
     checks,
   };

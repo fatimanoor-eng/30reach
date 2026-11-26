@@ -6,6 +6,7 @@
 // token use is logged (Supabase → Edge Functions → Logs), never the prompt or the answer.
 
 import {
+  type AskInsight,
   type Followers,
   DEFAULT_GROQ_MODEL,
   type Format,
@@ -14,6 +15,7 @@ import {
   type GroqMode,
   groqRequestBody,
   groqRetryAfter,
+  ideaFromAnswer,
   type PullData,
   parseGroqJson,
   parseGroqMeter,
@@ -177,7 +179,7 @@ export async function loadPull(
     carried?: Partial<Record<Platform, string>> | null;
   }[];
   const [brands, posts, prevPosts, tasks] = await Promise.all([
-    db.from("competitors").select("id, name").eq("client_id", clientId),
+    db.from("competitors").select("id, name, short_name, aliases").eq("client_id", clientId),
     db.from("posts").select(POST_COLUMNS).eq("pull_id", latest.id).eq("hidden", false),
     prev
       ? db.from("posts").select(POST_COLUMNS).eq("pull_id", prev.id).eq("hidden", false)
@@ -211,6 +213,34 @@ export async function loadPull(
   };
 }
 
+/**
+ * The insight the browser gets (tested: every field the panel uses must be here; Round 1 shipped without
+ * followUps, so the chips never changed).
+ */
+export function insightResponse(
+  a: AskInsight,
+  loaded: {
+    data: { brands: { id: string; name: string }[]; pull: { id: string; started_at: string } };
+    posts: Map<string, SummaryPost>;
+  },
+  client: string,
+) {
+  return {
+    type: "insight" as const,
+    lead: a.lead,
+    points: a.points,
+    forClient: a.forClient,
+    idea: ideaFromAnswer(a.forClient, client),
+    inData: a.inData,
+    sources: a.postIds
+      .map((id) => loaded.posts.get(id))
+      .filter((p): p is SummaryPost => !!p)
+      .map((p) => sourcePost(p, loaded.data.brands)),
+    pull: { id: loaded.data.pull.id, startedAt: loaded.data.pull.started_at },
+    followUps: a.followUps,
+  };
+}
+
 /** What the browser needs to show a source link ("Hims · TikTok · 9 Nov · 212K views ↗"). */
 export function sourcePost(p: SummaryPost, brands: { id: string; name: string }[]) {
   return {
@@ -240,7 +270,7 @@ export async function loadClientContext(
   const { data } = await db
     .from("clients")
     .select(
-      "name, description, industry, audience, country, language, regulated, audience_is_kids, content_rules",
+      "name, short_name, aliases, description, industry, audience, country, language, regulated, audience_is_kids, content_rules",
     )
     .eq("id", clientId)
     .maybeSingle();

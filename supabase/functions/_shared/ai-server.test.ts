@@ -3,7 +3,7 @@ import type { SupabaseClient } from "./server.ts";
 
 // server.ts re-exports an `npm:` module (Deno only); the loaders below only need its types.
 vi.mock("./server.ts", () => ({ clientName: vi.fn(), json: vi.fn(), recordUsage: vi.fn() }));
-const { loadClientContext, loadPull } = await import("./ai-server.ts");
+const { insightResponse, loadClientContext, loadPull } = await import("./ai-server.ts");
 
 /*
  * Every AI function (Ask Blip, Plan {month}, hooks, captions, claim checks) reads the client's data only
@@ -192,5 +192,60 @@ describe("AI data is the current client's only", () => {
     expect(queries).toHaveLength(1);
     expect(has(queries[0], "id", "client-2")).toBe(true);
     expect(await loadClientContext(db, "client-9")).toBeNull();
+  });
+});
+
+describe("insightResponse (what the browser gets)", () => {
+  it("carries every field the panel uses, including follow-ups", () => {
+    const r = insightResponse(
+      {
+        type: "insight",
+        lead: "Reels lead",
+        points: ["2× likes"],
+        forClient: "For OBU Health: try a reel",
+        postIds: ["p-1", "missing"],
+        inData: true,
+        followUps: ["Who grew fastest?"],
+      },
+      {
+        data: {
+          brands: [{ id: "c-1", name: "Hims" }],
+          pull: { id: "pull-1", started_at: "2026-11-16T10:00:00Z" },
+        },
+        posts: new Map([
+          [
+            "p-1",
+            {
+              id: "p-1",
+              competitor_id: "c-1",
+              platform: "instagram",
+              format: "reel",
+              posted_at: "2026-11-10T10:00:00Z",
+              url: "https://example.com/p",
+              likes: 10,
+              comments: 1,
+              views: null,
+            } as never,
+          ],
+        ]),
+      },
+      "OBU Health",
+    );
+    expect(Object.keys(r).sort()).toEqual(
+      [
+        "followUps",
+        "forClient",
+        "idea",
+        "inData",
+        "lead",
+        "points",
+        "pull",
+        "sources",
+        "type",
+      ].sort(),
+    );
+    expect(r.followUps).toEqual(["Who grew fastest?"]);
+    expect(r.idea).toBe("Try a reel");
+    expect(r.sources).toHaveLength(1);
   });
 });

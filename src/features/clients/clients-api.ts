@@ -20,6 +20,8 @@ export type ClientDetails = {
   id: string;
   slug: string;
   name: string;
+  short_name: string | null;
+  aliases: string[];
   website: string | null;
   description: string | null;
   industry: string | null;
@@ -47,7 +49,7 @@ export type ClientPlatformRow = {
 };
 
 const DETAILS =
-  "id, slug, name, website, description, industry, audience, country, language, initials, brand_color, logo_path, regulated, audience_is_kids, health_months, content_rules, is_demo, archived_at, archived_by";
+  "id, slug, name, short_name, aliases, website, description, industry, audience, country, language, initials, brand_color, logo_path, regulated, audience_is_kids, health_months, content_rules, is_demo, archived_at, archived_by";
 
 export const detailsKey = (id: string | undefined) => ["client-details", id] as const;
 export const platformRowsKey = (id: string | undefined) => ["client_platform_rows", id] as const;
@@ -113,6 +115,8 @@ export type ClientPatch = Partial<
   Pick<
     ClientDetails,
     | "name"
+    | "short_name"
+    | "aliases"
     | "website"
     | "description"
     | "industry"

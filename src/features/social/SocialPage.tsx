@@ -1,3 +1,4 @@
+import { displayName } from "../../lib/names";
 import { Info } from "lucide-react";
 import { PageHeader } from "../../app/PageHeader";
 import { BrandPills } from "../../components/BrandPills";
@@ -53,12 +54,16 @@ export function SocialPage({ platform }: { platform: Platform }) {
   const saved = useSavedPulls();
   const competitors = useCompetitors();
   const { selected } = useBrandSelection();
-  const brands: BrandRef[] = (competitors.data ?? []).map(({ id, name, initials, logo_path }) => ({
-    id,
-    name,
-    initials,
-    logo_path,
-  }));
+  // Short names on pills, the leaderboard and charts (27 Nov); the full name stays in fullName.
+  const brands: BrandRef[] = (competitors.data ?? []).map(
+    ({ id, name, short_name, initials, logo_path }) => ({
+      id,
+      name: displayName({ name, short_name }),
+      fullName: name,
+      initials,
+      logo_path,
+    }),
+  );
   const chosen = selected
     .map((id) => brands.find((b) => b.id === id))
     .filter((b): b is BrandRef => !!b);

@@ -126,7 +126,7 @@ export function ScanningStep({
         const batch = todo.slice(k, k + 2);
         const results = await Promise.all(
           batch.map(([x]) =>
-            once(`accounts:${x.website}`, () => readAccounts(s.scanId, x.website)),
+            once(`accounts:${x.website}`, () => readAccounts(s.scanId, x.website, x.name)),
           ),
         );
         if (halted()) return;
