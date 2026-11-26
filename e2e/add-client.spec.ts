@@ -58,7 +58,25 @@ const SUGGESTIONS = [
   ["Jacob Maarse Florist", "jacobmaarse.com", "Pasadena florist"],
   ["Pasadena Floral Design", "pasadenafloraldesign.com", "florist"],
   ["Giften Market", "giftenmarket.com", "gift baskets"],
-].map(([name, domain, about]) => ({ name, website: `https://${domain}`, domain, about }));
+].map(([name, domain, about]) => ({
+  name,
+  website: `https://${domain}`,
+  domain,
+  about,
+  why: domain === "carnabyandvine.com" ? "Luxury gift boxes in LA, like yours" : "",
+}));
+
+/** Discovery 2.0: "Big in your space" (unticked; followers from one snippet search). */
+const BIG = [
+  {
+    name: "Harry & David",
+    website: "https://harryanddavid.com",
+    domain: "harryanddavid.com",
+    about: "Gift baskets",
+    why: "The biggest gift-basket brand on social",
+    followers: { platform: "instagram", handle: "harryanddavid", count: 412_000 },
+  },
+];
 
 const ACCOUNTS: Record<string, { platform: string; handle: string | null; url: string | null }[]> =
   {
@@ -88,6 +106,11 @@ const ACCOUNTS: Record<string, { platform: string; handle: string | null; url: s
       { platform: "instagram", handle: "pasadenafloral", url: null },
     ],
     "https://giftenmarket.com": [],
+    "https://harryanddavid.com": [
+      { platform: "instagram", handle: "harryanddavid", url: null },
+      { platform: "tiktok", handle: "harryanddavid", url: null },
+    ],
+    "https://worthepenny.com": [{ platform: "instagram", handle: "worthepenny", url: null }],
   };
 
 const PREVIEW = {
@@ -121,8 +144,23 @@ async function stubFlow(page: Page, { unreadable = false, hold = false } = {}) {
   let release!: () => void;
   const gate = hold ? new Promise<void>((r) => (release = r)) : Promise.resolve();
   await page.route("**/functions/v1/scan-site", async (r: Route) => {
-    const body = r.request().postDataJSON() as { url: string; mode: string };
+    const body = r.request().postDataJSON() as { url: string; mode: string; name?: string };
     calls.scans.push(body);
+    if (body.mode === "find") {
+      // Smart add by hand (Discovery 2.0): a name → its site, accounts and logo (≈ 3 credits).
+      return r.fulfill(
+        json({
+          status: "ok",
+          credits: 3,
+          name: body.name,
+          website: "https://worthepenny.com",
+          about: "Coupon codes",
+          accounts: ACCOUNTS["https://worthepenny.com"],
+          logoPath: null,
+          logoUrl: null,
+        }),
+      );
+    }
     if (body.mode === "client") {
       return r.fulfill(
         json(unreadable ? { status: "unreadable", credits: 0, reason: "no_answer" } : SCAN),
@@ -133,7 +171,9 @@ async function stubFlow(page: Page, { unreadable = false, hold = false } = {}) {
   await page.route("**/functions/v1/suggest-competitors", async (r: Route) => {
     calls.suggest.push(r.request().postDataJSON());
     await gate;
-    await r.fulfill(json({ suggestions: SUGGESTIONS, credits: 4, searched: SCAN.queries }));
+    await r.fulfill(
+      json({ suggestions: SUGGESTIONS, big: BIG, credits: 8, searched: SCAN.queries }),
+    );
   });
   for (const table of ["clients", "client_platforms", "competitors"]) {
     await page.route(`**/rest/v1/${table}**`, async (r: Route) => {
@@ -172,7 +212,7 @@ test("15b / M14 website step: cost up front, bad or taken sites cost nothing", a
   await expect(
     page.getByRole("heading", { level: 1, name: "Which client are we adding?" }),
   ).toBeVisible();
-  await expect(page.getByText(/About 10–12 Firecrawl credits · 588 left/i)).toBeVisible();
+  await expect(page.getByText(/About 15–18 Firecrawl credits · 588 left/i)).toBeVisible();
   const field = page.getByLabel("Website");
   await expect(field).toBeFocused();
   await field.fill("all-the-best.co");
@@ -232,13 +272,14 @@ test("15d / M16 review, then Create client and 15e first pull", async ({ page },
   await expect(page.getByRole("switch", { name: "Track TikTok" })).not.toBeChecked();
   // Strongest 4 pre-ticked; Giften Market (no links) isn't.
   await expect(page.getByRole("checkbox", { checked: true })).toHaveCount(4);
-  // Phones show just the domain (M16); tablet / desktop add why (15d).
+  // Phones show just the domain (M16); tablet / desktop add what they sell (15d). No accounts on its
+  // site: "No accounts found · add" (Discovery 2.0).
   await expect(
-    page.getByText(
-      isMobile(page) ? "giftenmarket.com" : "giftenmarket.com · no social links on their site",
-      { exact: true },
-    ),
+    page.getByText(isMobile(page) ? "giftenmarket.com" : "giftenmarket.com · gift baskets", {
+      exact: true,
+    }),
   ).toBeVisible();
+  await expect(page.getByText(isMobile(page) ? /None found/ : /No accounts found/)).toBeVisible();
   await expect(page.getByText("“SHOP THE HOLIDAY COLLECTION NOW!” · from the site")).toBeVisible();
   await expect(
     page.getByText(
@@ -437,4 +478,59 @@ test("Back from the manual form keeps its entries (polish)", async ({ page }, in
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await page.getByRole("button", { name: /No website\?/ }).click();
   await expect(page.getByLabel("Name")).toHaveValue("Northwind Clinic");
+});
+
+test("Discovery 2.0 review: Big in your space unticked with followers; ticking reads its site; smart add", async ({
+  page,
+}, info) => {
+  test.skip(
+    info.project.name !== "desktop-1440",
+    "behaviour check, once (screenshots cover the sizes)",
+  );
+  const { calls } = await stubFlow(page);
+  await ready(page, "/add-client");
+  await page.getByLabel("Website").fill("all-the-best.co");
+  await page.getByRole("button", { name: "Scan website" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Review All The Best Co" })).toBeVisible(
+    { timeout: 10_000 },
+  );
+  // Rivals first, with their why; the big brand in its own group, unticked, with its followers.
+  const rivals = page.getByRole("list", { name: "Closest rivals" });
+  await expect(rivals.getByText("Luxury gift boxes in LA, like yours")).toBeVisible();
+  const big = page.getByRole("list", { name: "Big in your space" });
+  await expect(big.getByText("Harry & David")).toBeVisible();
+  await expect(
+    big.getByText(/~412K on Instagram · The biggest gift-basket brand on social/),
+  ).toBeVisible();
+  const harry = big.getByRole("checkbox");
+  await expect(harry).not.toBeChecked();
+  expect(calls.scans.some((b) => (b as { url: string }).url === "https://harryanddavid.com")).toBe(
+    false,
+  );
+  // A rival without accounts says so, with "add".
+  await expect(rivals.getByText(/No accounts found/)).toBeVisible();
+
+  // Ticking it reads its site (1 credit): accounts appear.
+  await harry.check();
+  await expect
+    .poll(() => calls.scans.some((b) => (b as { url: string }).url === "https://harryanddavid.com"))
+    .toBe(true);
+  await expect(page.getByText("5 COMPETITORS · 2 PLATFORMS · FIRST PULL IS NEXT")).toBeVisible();
+
+  // Smart add by name: Blip finds the site, accounts and logo.
+  await page.getByRole("button", { name: "Add another competitor" }).click();
+  await page.getByLabel("Name or website").fill("Worth a Penny");
+  await expect(page.getByText(/about 3 credits/)).toBeVisible();
+  await page.getByRole("button", { name: "Find" }).click();
+  await expect(rivals.getByText("Worth a Penny")).toBeVisible();
+  expect(calls.scans.at(-1)).toMatchObject({ mode: "find", name: "Worth a Penny" });
+  await expect(page.getByText("6 COMPETITORS · 2 PLATFORMS · FIRST PULL IS NEXT")).toBeVisible();
+
+  // The look-alike note: soft, never blocking.
+  await rivals.getByRole("button", { name: "add" }).click();
+  await page.getByRole("textbox", { name: "Instagram" }).last().fill("@zzfitness99");
+  await expect(
+    page.getByText("This doesn’t look like Giften Market’s account. Save anyway?"),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create client" })).toBeEnabled();
 });
