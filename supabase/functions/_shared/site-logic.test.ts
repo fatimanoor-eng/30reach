@@ -6,6 +6,7 @@ import maarse from "./fixtures/site-maarse.json";
 import baskits from "./fixtures/site-baskits.json";
 import skinnyrx from "./fixtures/site-skinnyrx.json";
 import searchLa from "./fixtures/search-gift-boxes-la.json";
+import { assembleDiscovery, corpusOf } from "./discovery-logic.ts";
 import {
   accountFromLink,
   accountLabel,
@@ -14,9 +15,9 @@ import {
   brandName,
   cleanResults,
   domainOf,
+  isNotCompetitor,
   listicleBrands,
   sitePage,
-  pickCompetitors,
   quoteOnPage,
   validateProfile,
 } from "./site-logic";
@@ -114,22 +115,47 @@ describe("search results", () => {
     expect(clean.filter((r) => r.blocked).some((r) => r.domain.endsWith("yelp.com"))).toBe(true);
     expect(domainOf("www.Baskits.com/en-us")).toBe("baskits.com");
   });
-  it("competitors in search order; the first listicle kept for national brands", () => {
+  it("local: competitor sites in search order (Discovery 2.0 assembly, no hop)", () => {
     const clean = cleanResults(results, "all-the-best.co");
-    const { suggestions, listicle } = pickCompetitors(clean, {
-      results: [
-        { i: 0, kind: "competitor", name: "Carnaby & Vine", about: "luxury gift boxes" },
-        { i: 1, kind: "competitor", name: "Giften Market", about: "gift baskets" },
-        { i: 2, kind: "listicle" },
-        { i: 3, kind: "marketplace" },
-      ],
+    const { rivals, big } = assembleDiscovery({
+      results: clean,
+      sort: {
+        results: [
+          {
+            i: 0,
+            kind: "competitor",
+            name: "Carnaby & Vine",
+            about: "luxury gift boxes",
+            why: "LA gift boxes",
+            group: "rival",
+          },
+          {
+            i: 1,
+            kind: "competitor",
+            name: "Giften Market",
+            about: "gift baskets",
+            why: "",
+            group: "rival",
+          },
+          { i: 2, kind: "listicle" },
+          { i: 3, kind: "marketplace" },
+        ],
+        brands: [],
+      },
+      hop: null,
+      proposals: null,
+      clientDomain: "all-the-best.co",
+      corpus: corpusOf(results),
+      isBlocked: isNotCompetitor,
     });
-    expect(suggestions.map((s) => s.name)).toEqual(["Carnaby & Vine", "Giften Market"]);
-    expect(suggestions[0]).toMatchObject({
+    expect(rivals.map((s) => s.name)).toEqual(["Carnaby & Vine", "Giften Market"]);
+    expect(rivals[0]).toMatchObject({
       website: "https://carnabyandvine.com",
       domain: "carnabyandvine.com",
+      why: "LA gift boxes",
     });
-    expect(listicle).toBe(clean[2].url);
+    expect(rivals[1].why).toBe("Same kind of product, found in search");
+    expect(big).toEqual([]);
     expect(
       listicleBrands(
         {
@@ -205,17 +231,18 @@ describe("content profile", () => {
 
 describe("Add client prompts stay small", () => {
   it("system prompts", async () => {
-    const { profileSystem, sortSystem, listicleSystem, sortUser } = await import("./site-logic");
-    expect(profileSystem().length).toBeLessThan(1800);
-    expect(sortSystem().length).toBeLessThan(900);
+    const { profileSystem, listicleSystem } = await import("./site-logic");
+    const { discoverSystem, discoverUser, hopSystem } = await import("./discovery-logic");
+    expect(profileSystem().length).toBeLessThan(2000);
+    expect(discoverSystem().length).toBeLessThan(1400);
+    expect(hopSystem().length).toBeLessThan(900);
     expect(listicleSystem().length).toBeLessThan(500);
     const many = Array.from({ length: 20 }, () => ({
       domain: "x.com",
       title: "t".repeat(400),
       description: "d",
     }));
-    expect(sortUser({ name: "A", industry: "B", country: "US" }, many).length).toBeLessThan(
-      20 * 301 + 60,
-    );
+    const client = { name: "A", domain: "a.com", description: "D", industry: "B", country: "US" };
+    expect(discoverUser(client, many).length).toBeLessThan(20 * 301 + 120);
   });
 });

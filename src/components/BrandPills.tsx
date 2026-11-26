@@ -8,6 +8,7 @@ import {
 } from "../lib/brand-selection";
 import { useBrandSelection } from "../lib/brand-selection-context";
 import { Avatar } from "./Avatar";
+import { BrandAvatar } from "./BrandAvatar";
 import { Tooltip } from "./Tooltip";
 
 /** Avatar colour on a lit (ink) pill = the brand's compare colour. 1st is ink, so its avatar is white. */
@@ -72,9 +73,11 @@ export function BrandPills({ brands }: { brands: Brand[] }) {
                 onClick={(e) => (blocked ? tip.onToggle(e) : toggle(brand.id))}
                 className={`${pillBase} ${color ? pillOn : pillOff} ${blocked ? "cursor-not-allowed opacity-40 hover:border-line" : ""}`}
               >
-                <Avatar
+                <BrandAvatar
                   initials={brand.initials}
+                  logoPath={brand.logo_path}
                   tone={color ? avatarTone[color] : "brand"}
+                  ring={color ? avatarTone[color] : null}
                   className={PILL_AVATAR}
                 />
                 {brand.name}

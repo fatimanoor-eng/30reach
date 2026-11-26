@@ -23,44 +23,98 @@ export async function scanSite(url: string, scanId: string): Promise<SiteScan | 
   return failure(res.status, res.data);
 }
 
-/** A competitor's home page → the accounts it links (1 credit). Null when it can't be read. */
-export async function readAccounts(
-  scanId: string,
-  url: string,
-): Promise<{ accounts: FoundAccount[] | null; credits: number } | ScanFailure> {
+type PageRead = {
+  /** The brand's name as its site gives it. */
+  name: string;
+  accounts: FoundAccount[] | null;
+  credits: number;
+  logoPath: string | null;
+  logoUrl: string | null;
+};
+
+/** A competitor's home page → the accounts it links and a square logo (1 credit). Null when unreadable. */
+export async function readAccounts(scanId: string, url: string): Promise<PageRead | ScanFailure> {
   const res = await callFunction<{
     status: "ok" | "unreadable";
     credits: number;
+    name?: string;
     accounts?: FoundAccount[];
+    logoPath?: string | null;
+    logoUrl?: string | null;
   }>("scan-site", { url, mode: "accounts", scanId });
   if (res.ok)
     return {
+      name: res.data.name ?? "",
       accounts: res.data.status === "ok" ? (res.data.accounts ?? []) : null,
       credits: res.data.credits,
+      logoPath: res.data.logoPath ?? null,
+      logoUrl: res.data.logoUrl ?? null,
     };
   return failure(res.status, res.data);
 }
 
-/** 2 searches (+ a listicle for national brands) → up to 6 suggestions, accounts not read yet. */
+/**
+ * Smart add by hand (Discovery 2.0): a brand name → its own site (one search, 2 credits) → accounts +
+ * logo (1). `null` = no site found (the credits were still spent).
+ */
+export async function findCompetitor(
+  scanId: string,
+  name: string,
+): Promise<
+  | (PageRead & { name: string; website: string; about: string })
+  | { notFound: true; credits: number }
+  | ScanFailure
+> {
+  const res = await callFunction<{
+    status: "ok" | "unreadable" | "not_found";
+    credits: number;
+    name?: string;
+    website?: string;
+    about?: string;
+    accounts?: FoundAccount[];
+    logoPath?: string | null;
+    logoUrl?: string | null;
+  }>("scan-site", { name, mode: "find", scanId });
+  if (!res.ok) return failure(res.status, res.data);
+  if (res.data.status !== "ok" || !res.data.website)
+    return { notFound: true, credits: res.data.credits };
+  return {
+    name: res.data.name ?? name,
+    website: res.data.website,
+    about: res.data.about ?? "",
+    accounts: res.data.accounts ?? [],
+    credits: res.data.credits,
+    logoPath: res.data.logoPath ?? null,
+    logoUrl: res.data.logoUrl ?? null,
+  };
+}
+
+/**
+ * Discovery 2.0: product + category searches, the second hop, maybe a list page, and one follower
+ * search → closest rivals (≤ 10) and Big in your space (≤ 4), accounts not read yet.
+ */
 export async function suggestCompetitors(
   scanId: string,
   scan: SiteScan,
-): Promise<{ suggestions: Suggestion[]; credits: number } | ScanFailure> {
-  const res = await callFunction<{ suggestions: Omit<Suggestion, "accounts">[]; credits: number }>(
-    "suggest-competitors",
-    {
-      name: scan.name,
-      website: scan.website,
-      industry: scan.industry,
-      country: scan.country,
-      queries: scan.queries,
-      scope: scan.scope,
-      scanId,
-    },
-  );
+): Promise<{ suggestions: Suggestion[]; big: Suggestion[]; credits: number } | ScanFailure> {
+  const res = await callFunction<{
+    suggestions: Omit<Suggestion, "accounts">[];
+    big?: Omit<Suggestion, "accounts">[];
+    credits: number;
+  }>("suggest-competitors", {
+    name: scan.name,
+    website: scan.website,
+    industry: scan.industry,
+    description: scan.description,
+    country: scan.country,
+    queries: scan.queries,
+    scope: scan.scope,
+    scanId,
+  });
   if (res.ok) {
     return {
-      suggestions: res.data.suggestions.map((s) => ({ ...s, accounts: null })),
+      suggestions: res.data.suggestions.map((s) => ({ ...s, group: "rival", accounts: null })),
+      big: (res.data.big ?? []).map((s) => ({ ...s, group: "big", accounts: null })),
       credits: res.data.credits,
     };
   }
@@ -104,6 +158,8 @@ export type CreateInput = {
   competitors: {
     name: string;
     initials: string;
+    logo_path: string | null;
+    logo_source: "site" | null;
     instagram_handle: string | null;
     tiktok_handle: string | null;
     linkedin_url: string | null;

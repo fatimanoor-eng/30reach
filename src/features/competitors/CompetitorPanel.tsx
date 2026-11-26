@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "../../components/Button";
 import { Drawer } from "../../components/Drawer";
 import { type FieldTone, TextField } from "../../components/TextField";
+import { lookAlikeNote } from "./look-alike";
 import { useToast } from "../../components/toast-context";
 import { type Platform, PLATFORM_ICON, STATUS_KEY, TARGET_KEY } from "../../lib/platforms";
 import { CREDITS_QUERY_KEY } from "../../lib/useCredits";
@@ -316,9 +317,14 @@ export function CompetitorPanel({
         autoComplete="off"
         data-autofocus={focus === p || undefined}
         tone={fb?.tone ?? "default"}
-        message={fb?.message}
+        message={fb?.message ?? lookAlike(p)}
       />
     );
+  };
+  /** Discovery 2.0: a soft note when the handle doesn't resemble the brand (never blocks Save). */
+  const lookAlike = (p: Platform) => {
+    const h = after[p];
+    return h && h !== before[p] ? (lookAlikeNote(h, { name }) ?? undefined) : undefined;
   };
 
   const costNote = checkCostNote(toCheck);

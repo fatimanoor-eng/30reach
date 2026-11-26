@@ -7,7 +7,7 @@ import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import { ModalPresence } from "../../../components/ModalPresence";
 import { plural } from "../../../lib/format";
 import { MQ_TABLET_UP, useMediaQuery } from "../../../lib/useMediaQuery";
-import { checklistRows, reviewDefaults, type RowState } from "./add-client-rules";
+import { checklistRows, reviewDefaults, type RowState, SCAN_UP_FRONT } from "./add-client-rules";
 import {
   isFailure,
   readAccounts,
@@ -88,7 +88,7 @@ export function ScanningStep({
             return onUnreadable({ reason: r.reason, credits: r.credits });
           setProblem(
             r.kind === "low_credits"
-              ? `Not enough Firecrawl credits for a scan (needs about 12; ${r.remaining} left). Add the client by hand instead.`
+              ? `Not enough Firecrawl credits for a scan (needs about 20; ${r.remaining} left). Add the client by hand instead.`
               : "Couldn’t read the website just now. Try again, or add the client by hand.",
           );
           return;
@@ -96,20 +96,26 @@ export function ScanningStep({
         update((p) => ({ scan: r, credits: p.credits + r.credits }));
         s = { ...latest.current, scan: r };
       }
-      // 2. Competitor suggestions (≈ 4–5 credits).
+      // 2. Competitor suggestions (Discovery 2.0: ≈ 8–9 credits for a national brand, 6 local).
       if (!s.suggestions) {
         setSearching(true);
         const r = await once(`suggest:${s.website}`, () => suggestCompetitors(s.scanId, s.scan!));
         setSearching(false);
         if (halted()) return;
         const list = isFailure(r) ? [] : r.suggestions;
-        update((p) => ({ suggestions: list, credits: p.credits + (isFailure(r) ? 0 : r.credits) }));
-        s = { ...latest.current, suggestions: list };
+        const big = isFailure(r) ? [] : r.big;
+        update((p) => ({
+          suggestions: list,
+          big,
+          credits: p.credits + (isFailure(r) ? 0 : r.credits),
+        }));
+        s = { ...latest.current, suggestions: list, big };
       }
-      // 3. Each suggestion's home page (1 credit each), two at a time.
+      // 3. The top closest rivals' home pages (1 credit each, accounts + logo), two at a time. The rest,
+      //    and Big in your space, are read only if someone ticks them in Review.
       const todo = s
         .suggestions!.map((x, i) => [x, i] as const)
-        .filter(([x]) => x.accounts === null && !x.unreadable);
+        .filter(([x], i) => i < SCAN_UP_FRONT && x.accounts === null && !x.unreadable);
       for (let k = 0; k < todo.length; k += 2) {
         const batch = todo.slice(k, k + 2);
         const results = await Promise.all(
@@ -127,7 +133,7 @@ export function ScanningStep({
             else {
               spent += r.credits;
               next[i] = r.accounts
-                ? { ...next[i], accounts: r.accounts }
+                ? { ...next[i], accounts: r.accounts, logoPath: r.logoPath, logoUrl: r.logoUrl }
                 : { ...next[i], accounts: [], unreadable: true };
             }
           });
@@ -144,7 +150,10 @@ export function ScanningStep({
       await wait(900);
       if (halted()) return;
       const done = latest.current;
-      update({ step: "review", draft: reviewDefaults(done.scan!, done.suggestions ?? []) });
+      update({
+        step: "review",
+        draft: reviewDefaults(done.scan!, done.suggestions ?? [], done.big ?? []),
+      });
     }
     void run();
     return () => {
@@ -161,6 +170,7 @@ export function ScanningStep({
       suggestions: state.suggestions,
       accountsRead: Math.min(state.accountsRead, state.suggestions?.length ?? 0),
       searching,
+      bigCount: state.big?.length ?? 0,
     },
     { short: !tabletUp },
   );

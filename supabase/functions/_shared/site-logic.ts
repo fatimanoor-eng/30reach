@@ -162,6 +162,9 @@ export function domainOf(url: string): string | null {
 const NOT_COMPETITOR =
   /(^|\.)(yelp|reddit|amazon|etsy|ebay|walmart|target|costco|wikipedia|youtube|facebook|instagram|tiktok|pinterest|linkedin|twitter|x|quora|tripadvisor|trustpilot|bbb|nextdoor|thumbtack|groupon|google|apple|nytimes|forbes|cnn|bbc|healthline|webmd|goodrx|everydayhealth|yahoo|msn|medium|substack)\.[a-z.]+$/;
 
+/** Never suggested as a competitor (also for brands named in text, Discovery 2.0). */
+export const isNotCompetitor = (domain: string) => NOT_COMPETITOR.test(domain);
+
 export type SearchResult = { url: string; title: string; description: string; position: number };
 
 /** Search results with tracking stripped, one per domain, never the client's own site or obvious non-competitors. */
@@ -295,55 +298,16 @@ export function validateProfile(
   };
 }
 
-export type Suggestion = { name: string; website: string; domain: string; about: string };
-
-/**
- * Groq's sorting of the search results → suggestions in search order (competitor sites only), plus the
- * listicle to mine for national brands (the first one, if any).
- */
-export function pickCompetitors(
-  results: readonly (SearchResult & { domain: string; blocked: boolean })[],
-  raw: unknown,
-): { suggestions: Suggestion[]; listicle: string | null } {
-  const items = Array.isArray((raw as { results?: unknown })?.results)
-    ? ((raw as { results: unknown[] }).results as Record<string, unknown>[])
-    : [];
-  const byIndex = new Map(items.map((x) => [Number(x.i), x]));
-  const suggestions: Suggestion[] = [];
-  let listicle: string | null = null;
-  results.forEach((r, i) => {
-    const x = byIndex.get(i);
-    if (!x || r.blocked) {
-      if (x?.kind === "listicle" && !listicle) listicle = r.url;
-      return;
-    }
-    if (x.kind === "listicle" && !listicle) listicle = r.url;
-    if (x.kind !== "competitor") return;
-    suggestions.push({
-      name:
-        str(x.name, 60) ||
-        r.title
-          .split(/[|–—-]/)[0]
-          .trim()
-          .slice(0, 60),
-      website: `https://${r.domain}`,
-      domain: r.domain,
-      about: str(x.about, 80),
-    });
-  });
-  return { suggestions, listicle };
-}
-
 /** Brands named in a listicle (Groq) → suggestions with a real site, not the client, not seen yet. */
 export function listicleBrands(
   raw: unknown,
   known: ReadonlySet<string>,
   clientDomain: string | null,
-): Suggestion[] {
+): { name: string; website: string; domain: string; about: string }[] {
   const items = Array.isArray((raw as { brands?: unknown })?.brands)
     ? ((raw as { brands: unknown[] }).brands as Record<string, unknown>[])
     : [];
-  const out: Suggestion[] = [];
+  const out: { name: string; website: string; domain: string; about: string }[] = [];
   for (const x of items) {
     const domain = domainOf(str(x.website, 200));
     if (!domain || domain === clientDomain || known.has(domain) || NOT_COMPETITOR.test(domain))
@@ -387,24 +351,6 @@ export const PROFILE_SCHEMA = {
   }),
 };
 
-export const SORT_SCHEMA = {
-  name: "sorted_results",
-  schema: obj({
-    results: {
-      type: "array",
-      items: obj({
-        i: { type: "integer" },
-        kind: {
-          type: "string",
-          enum: ["competitor", "listicle", "marketplace", "forum", "news", "other"],
-        },
-        name: S,
-        about: S,
-      }),
-    },
-  }),
-};
-
 export const LISTICLE_SCHEMA = {
   name: "listicle_brands",
   schema: obj({ brands: { type: "array", items: obj({ name: S, website: S, about: S }) } }),
@@ -424,29 +370,11 @@ export function profileSystem(): string {
     "- regulated: only topics from the list that clearly apply; [] if none. audience_is_kids: true only if the buyers or users are children.",
     "- health_months: true for health, medical or wellness brands.",
     "- content_rules: 0–4 posting rules a careful marketer would follow for THIS brand. Each needs why (one sentence) and quote: words copied exactly from the page that the rule is based on. No legal requirements you can't see on the page.",
-    "- search_queries: 2 web searches that find direct competitors (same product, same market; add the city for a local business).",
+    "- search_queries: exactly 2 web searches. 1: what the product does, in plain words a shopper would type, WITHOUT the brand name (e.g. 'coupon codes tested at checkout'). 2: a list search for the category (e.g. 'best coupon apps and sites'). For a local business add the city to both.",
     "- scope: local (one city / region) or national.",
   ].join("\n");
 }
 export const profileUser = (url: string, page: string) => `Website: ${url}\n\n${page}`;
-
-export function sortSystem(): string {
-  return [
-    FACTS_NEW,
-    "Sort web search results for competitor research. For each result give i, kind and, for competitors, the brand name and about (what they sell, ≤ 6 words).",
-    "- competitor: the home or shop page of one business selling the same kind of product to the same market.",
-    "- listicle: an article ranking or listing several such businesses. marketplace: many sellers (Amazon, Etsy, directories). forum: Reddit, Quora. news: press, blogs, reviews. other: anything else.",
-    "Answer in JSON only.",
-  ].join("\n");
-}
-export const sortUser = (
-  client: { name: string; industry: string; country: string },
-  results: readonly { domain: string; title: string; description: string }[],
-) =>
-  `Client: ${client.name} · ${client.industry} · ${client.country}\n\n` +
-  results
-    .map((r, i) => `${i}. ${r.domain} | ${r.title} | ${r.description}`.slice(0, 300))
-    .join("\n");
 
 export function listicleSystem(): string {
   return [

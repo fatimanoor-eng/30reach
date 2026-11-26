@@ -37,7 +37,7 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const OUT_DIR = ".spike";
 const COST_LOG = join(OUT_DIR, "client-costs.log");
-const CAP = 40;
+const CAP = 52; // 40 approved 24 Nov + 12 for the discovery 2.0 spike (Coupon Chaser), approved 25 Nov
 
 const [step, ...rest] = process.argv.slice(2);
 const positional = rest.filter((a) => !a.startsWith("--"));

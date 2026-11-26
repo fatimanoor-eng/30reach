@@ -7,7 +7,13 @@
  */
 
 /** A competitor as the brand pills need it (from the `competitors` table). */
-export type Brand = { id: string; name: string; initials: string };
+export type Brand = {
+  id: string;
+  name: string;
+  initials: string;
+  /** Discovery 2.0: square logo in client-logos (null = initials). */
+  logo_path?: string | null;
+};
 
 export const MAX_COMPARE = 3;
 

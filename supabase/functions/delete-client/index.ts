@@ -9,7 +9,7 @@
 //   409 { error: "pull_running" }    this client's pull is running: wait for it
 //
 // Storage doesn't cascade with rows, so files go first: every object under `{client}/` in post-thumbs,
-// idea-images and client-logos (+ a scanned logo under scans/). Then usage_events keep the client's name (their client_id becomes null on
+// idea-images and client-logos (+ scanned logos under scans/: the client's and its competitors'). Then usage_events keep the client's name (their client_id becomes null on
 // delete), and the client row goes; competitors, pulls, posts, ideas, comments, calendar cards and
 // client_platforms cascade. Uses 0 Firecrawl credits.
 
@@ -86,10 +86,18 @@ export default {
         return json({ error: "storage_failed", bucket }, 500);
       }
     }
-    // A logo from a website scan (Slice 17d) lives under scans/, outside the client's folder.
-    if (client.logo_path && !client.logo_path.startsWith(`${clientId}/`)) {
-      await admin.storage.from("client-logos").remove([client.logo_path]);
-    }
+    // Logos from a website scan (Slice 17d; competitors' since Discovery 2.0) live under scans/, outside
+    // the client's folder.
+    const { data: rivals } = await admin
+      .from("competitors")
+      .select("logo_path")
+      .eq("client_id", clientId)
+      .not("logo_path", "is", null);
+    const scanned = [
+      client.logo_path,
+      ...(rivals ?? []).map((r) => r.logo_path as string | null),
+    ].filter((p): p is string => !!p && !p.startsWith(`${clientId}/`));
+    if (scanned.length) await admin.storage.from("client-logos").remove(scanned);
     // Usage history keeps the name once client_id goes null.
     await admin
       .from("usage_events")

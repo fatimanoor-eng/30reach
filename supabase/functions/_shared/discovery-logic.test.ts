@@ -1,0 +1,226 @@
+import { describe, expect, it } from "vitest";
+import product from "./fixtures/discovery-cc-product.json";
+import category from "./fixtures/discovery-cc-alt.json";
+import hop from "./fixtures/discovery-cc-hop.json";
+import followers from "./fixtures/discovery-cc-followers.json";
+import {
+  assembleDiscovery,
+  corpusOf,
+  followerQuery,
+  followersFromSnippets,
+  hopDomains,
+  namedInResults,
+  normName,
+} from "./discovery-logic.ts";
+import { cleanResults, isNotCompetitor, type SearchResult } from "./site-logic.ts";
+
+/*
+ * Discovery 2.0 test case (spike 25 Nov 2026): The Coupon Chaser (thecouponchaser.com) must surface
+ * SimplyCodes and Worth a Penny as closest rivals, and RetailMeNot / Rakuten / Ibotta as "Big in your space".
+ * The search results are the real ones (fixtures). Groq's answers are fixed here, so this checks our
+ * code: verification, the second hop, grouping, limits and follower matching.
+ */
+const CLIENT = "thecouponchaser.com";
+const web = (f: { web: SearchResult[] }) => f.web;
+
+// What the pipeline searched: the product search, then the category search.
+const results = cleanResults([...web(product), ...web(category)], CLIENT);
+const at = (domain: string) => results.findIndex((r) => r.domain === domain);
+
+/** Groq's sorting (mocked): competitor sites by domain, the rest news / forum / listicle. */
+const SORT = {
+  results: [
+    {
+      i: at("simplycodes.com"),
+      kind: "competitor",
+      name: "SimplyCodes",
+      about: "Verified promo codes",
+      why: "Also tests codes at real checkouts",
+      group: "rival",
+    },
+    {
+      i: at("couponcabin.com"),
+      kind: "competitor",
+      name: "CouponCabin",
+      about: "Verified coupons",
+      why: "Verified coupon site",
+      group: "rival",
+    },
+    {
+      i: at("wethrift.com"),
+      kind: "competitor",
+      name: "Wethrift",
+      about: "Working promo codes",
+      why: "Codes most likely to work",
+      group: "rival",
+    },
+    {
+      i: at("coupons.com"),
+      kind: "competitor",
+      name: "Coupons.com",
+      about: "Promo codes and cashback",
+      why: "Tested promo codes",
+      group: "rival",
+    },
+    {
+      i: at("retailmenot.com"),
+      kind: "competitor",
+      name: "RetailMeNot",
+      about: "Coupons and promo codes",
+      why: "Biggest coupon brand",
+      group: "big",
+    },
+    { i: at("reddit.com"), kind: "forum", name: "", about: "", why: "", group: "rival" },
+    { i: at("makeuseof.com"), kind: "listicle", name: "", about: "", why: "", group: "rival" },
+  ],
+  brands: [],
+};
+
+/** Groq's own proposals (mocked): real brands named in the results, and one it made up. */
+const PROPOSALS = {
+  brands: [
+    {
+      name: "Honey",
+      website: "joinhoney.com",
+      about: "Coupon browser extension",
+      why: "Most-followed coupon extension",
+      group: "big",
+    },
+    {
+      name: "Rakuten",
+      website: "rakuten.com",
+      about: "Cashback shopping",
+      why: "Huge cashback brand",
+      group: "big",
+    },
+    {
+      name: "Ibotta",
+      website: "ibotta.com",
+      about: "Cashback app",
+      why: "Big savings app",
+      group: "big",
+    },
+    {
+      name: "CouponZap",
+      website: "couponzap.com",
+      about: "Coupons",
+      why: "Invented",
+      group: "rival",
+    },
+  ],
+};
+
+describe("Discovery 2.0 — The Coupon Chaser", () => {
+  const hopResults = cleanResults(web(hop), CLIENT);
+  const known = new Set([CLIENT, ...results.map((r) => r.domain)]);
+  const hopped = hopDomains(hopResults, known, isNotCompetitor);
+
+  it("the second hop reads competing domains from Semrush / Similarweb snippets", () => {
+    expect(hopped).toContain("worthepenny.com");
+    expect(hopped).toEqual(expect.arrayContaining(["couponfollow.com", "coupert.com"]));
+    expect(hopped).not.toContain("simplycodes.com"); // the rival itself
+    expect(hopped).not.toContain("retailmenot.com"); // already known from the product search
+  });
+
+  const corpus = corpusOf([...web(product), ...web(category), ...web(hop)]);
+  const { rivals, big } = assembleDiscovery({
+    results,
+    sort: SORT,
+    hop: {
+      rival: "SimplyCodes",
+      domains: hopped,
+      names: {
+        brands: [
+          {
+            domain: "worthepenny.com",
+            name: "Worth a Penny",
+            about: "Coupon codes",
+            group: "rival",
+          },
+          {
+            domain: "couponfollow.com",
+            name: "CouponFollow",
+            about: "Coupon codes",
+            group: "rival",
+          },
+          { domain: "valuecom.com", name: "Valuecom", about: "", group: "skip" },
+        ],
+      },
+    },
+    proposals: PROPOSALS,
+    clientDomain: CLIENT,
+    corpus,
+    isBlocked: isNotCompetitor,
+  });
+
+  it("surfaces SimplyCodes and Worth a Penny as closest rivals, with a why", () => {
+    const simply = rivals.find((r) => r.domain === "simplycodes.com");
+    const penny = rivals.find((r) => r.domain === "worthepenny.com");
+    expect(simply).toMatchObject({
+      name: "SimplyCodes",
+      group: "rival",
+      website: "https://simplycodes.com",
+    });
+    expect(penny).toMatchObject({
+      name: "Worth a Penny",
+      why: "Listed as a competitor of SimplyCodes",
+    });
+    expect(rivals[0].domain).toBe("simplycodes.com"); // the product search's top hit leads
+    expect(rivals.length).toBeLessThanOrEqual(10);
+  });
+
+  it("puts the big names in their own group (unticked later), never in both", () => {
+    expect(big.map((b) => b.domain)).toEqual([
+      "retailmenot.com",
+      "joinhoney.com",
+      "rakuten.com",
+      "ibotta.com",
+    ]);
+    const rivalDomains = new Set(rivals.map((r) => r.domain));
+    expect(big.some((b) => rivalDomains.has(b.domain))).toBe(false);
+  });
+
+  it("drops what no search names (an invented brand), skips, and never the client or blocked sites", () => {
+    const all = [...rivals, ...big].map((f) => f.domain);
+    expect(all).not.toContain("couponzap.com");
+    expect(all).not.toContain("valuecom.com");
+    expect(all).not.toContain(CLIENT);
+    expect(all.some((d) => isNotCompetitor(d))).toBe(false);
+  });
+
+  it("reads approximate followers from one Instagram snippet search, matching the right account", () => {
+    expect(followerQuery(big)).toBe(
+      'site:instagram.com "RetailMeNot" OR "Honey" OR "Rakuten" OR "Ibotta"',
+    );
+    const counts = followersFromSnippets(web(followers), big);
+    expect(counts.get("rakuten.com")).toEqual({
+      platform: "instagram",
+      handle: "rakuten",
+      count: 369_000,
+    });
+    expect(counts.get("ibotta.com")?.count).toBe(226_000);
+    expect(counts.get("retailmenot.com")?.handle).toBe("retailmenot");
+    // "Honey Dijon" and "honeybooboo" aren't the Honey extension.
+    expect(counts.has("joinhoney.com")).toBe(false);
+  });
+});
+
+describe("namedInResults", () => {
+  const corpus = corpusOf([
+    {
+      url: "https://example.com/list",
+      title: "Best apps: Ibotta, Rakuten",
+      description: "Also Pro tips",
+      position: 1,
+    },
+  ]);
+  it("needs the domain or the whole name", () => {
+    expect(namedInResults({ name: "Rakuten", domain: "rakuten.com" }, corpus)).toBe(true);
+    expect(namedInResults({ name: "Ro", domain: "ro.co" }, corpus)).toBe(false); // too short, no domain hit
+    expect(namedInResults({ name: "Fetch", domain: "fetch.com" }, corpus)).toBe(false);
+  });
+  it("normalises names", () => {
+    expect(normName("The Coupon Chaser")).toBe("coupon chaser");
+    expect(normName("Hims & Hers")).toBe("hims and hers");
+  });
+});

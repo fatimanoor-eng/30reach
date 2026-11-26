@@ -51,10 +51,11 @@ export function SocialPage({ platform }: { platform: Platform }) {
   const saved = useSavedPulls();
   const competitors = useCompetitors();
   const { selected } = useBrandSelection();
-  const brands: BrandRef[] = (competitors.data ?? []).map(({ id, name, initials }) => ({
+  const brands: BrandRef[] = (competitors.data ?? []).map(({ id, name, initials, logo_path }) => ({
     id,
     name,
     initials,
+    logo_path,
   }));
   const chosen = selected
     .map((id) => brands.find((b) => b.id === id))

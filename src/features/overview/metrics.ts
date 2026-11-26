@@ -38,7 +38,7 @@ export type OverviewPost = {
   duration_seconds?: number | null;
 };
 
-export type BrandRef = { id: string; name: string; initials: string };
+export type BrandRef = { id: string; name: string; initials: string; logo_path?: string | null };
 export type PlatformFilter = "all" | Platform;
 export type Filters = { platform: PlatformFilter; days: 7 | 30; brandIds: readonly string[] };
 

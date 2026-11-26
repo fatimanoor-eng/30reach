@@ -9,7 +9,10 @@ import { clientPath } from "../../lib/client-path";
 import { firstNameFrom, initialsFor } from "../../lib/client-rules";
 import { plural } from "../../lib/format";
 import { createClient, invalidateClient } from "./clients-api";
-import { createScannedClient } from "./add/add-client-api";
+import { siteHost } from "../../lib/client-rules";
+import type { CompetitorDraft } from "./add/add-client-rules";
+import type { CompetitorActions } from "./add/ReviewStep";
+import { createScannedClient, findCompetitor, isFailure, readAccounts } from "./add/add-client-api";
 import {
   competitorRowsForCreate,
   platformRowsForCreate,
@@ -158,6 +161,96 @@ export function AddClientPage() {
     }
   }
 
+  /** Patch one Review competitor row (functional: answers arrive after other edits). */
+  const patchRow = (key: string, patch: Partial<CompetitorDraft>, credits = 0) =>
+    setState((s) =>
+      s.draft
+        ? {
+            ...s,
+            credits: s.credits + credits,
+            draft: {
+              ...s.draft,
+              competitors: s.draft.competitors.map((c) => (c.key === key ? { ...c, ...patch } : c)),
+            },
+          }
+        : s,
+    );
+
+  /** Discovery 2.0: a row ticked before its site was read (a lower rival, Big in your space). */
+  const competitorActions: CompetitorActions = {
+    onRead: (key) => {
+      const row = state.draft?.competitors.find((c) => c.key === key);
+      if (!row) return;
+      patchRow(key, { scanning: true });
+      void readAccounts(state.scanId, row.website).then((r) => {
+        if (isFailure(r) || !r.accounts) {
+          patchRow(
+            key,
+            { scanning: false, scanned: true, accounts: [] },
+            isFailure(r) ? 0 : r.credits,
+          );
+          return;
+        }
+        patchRow(
+          key,
+          {
+            scanning: false,
+            scanned: true,
+            accounts: r.accounts,
+            logoPath: r.logoPath,
+            logoUrl: r.logoUrl,
+          },
+          r.credits,
+        );
+      });
+    },
+    onFind: async (query) => {
+      const taken = new Set(state.draft?.competitors.map((c) => c.domain) ?? []);
+      const host = /\./.test(query) ? siteHost(query) : null;
+      if (host && taken.has(host)) return "duplicate";
+      const r = host
+        ? await readAccounts(state.scanId, `https://${host}`)
+        : await findCompetitor(state.scanId, query);
+      if (isFailure(r)) return "failed";
+      if ("notFound" in r) {
+        setState((s) => ({ ...s, credits: s.credits + r.credits }));
+        return "not_found";
+      }
+      const extra = r as { website?: string; about?: string };
+      const website = extra.website ?? `https://${host}`;
+      const domain = siteHost(website) ?? host ?? "";
+      if (taken.has(domain)) {
+        setState((s) => ({ ...s, credits: s.credits + r.credits }));
+        return "duplicate";
+      }
+      const row: CompetitorDraft = {
+        key: domain,
+        name: (r.name || domain.split(".")[0]).slice(0, 60),
+        website,
+        domain,
+        about: extra.about ?? "",
+        accounts: r.accounts ?? [],
+        ticked: true,
+        inputs: {},
+        group: "rival",
+        why: "Added by you",
+        scanned: true,
+        logoPath: r.logoPath,
+        logoUrl: r.logoUrl,
+      };
+      setState((s) =>
+        s.draft
+          ? {
+              ...s,
+              credits: s.credits + r.credits,
+              draft: { ...s.draft, competitors: [...s.draft.competitors, row] },
+            }
+          : s,
+      );
+      return "added";
+    },
+  };
+
   function openClient(pullNow: boolean) {
     const c = state.created!;
     if (pullNow) {
@@ -250,6 +343,7 @@ export function AddClientPage() {
           draft={state.draft}
           onChange={(draft) => update({ draft })}
           onBack={back!}
+          competitorActions={competitorActions}
           onCreate={() => void create()}
           busy={creating}
           error={createError}

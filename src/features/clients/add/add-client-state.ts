@@ -12,7 +12,10 @@ export type FlowState = {
   scanId: string;
   website: string;
   scan: SiteScan | null;
+  /** Closest rivals (Discovery 2.0). */
   suggestions: Suggestion[] | null;
+  /** Big in your space (Discovery 2.0): read only when ticked in Review. */
+  big?: Suggestion[] | null;
   accountsRead: number;
   /** Firecrawl credits this run has spent so far. */
   credits: number;
@@ -43,6 +46,7 @@ export const START: FlowState = {
   website: "",
   scan: null,
   suggestions: null,
+  big: null,
   accountsRead: 0,
   credits: 0,
   draft: null,

@@ -70,7 +70,12 @@ function Dashboard({
   const latestPosts = usePullPosts(latest.id);
   const previousPosts = usePullPosts(previous?.id);
 
-  const brands: BrandRef[] = competitors.map(({ id, name, initials }) => ({ id, name, initials }));
+  const brands: BrandRef[] = competitors.map(({ id, name, initials, logo_path }) => ({
+    id,
+    name,
+    initials,
+    logo_path,
+  }));
   // Overview always covers all platforms; each platform has its own page.
   const f: Filters = { platform: "all", days, brandIds: selected };
   const inScope = selected.length ? brands.filter((b) => selected.includes(b.id)) : brands;

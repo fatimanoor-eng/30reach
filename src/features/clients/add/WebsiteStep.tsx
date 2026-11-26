@@ -12,7 +12,7 @@ import { useCredits } from "../../../lib/useCredits";
 
 /**
  * 15b / M14 Website: one big field (focused, URL keyboard; Enter / Go = Scan), the cost up front
- * ("ABOUT 10–12 FIRECRAWL CREDITS · 772 LEFT"), and "No website? Add the details by hand". Invalid text
+ * ("ABOUT 15–18 FIRECRAWL CREDITS · 772 LEFT"; Discovery 2.0, was 10–12), and "No website? Add the details by hand". Invalid text
  * or a website another client uses never costs anything.
  */
 export function WebsiteStep({
@@ -105,7 +105,7 @@ export function WebsiteStep({
       ) : archivedOwner && host ? (
         <ArchivedSiteNote client={archivedOwner} host={host} className="mt-2 w-full text-left" />
       ) : null}
-      <p className="mt-4 mono-label text-muted">About 10–12 Firecrawl credits{left}</p>
+      <p className="mt-4 mono-label text-muted">About 15–18 Firecrawl credits{left}</p>
       <button
         type="button"
         onClick={onManual}

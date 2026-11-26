@@ -6,6 +6,7 @@ import {
   competitorRowsForCreate,
   type ParseAccount,
   platformRowsForCreate,
+  noAccountsFound,
   reviewDefaults,
   reviewErrors,
   type SiteScan,
@@ -139,10 +140,60 @@ describe("15d review defaults", () => {
     ]);
     expect(summaryLine(d)).toBe("4 COMPETITORS · 2 PLATFORMS · FIRST PULL IS NEXT");
     expect(summaryLine(d, { short: true })).toBe("4 COMPETITORS · 2 PLATFORMS");
-    expect(competitorMeta(d.competitors[1])).toBe(
-      "giftenmarket.com · no social links on their site",
-    );
+    // Discovery 2.0: "no accounts found · add" is its own part of the row, not the meta line.
+    expect(competitorMeta(d.competitors[1])).toBe("giftenmarket.com · gifts");
+    expect(noAccountsFound(d.competitors[1])).toBe(true);
+    expect(noAccountsFound(d.competitors[0])).toBe(false);
     expect(competitorMeta(d.competitors[0])).toBe("carnabyandvine.com · gifts");
+  });
+});
+
+describe("Discovery 2.0 review groups", () => {
+  const big: Suggestion[] = [
+    {
+      name: "RetailMeNot",
+      website: "https://retailmenot.com",
+      domain: "retailmenot.com",
+      about: "Coupons",
+      why: "Biggest coupon brand",
+      accounts: null,
+      followers: { platform: "instagram", handle: "retailmenot", count: 81_000 },
+    },
+  ];
+  const unread: Suggestion = {
+    ...suggestions[0],
+    domain: "late.com",
+    website: "https://late.com",
+    accounts: null,
+  };
+  const d = reviewDefaults(scan, [...suggestions, unread], big);
+  it("Big in your space comes after the rivals, unticked and not read yet", () => {
+    const b = d.competitors.find((c) => c.domain === "retailmenot.com")!;
+    expect(b).toMatchObject({
+      group: "big",
+      ticked: false,
+      scanned: false,
+      why: "Biggest coupon brand",
+    });
+    expect(d.competitors.at(-1)?.domain).toBe("retailmenot.com");
+    expect(noAccountsFound(b)).toBe(false); // not read yet: no "no accounts found"
+  });
+  it("a rival the scan didn't read waits for a tick", () => {
+    expect(d.competitors.find((c) => c.domain === "late.com")?.scanned).toBe(false);
+  });
+  it("ticked big brand without a site read: its Instagram from the follower snippet", () => {
+    const ticked = {
+      ...d,
+      competitors: d.competitors.map((c) => ({ ...c, ticked: c.group === "big" })),
+    };
+    const rows = competitorRowsForCreate(ticked, () => ({ value: null }));
+    expect(rows).toEqual([
+      expect.objectContaining({
+        name: "RetailMeNot",
+        instagram_handle: "retailmenot",
+        logo_path: null,
+      }),
+    ]);
   });
 });
 

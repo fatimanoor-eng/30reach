@@ -119,6 +119,8 @@ export type PageResult =
       followers: number | null;
       /** X (17g): one search covers several brands; followers per author handle (lowercase). */
       followersBy?: Record<string, number>;
+      /** Instagram / TikTok (Discovery 2.0): the account's profile picture, for a competitor without a logo. */
+      avatar?: string | null;
     }
   | { kind: "error"; code: string; message: string; creditsCost: number };
 
@@ -686,6 +688,7 @@ export function parsePage(platform: Platform, body: unknown, pageIndex: number):
       nextCursor: page.more_available === true ? str(page.next_max_id) : null,
       creditsCost,
       followers: num(obj(page.user).follower_count),
+      avatar: str(obj(page.user).profile_pic_url),
     };
   }
   const list = Array.isArray(page.aweme_list) ? page.aweme_list : [];
@@ -698,7 +701,18 @@ export function parsePage(platform: Platform, body: unknown, pageIndex: number):
     creditsCost,
     // TikTok carries the follower count on each post's author.
     followers: list.length ? num(obj(obj(list[0]).author).follower_count) : null,
+    avatar: tiktokAvatar(list),
   };
+}
+
+/** The account's own avatar on a TikTok page (the first post's author; medium size, ~720 px). */
+export function tiktokAvatar(list: readonly unknown[]): string | null {
+  const author = obj(obj(list[0]).author);
+  for (const k of ["avatar_medium", "avatar_larger", "avatar_thumb"]) {
+    const urls = obj(author[k]).url_list;
+    if (Array.isArray(urls) && typeof urls[0] === "string") return urls[0];
+  }
+  return null;
 }
 
 /** The public.posts columns of a mapped post (drops thumbnail_source and pinned). */

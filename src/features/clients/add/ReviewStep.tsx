@@ -23,6 +23,8 @@ import { checksSummary, initialsFor, normaliseWebsite, siteHost } from "../../..
 import { COUNTRIES, countryName, LANGUAGES, languageName } from "../../../lib/countries";
 import { MQ_TABLET_UP, useMediaQuery } from "../../../lib/useMediaQuery";
 import { suggestInitials } from "../../competitors/competitor-rules";
+import { lookAlikeNote } from "../../competitors/look-alike";
+import { followersLabel } from "./followers-label";
 import { RuleForm } from "../RuleForm";
 import { uploadLogo } from "../clients-api";
 import { ACCOUNT_PLACEHOLDER, parseAccount } from "./account-input";
@@ -30,6 +32,7 @@ import {
   accountLabel,
   competitorMeta,
   type CompetitorDraft,
+  noAccountsFound,
   type FoundPlatform,
   isSupported,
   PLATFORM_LABEL,
@@ -65,9 +68,11 @@ export function ReviewStep({
   onCreate,
   busy,
   error,
+  competitorActions,
 }: {
   draft: ReviewDraft;
   onChange: (d: ReviewDraft) => void;
+  competitorActions: CompetitorActions;
   onBack: () => void;
   onCreate: () => void;
   busy: boolean;
@@ -82,7 +87,9 @@ export function ReviewStep({
   const brand = <BrandCard draft={draft} set={set} host={host} tried={tried} />;
   const rules = <RulesCard draft={draft} set={set} />;
   const platforms = <PlatformsCard draft={draft} set={set} tried={tried} />;
-  const competitors = <CompetitorsCard draft={draft} set={set} tried={tried} />;
+  const competitors = (
+    <CompetitorsCard draft={draft} set={set} tried={tried} actions={competitorActions} />
+  );
 
   return (
     <>
@@ -481,88 +488,80 @@ function PlatformsCard({
   );
 }
 
+/** What Review needs from the page for competitors (Discovery 2.0): reading a row's site, finding a brand. */
+export type CompetitorActions = {
+  /** Read an unscanned row's home page (1 credit): accounts + logo. */
+  onRead: (key: string) => void;
+  /** Smart add: a name (≈ 3 credits) or a website (1) → a ticked row. */
+  onFind: (query: string) => Promise<"added" | "not_found" | "failed" | "duplicate">;
+};
+
 function CompetitorsCard({
   draft,
   set,
   tried,
+  actions,
 }: {
   draft: ReviewDraft;
   set: (p: Partial<ReviewDraft>) => void;
   tried: boolean;
+  actions: CompetitorActions;
 }) {
   const tabletUp = useMediaQuery(MQ_TABLET_UP);
   const [adding, setAdding] = useState(false);
   const ticked = draft.competitors.filter((c) => c.ticked).length;
   const update = (c: CompetitorDraft, patch: Partial<CompetitorDraft>) =>
     set({ competitors: draft.competitors.map((x) => (x.key === c.key ? { ...x, ...patch } : x)) });
+  const tick = (c: CompetitorDraft, on: boolean) => {
+    update(c, { ticked: on });
+    // Not read yet (a lower rival, or Big in your space): read its site now, once (1 credit).
+    if (on && c.scanned === false && !c.scanning) actions.onRead(c.key);
+  };
+  const rivals = draft.competitors.filter((c) => c.group !== "big");
+  const big = draft.competitors.filter((c) => c.group === "big");
+  const row = (c: CompetitorDraft) => (
+    <CompetitorRow
+      key={c.key}
+      c={c}
+      tabletUp={tabletUp}
+      tried={tried}
+      update={update}
+      tick={tick}
+    />
+  );
   return (
     <Card title="Competitors">
       <p className="-mt-3 mb-2 text-small text-muted">
         {draft.competitors.length === 0
           ? "Blip didn’t find any. Add them here or later in Competitors."
-          : `${tabletUp ? "Suggested from 2 searches. " : ""}Tick the ones to track · ${ticked} selected.`}
+          : `${tabletUp ? "Suggested from their site and web searches. " : ""}Tick the ones to track · ${ticked} selected.`}
       </p>
-      <ul>
-        {draft.competitors.map((c) => (
-          <li key={c.key} className="border-t border-line py-3 first:border-t-0">
-            <label className="flex min-h-11 cursor-pointer items-center gap-3">
-              <Checkbox
-                checked={c.ticked}
-                onChange={(e) => update(c, { ticked: e.target.checked })}
-              />
-              <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-soft text-label font-medium">
-                {suggestInitials(c.name.replace(/(^|\s)[^\p{L}\p{N}\s]+(?=\s|$)/gu, " "))}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-body-sm">{c.name}</span>
-                <span className="block truncate text-small text-muted">
-                  {competitorMeta(c, { short: !tabletUp })}
-                </span>
-              </span>
-              <span className="flex shrink-0 items-center gap-1.5">
-                {c.accounts.map((a) => {
-                  const Icon = ICON[a.platform];
-                  return (
-                    <Icon
-                      key={a.platform}
-                      size={16}
-                      className={isSupported(a.platform) ? "text-ink" : "text-line-strong"}
-                    />
-                  );
-                })}
-              </span>
-              <span className="sr-only">
-                {c.accounts.length
-                  ? `Accounts: ${c.accounts.map((a) => PLATFORM_LABEL[a.platform]).join(", ")}`
-                  : "No social links on their site"}
-              </span>
-            </label>
-            {c.ticked && c.accounts.filter((a) => isSupported(a.platform)).length === 0 && (
-              <div className="mt-2 grid gap-3 pl-8 md:grid-cols-2">
-                {(["instagram", "tiktok"] as const).map((p) => {
-                  const v = c.inputs[p] ?? "";
-                  const parsed = v.trim() ? parseAccount(p, v) : null;
-                  return (
-                    <TextField
-                      key={p}
-                      label={PLATFORM_LABEL[p]}
-                      value={v}
-                      onChange={(e) => update(c, { inputs: { ...c.inputs, [p]: e.target.value } })}
-                      placeholder="@handle"
-                      autoCapitalize="none"
-                      tone={tried && parsed?.error ? "error" : "default"}
-                      message={tried && parsed?.error ? parsed.error : undefined}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+      {rivals.length > 0 && (
+        <section aria-labelledby="rivals-title">
+          {big.length > 0 && (
+            <h3 id="rivals-title" className="pt-1 pb-1 mono-label text-muted">
+              Closest rivals
+            </h3>
+          )}
+          <ul aria-label="Closest rivals">{rivals.map(row)}</ul>
+        </section>
+      )}
+      {big.length > 0 && (
+        <section aria-labelledby="big-title" className="mt-3 border-t border-line pt-3">
+          <h3 id="big-title" className="mono-label text-muted">
+            Big in your space
+          </h3>
+          <p className="mt-1 mb-1 text-small text-muted">
+            Less alike, but strong on social. Off unless you tick them.
+          </p>
+          <ul aria-label="Big in your space">{big.map(row)}</ul>
+        </section>
+      )}
       {adding ? (
         <AddCompetitorRow
           onCancel={() => setAdding(false)}
+          onFind={actions.onFind}
+          onAdded={() => setAdding(false)}
           onAdd={(c) => {
             set({ competitors: [...draft.competitors, c] });
             setAdding(false);
@@ -583,24 +582,239 @@ function CompetitorsCard({
   );
 }
 
-/** "Add another competitor" (15d): name + website or handles, same checks as 07b (format only). */
+/** A competitor's mark: its logo when the scan found a square one, else initials. */
+function CompetitorMark({ c }: { c: Pick<CompetitorDraft, "name" | "logoUrl"> }) {
+  const [broken, setBroken] = useState(false);
+  if (c.logoUrl && !broken)
+    return (
+      <img
+        src={c.logoUrl}
+        alt=""
+        onError={() => setBroken(true)}
+        className="size-8 shrink-0 rounded-full border border-line bg-surface object-contain"
+      />
+    );
+  return (
+    <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-soft text-label font-medium">
+      {suggestInitials(c.name.replace(/(^|\s)[^\p{L}\p{N}\s]+(?=\s|$)/gu, " "))}
+    </span>
+  );
+}
+
+function CompetitorRow({
+  c,
+  tabletUp,
+  tried,
+  update,
+  tick,
+}: {
+  c: CompetitorDraft;
+  tabletUp: boolean;
+  tried: boolean;
+  update: (c: CompetitorDraft, patch: Partial<CompetitorDraft>) => void;
+  tick: (c: CompetitorDraft, on: boolean) => void;
+}) {
+  const none = noAccountsFound(c);
+  const second =
+    c.group === "big"
+      ? [c.followers ? followersLabel(c.followers.count) : null, tabletUp ? c.why : null]
+      : [tabletUp ? c.why : null];
+  const sub = second.filter(Boolean).join(" · ");
+  return (
+    <li className="border-t border-line py-3 first:border-t-0">
+      <div className="flex items-center gap-3">
+        <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3">
+          <Checkbox checked={c.ticked} onChange={(e) => tick(c, e.target.checked)} />
+          <CompetitorMark c={c} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-body-sm">{c.name}</span>
+            <span className="block truncate text-small text-muted">
+              {competitorMeta(c, { short: !tabletUp })}
+            </span>
+            {sub && <span className="block truncate text-small text-muted">{sub}</span>}
+          </span>
+        </label>
+        <span className="flex shrink-0 items-center gap-1.5">
+          {c.scanning ? (
+            <span className="font-mono text-label text-muted uppercase">Reading…</span>
+          ) : none ? (
+            <span className="text-small text-muted">
+              {tabletUp ? "No accounts found" : "None found"} ·{" "}
+              <button
+                type="button"
+                onClick={() => update(c, { ticked: true, adding: true })}
+                className="-mx-2.5 inline-flex min-h-11 min-w-11 items-center justify-center px-2.5 font-medium text-blue hover:underline md:mx-0 md:min-h-0 md:min-w-0 md:px-0"
+              >
+                add
+              </button>
+            </span>
+          ) : (
+            c.accounts.map((a) => {
+              const Icon = ICON[a.platform];
+              return (
+                <Icon
+                  key={a.platform}
+                  size={16}
+                  className={isSupported(a.platform) ? "text-ink" : "text-line-strong"}
+                />
+              );
+            })
+          )}
+        </span>
+      </div>
+      <span className="sr-only">
+        {c.scanned === false
+          ? "Site not read yet: ticking reads it (1 credit)"
+          : c.accounts.length
+            ? `Accounts: ${c.accounts.map((a) => PLATFORM_LABEL[a.platform]).join(", ")}`
+            : "No social accounts found on their site"}
+      </span>
+      {c.ticked && none && (
+        <div className="mt-2 grid gap-3 pl-8 md:grid-cols-2">
+          {(["instagram", "tiktok"] as const).map((p) => {
+            const v = c.inputs[p] ?? "";
+            const parsed = v.trim() ? parseAccount(p, v) : null;
+            const note = parsed?.value
+              ? lookAlikeNote(parsed.value, { name: c.name, website: c.website })
+              : null;
+            return (
+              <TextField
+                key={p}
+                label={PLATFORM_LABEL[p]}
+                value={v}
+                onChange={(e) => update(c, { inputs: { ...c.inputs, [p]: e.target.value } })}
+                placeholder="@handle"
+                autoCapitalize="none"
+                autoFocus={c.adding && p === "instagram"}
+                tone={tried && parsed?.error ? "error" : "default"}
+                message={tried && parsed?.error ? parsed.error : (note ?? undefined)}
+              />
+            );
+          })}
+        </div>
+      )}
+    </li>
+  );
+}
+
+/**
+ * "Add another competitor" (15d; Discovery 2.0 smart add): type a name or a website and Blip finds its
+ * site, accounts and logo (a website ≈ 1 credit, a name ≈ 3). Not found, or "Add by hand instead": the
+ * name + website / handles form (format checks as 07b, plus the look-alike note).
+ */
 function AddCompetitorRow({
   onAdd,
+  onFind,
+  onAdded,
   onCancel,
   taken,
 }: {
   onAdd: (c: CompetitorDraft) => void;
+  onFind: CompetitorActions["onFind"];
+  onAdded: () => void;
   onCancel: () => void;
   taken: string[];
 }) {
-  const [name, setName] = useState("");
-  const [website, setWebsite] = useState("");
+  const [query, setQuery] = useState("");
+  const [finding, setFinding] = useState(false);
+  const [result, setResult] = useState<"not_found" | "failed" | "duplicate" | null>(null);
+  const [byHand, setByHand] = useState(false);
+  const isSite = !!siteHost(query) && /\./.test(query);
+  if (byHand)
+    return (
+      <ManualCompetitorForm
+        initialName={isSite ? "" : query.trim()}
+        initialWebsite={isSite ? query.trim() : ""}
+        notFound={result === "not_found"}
+        onAdd={onAdd}
+        onCancel={onCancel}
+        taken={taken}
+      />
+    );
+  return (
+    <form
+      className="mt-2 flex flex-col gap-3 border-t border-line pt-4"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!query.trim() || finding) return;
+        setFinding(true);
+        setResult(null);
+        const r = await onFind(query.trim());
+        setFinding(false);
+        if (r === "added") onAdded();
+        else if (r === "not_found") {
+          setResult(r);
+          setByHand(true);
+        } else setResult(r);
+      }}
+    >
+      <TextField
+        label="Name or website"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Worth a Penny, or worthepenny.com"
+        autoCapitalize="none"
+        autoFocus
+        maxLength={80}
+        message={
+          result === "failed"
+            ? "Couldn’t search just now. Try again, or add it by hand."
+            : result === "duplicate"
+              ? "Already in the list."
+              : isSite
+                ? "Blip reads their site for accounts and a logo · about 1 credit"
+                : query.trim()
+                  ? "Blip finds their site, accounts and logo · about 3 credits"
+                  : undefined
+        }
+        tone={result === "failed" || result === "duplicate" ? "error" : "default"}
+      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setByHand(true)}
+          className="inline-flex min-h-11 items-center text-small font-medium text-blue hover:underline md:min-h-8"
+        >
+          Add by hand instead
+        </button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={!query.trim() || finding}>
+            {finding ? "Finding…" : "Find"}
+          </Button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+/** The by-hand form: name + website or handles (format only, 07b), with the look-alike note. */
+function ManualCompetitorForm({
+  initialName,
+  initialWebsite,
+  notFound,
+  onAdd,
+  onCancel,
+  taken,
+}: {
+  initialName: string;
+  initialWebsite: string;
+  notFound: boolean;
+  onAdd: (c: CompetitorDraft) => void;
+  onCancel: () => void;
+  taken: string[];
+}) {
+  const [name, setName] = useState(initialName);
+  const [website, setWebsite] = useState(initialWebsite);
   const [instagram, setInstagram] = useState("");
   const [tiktok, setTiktok] = useState("");
   const [tried, setTried] = useState(false);
   const host = siteHost(website);
   const ig = instagram.trim() ? parseAccount("instagram", instagram) : null;
   const tt = tiktok.trim() ? parseAccount("tiktok", tiktok) : null;
+  const brand = { name, website: host };
   const websiteError =
     website.trim() && !host
       ? "That doesn’t look like a website address."
@@ -611,6 +825,11 @@ function AddCompetitorRow({
     name.trim() && !websiteError && !ig?.error && !tt?.error && (host || ig?.value || tt?.value);
   return (
     <div className="mt-2 flex flex-col gap-3 border-t border-line pt-4">
+      {notFound && (
+        <p className="text-small text-muted">
+          Blip couldn’t find {initialName ? `${initialName}’s` : "their"} site. Add it by hand.
+        </p>
+      )}
       <div className="grid gap-3 md:grid-cols-2">
         <TextField
           label="Name"
@@ -636,7 +855,9 @@ function AddCompetitorRow({
           placeholder="@handle"
           autoCapitalize="none"
           tone={ig?.error ? "error" : "default"}
-          message={ig?.error}
+          message={
+            ig?.error ?? (ig?.value ? (lookAlikeNote(ig.value, brand) ?? undefined) : undefined)
+          }
         />
         <TextField
           label="TikTok"
@@ -645,7 +866,9 @@ function AddCompetitorRow({
           placeholder="@handle"
           autoCapitalize="none"
           tone={tt?.error ? "error" : "default"}
-          message={tt?.error}
+          message={
+            tt?.error ?? (tt?.value ? (lookAlikeNote(tt.value, brand) ?? undefined) : undefined)
+          }
         />
       </div>
       {tried && !valid && (
@@ -679,6 +902,8 @@ function AddCompetitorRow({
               ticked: true,
               inputs: {},
               manual: true,
+              group: "rival",
+              scanned: true,
             });
           }}
         >

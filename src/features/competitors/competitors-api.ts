@@ -85,7 +85,13 @@ export async function saveCompetitor(
  * Plain delete. The database cascades to the brand's posts and pull tasks (dashboards drop it);
  * ideas keep their `source_snapshot` (source_post_id → null), so they stay on the idea board.
  */
-export async function removeCompetitor(id: string): Promise<void> {
+export async function removeCompetitor(id: string, logoPath?: string | null): Promise<void> {
   const { error } = await supabase.from("competitors").delete().eq("id", id);
   if (error) throw error;
+  // Its logo (Discovery 2.0) goes too; a failure only leaves a few KB behind.
+  if (logoPath)
+    await supabase.storage
+      .from("client-logos")
+      .remove([logoPath])
+      .catch(() => null);
 }

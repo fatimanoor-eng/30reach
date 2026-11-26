@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { PageHeader } from "../../app/PageHeader";
 import { Tooltip } from "../../components/Tooltip";
-import { Avatar } from "../../components/Avatar";
+import { BrandAvatar } from "../../components/BrandAvatar";
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { Chip } from "../../components/Chip";
@@ -87,7 +87,7 @@ export function CompetitorsPage() {
     setRemoveBusy(true);
     setRemoveError(null);
     try {
-      await removeCompetitor(removing.id);
+      await removeCompetitor(removing.id, removing.logo_path);
     } catch {
       setRemoveError("Couldn’t remove it. Check your connection and try again.");
       setRemoveBusy(false);
@@ -292,7 +292,7 @@ export function CompetitorsPage() {
                   <tr key={c.id} className="border-b border-line last:border-0">
                     <th scope="row" className="py-4 pl-6 font-normal">
                       <span className="flex items-center gap-3 text-body">
-                        <Avatar initials={c.initials} size="md" />
+                        <BrandAvatar initials={c.initials} logoPath={c.logo_path} size="md" />
                         {c.name}
                       </span>
                     </th>
@@ -312,7 +312,7 @@ export function CompetitorsPage() {
               <li key={c.id} className="rounded-card border border-line bg-surface p-4">
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="flex min-w-0 items-center gap-3 text-body">
-                    <Avatar initials={c.initials} size="md" />
+                    <BrandAvatar initials={c.initials} logoPath={c.logo_path} size="md" />
                     <span className="truncate">{c.name}</span>
                   </h2>
                   {statusChip(c)}

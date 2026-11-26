@@ -132,7 +132,7 @@ export default {
     const { data: competitor } = await admin
       .from("competitors")
       .select(
-        "id, instagram_handle, tiktok_handle, linkedin_url, facebook_url, facebook_followers, x_handle, youtube_handle, youtube_channel_id, youtube_subscribers",
+        "id, instagram_handle, tiktok_handle, linkedin_url, facebook_url, facebook_followers, x_handle, youtube_handle, youtube_channel_id, youtube_subscribers, logo_path",
       )
       .eq("id", task.competitor_id)
       .single();
@@ -387,9 +387,26 @@ export default {
             ...(page.followers !== null ? { youtube_subscribers: page.followers } : {}),
           }
         : {};
+    // No logo yet (Discovery 2.0 fallback): the Instagram / TikTok profile picture, once, 128 px square
+    // (0 credits: it came with this page). Loaded only when needed, so other tasks skip the image code.
+    let logo = {};
+    if (
+      !competitor?.logo_path &&
+      page.avatar &&
+      (platform === "instagram" || platform === "tiktok")
+    ) {
+      // logo-safe: lazy, try/catch, time-limited; a failure only means no logo (26 Nov outage fix).
+      const { saveLogoSafely } = await import("../_shared/logo-safe.ts");
+      const path = await saveLogoSafely(
+        admin,
+        [{ url: page.avatar, kind: "icon" }],
+        `${pull.client_id}/competitors/${competitor!.id}.png`,
+      );
+      if (path) logo = { logo_path: path, logo_source: platform };
+    }
     await admin
       .from("competitors")
-      .update({ [STATUS_COLUMN[platform]]: "ok", ...ytChannel })
+      .update({ [STATUS_COLUMN[platform]]: "ok", ...ytChannel, ...logo })
       .eq("id", competitor!.id);
 
     const { data } = await release({

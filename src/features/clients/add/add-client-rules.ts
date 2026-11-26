@@ -31,6 +31,9 @@ export type SiteScan = {
   accounts: FoundAccount[];
 };
 
+/** Instagram followers read from a search snippet (approximate; Discovery 2.0 "Big in your space"). */
+export type SnippetFollowers = { platform: "instagram"; handle: string; count: number };
+
 /** A suggested competitor and what its home page links (null = not read yet / couldn't be read). */
 export type Suggestion = {
   name: string;
@@ -39,7 +42,18 @@ export type Suggestion = {
   about: string;
   accounts: FoundAccount[] | null;
   unreadable?: boolean;
+  /** Discovery 2.0: one line, why it's suggested. */
+  why?: string;
+  /** "rival" = Closest rivals (default), "big" = Big in your space. */
+  group?: "rival" | "big";
+  /** A 128 px square logo from its site (client-logos), and a signed URL to show it. */
+  logoPath?: string | null;
+  logoUrl?: string | null;
+  followers?: SnippetFollowers | null;
 };
+
+/** Closest rivals whose home pages are read during the scan (the rest, and big brands, on tick). */
+export const SCAN_UP_FRONT = 8;
 
 export const PLATFORM_LABEL: Record<FoundPlatform, string> = {
   ...PLATFORM_NAME,
@@ -74,6 +88,8 @@ export type ScanProgress = {
   /** How many suggestions have had their home page read. */
   accountsRead: number;
   searching: boolean;
+  /** Big in your space found (Discovery 2.0); counted in "N FOUND", read only on tick. */
+  bigCount?: number;
 };
 
 /** The checklist (15c / M15): what was found so far, the step in progress, and what's next. */
@@ -133,7 +149,7 @@ export function checklistRows(
       ? {
           key: "competitors",
           label: "Competitors",
-          meta: `${p.suggestions.length} FOUND`,
+          meta: `${p.suggestions.length + (p.bigCount ?? 0)} FOUND`,
           state: "done",
         }
       : {
@@ -143,7 +159,8 @@ export function checklistRows(
           state: p.searching ? "active" : "next",
         },
   );
-  const n = p.suggestions?.length ?? 0;
+  // Only the top closest rivals are read up front (Discovery 2.0); the rest when ticked in Review.
+  const n = Math.min(p.suggestions?.length ?? 0, SCAN_UP_FRONT);
   rows.push({
     key: "accounts",
     label: short ? "Their social accounts" : "Competitors’ social accounts",
@@ -174,6 +191,18 @@ export type CompetitorDraft = {
   /** Typed accounts for a competitor whose site links none (or one added by hand). */
   inputs: Partial<Record<Platform, string>>;
   manual?: boolean;
+  /** Discovery 2.0 */
+  why?: string;
+  group?: "rival" | "big";
+  /** Its home page was read (accounts + logo). Not yet → read when ticked (1 credit). */
+  scanned?: boolean;
+  logoPath?: string | null;
+  logoUrl?: string | null;
+  followers?: SnippetFollowers | null;
+  /** Its site is being read right now (ticked in Review). */
+  scanning?: boolean;
+  /** "no accounts found · add" was pressed: focus the handle field. */
+  adding?: boolean;
 };
 
 export type ReviewDraft = {
@@ -203,7 +232,11 @@ const supportedAccounts = (accounts: readonly FoundAccount[] | null) =>
  * Instagram / TikTok / LinkedIn / Facebook / X not on the site are team rows, off; competitors pre-ticked:
  * the first 4 whose site links a platform 30reach pulls.
  */
-export function reviewDefaults(scan: SiteScan, suggestions: readonly Suggestion[]): ReviewDraft {
+export function reviewDefaults(
+  scan: SiteScan,
+  suggestions: readonly Suggestion[],
+  big: readonly Suggestion[] = [],
+): ReviewDraft {
   const site = scan.accounts.map((a): PlatformDraft => ({
     platform: a.platform,
     source: "website",
@@ -237,20 +270,34 @@ export function reviewDefaults(scan: SiteScan, suggestions: readonly Suggestion[
     healthMonths: scan.healthMonths,
     rules: scan.rules.map((r) => ({ ...r, source: "blip" as const })),
     platforms: [...site, ...team],
-    competitors: suggestions.map((s) => {
-      const tick = ticks < 4 && supportedAccounts(s.accounts).length > 0;
-      if (tick) ticks++;
-      return {
-        key: s.domain,
-        name: s.name,
-        website: s.website,
-        domain: s.domain,
-        about: s.about,
-        accounts: s.accounts ?? [],
-        ticked: tick,
-        inputs: {},
-      };
-    }),
+    competitors: [
+      ...suggestions.map((s) => {
+        const tick = ticks < 4 && supportedAccounts(s.accounts).length > 0;
+        if (tick) ticks++;
+        return draftOf(s, "rival", tick);
+      }),
+      // Big in your space: unticked; their pages are read only if someone ticks them.
+      ...big.map((s) => draftOf(s, "big", false)),
+    ],
+  };
+}
+
+function draftOf(s: Suggestion, group: "rival" | "big", ticked: boolean): CompetitorDraft {
+  return {
+    key: s.domain,
+    name: s.name,
+    website: s.website,
+    domain: s.domain,
+    about: s.about,
+    accounts: s.accounts ?? [],
+    ticked,
+    inputs: {},
+    why: s.why ?? "",
+    group,
+    scanned: s.accounts !== null || !!s.unreadable,
+    logoPath: s.logoPath ?? null,
+    logoUrl: s.logoUrl ?? null,
+    followers: s.followers ?? null,
   };
 }
 
@@ -266,16 +313,20 @@ export function summaryLine(d: ReviewDraft, { short = false } = {}): string {
   return parts.join(" · ").toUpperCase();
 }
 
-/** Competitor row meta (15d): "carnabyandvine.com · luxury gift boxes" / "… · no social links on their site". */
+/**
+ * Competitor row meta (15d; Discovery 2.0): "carnabyandvine.com · luxury gift boxes", "… · added by hand".
+ * Accounts not found is said separately (with "add"), so it's left out here.
+ */
 export function competitorMeta(c: CompetitorDraft, { short = false } = {}): string {
   if (short) return c.domain;
-  const extra = c.manual
-    ? "added by hand"
-    : c.accounts.length === 0
-      ? "no social links on their site"
-      : c.about;
-  return [c.domain, extra].filter(Boolean).join(" · ");
+  return [c.domain, c.manual ? "added by hand" : c.about].filter(Boolean).join(" · ");
 }
+
+/** Read, and no account on a platform 30reach pulls (the row offers "no accounts found · add"). */
+export const noAccountsFound = (c: CompetitorDraft) =>
+  (c.scanned ?? true) &&
+  !c.manual &&
+  c.accounts.filter((a) => isSupported(a.platform)).length === 0;
 
 // ───────────────────────────────────────────── Create (rows)
 export type ParsedInput = { value: string | null; error?: string };
@@ -309,6 +360,8 @@ export function competitorRowsForCreate(d: ReviewDraft, parse: ParseAccount) {
   const rows: {
     name: string;
     initials: string;
+    logo_path: string | null;
+    logo_source: "site" | null;
     instagram_handle: string | null;
     tiktok_handle: string | null;
     linkedin_url: string | null;
@@ -326,7 +379,11 @@ export function competitorRowsForCreate(d: ReviewDraft, parse: ParseAccount) {
     rows.push({
       name,
       initials: suggestInitials(name.replace(/(^|\s)[^\p{L}\p{N}\s]+(?=\s|$)/gu, " ")),
-      instagram_handle: found("instagram")?.handle ?? typed("instagram"),
+      logo_path: c.logoPath ?? null,
+      logo_source: c.logoPath ? "site" : null,
+      // Big in your space: the Instagram account its follower count came from, if the site wasn't read.
+      instagram_handle:
+        found("instagram")?.handle ?? typed("instagram") ?? c.followers?.handle ?? null,
       tiktok_handle: found("tiktok")?.handle ?? typed("tiktok"),
       linkedin_url: found("linkedin")?.url ?? typed("linkedin"),
       facebook_url: found("facebook")?.url ?? typed("facebook"),
