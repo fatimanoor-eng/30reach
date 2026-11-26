@@ -200,6 +200,12 @@ describe("buildSummary: compact, never raw", () => {
       new_since_previous: 1,
     });
     expect(summary.brands.find((b) => b.brand === "Ro")!.avg_views).toBeNull();
+    // 26 Nov: engagement rate = avg engagement ÷ followers × 100; null without a follower count.
+    expect(hims.engagement_rate_pct).toBeCloseTo(
+      Math.round(((hims.avg_likes + hims.avg_comments) / 212000) * 100 * 100) / 100,
+    );
+    expect(summary.brands.find((b) => b.brand === "Ro")!.engagement_rate_pct).toBeNull();
+    expect(summary.engagement_means).toMatch(/engagement_rate_pct/);
     expect(summary.previous?.pull_date).toBe("6 Nov 2026");
     expect(summary.not_in_data).toContain("posts from last year");
   });

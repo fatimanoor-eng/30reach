@@ -24,6 +24,14 @@ export type Found = {
   /** One line: why it's suggested. */
   why: string;
   group: Group;
+  /** Its business model in a few words ("Coupon platform", "Retailer with coupons"), from Groq. */
+  model?: string;
+  /**
+   * Same business model as the client (Groq; 26 Nov relevance fix): true = a confident like-for-like rival
+   * (ranked first, may be pre-ticked); false = in the space but a different model (suggested, unticked);
+   * missing = unknown (unticked).
+   */
+  sameModel?: boolean;
   /** Big in your space: Instagram followers read from one search's profile snippets (approximate). */
   followers?: { platform: "instagram"; handle: string; count: number } | null;
 };
@@ -109,7 +117,8 @@ export function namedInResults(
 }
 
 // ───────────────────────────────────────────── Groq's answers → suggestions
-type SortItem = {
+type Model = { model?: string; same_model?: boolean };
+type SortItem = Model & {
   i: number;
   kind: string;
   name: string;
@@ -117,8 +126,35 @@ type SortItem = {
   why: string;
   group: string;
 };
-type Proposal = { name: string; website: string; about: string; why: string; group: string };
-type HopItem = { domain: string; name: string; about: string; group: string };
+type Proposal = Model & {
+  name: string;
+  website: string;
+  about: string;
+  why: string;
+  group: string;
+};
+type HopItem = Model & { domain: string; name: string; about: string; group: string };
+
+/** Groq's model label + same-model flag → Found fields; the label leads the why ("Coupon platform · …"). */
+function modelFields(x: Model | undefined, why: string) {
+  const model = str(x?.model, 40);
+  const sameModel = typeof x?.same_model === "boolean" ? x.same_model : undefined;
+  const lead = model && !why.toLowerCase().startsWith(model.toLowerCase()) ? model : "";
+  return {
+    why: [lead, why].filter(Boolean).join(" · ").slice(0, 120),
+    ...(model ? { model } : {}),
+    ...(sameModel !== undefined ? { sameModel } : {}),
+  };
+}
+
+/** Same business model first, then unknown, then a different model; otherwise the order found. */
+const modelRank = (f: Found) => (f.sameModel === true ? 0 : f.sameModel === undefined ? 1 : 2);
+export function byBusinessModel<T extends Found>(list: readonly T[]): T[] {
+  return list
+    .map((f, i) => [f, i] as const)
+    .sort(([a, i], [b, j]) => modelRank(a) - modelRank(b) || i - j)
+    .map(([f]) => f);
+}
 
 const items = <T>(raw: unknown, key: string): T[] =>
   Array.isArray((raw as Record<string, unknown> | null)?.[key])
@@ -172,7 +208,7 @@ export function assembleDiscovery(input: {
           .slice(0, 60),
       domain: r.domain,
       about: str(x.about, 80),
-      why: str(x.why, 100) || "Same kind of product, found in search",
+      ...modelFields(x, str(x.why, 100) || "Same kind of product, found in search"),
       group: asGroup(x.group) ?? "rival",
     });
   });
@@ -189,7 +225,7 @@ export function assembleDiscovery(input: {
         name: str(x?.name, 60) || domainStem(d),
         domain: d,
         about: str(x?.about, 80),
-        why: `Listed as a competitor of ${input.hop.rival}`,
+        ...modelFields(x, `Listed as a competitor of ${input.hop.rival}`),
         group: asGroup(x?.group) ?? "rival",
       });
     }
@@ -202,14 +238,15 @@ export function assembleDiscovery(input: {
     const group = asGroup(p.group);
     if (!domain || !name || !group) continue;
     if (!namedInResults({ name, domain }, input.corpus)) continue;
-    add({ name, domain, about: str(p.about, 80), why: str(p.why, 100), group });
+    add({ name, domain, about: str(p.about, 80), ...modelFields(p, str(p.why, 100)), group });
   }
 
   // 4. Brands a list page recommends (read only when rivals are short).
   for (const b of input.listBrands ?? []) {
     add({ ...b, why: "Recommended on a list of the best in this category", group: "rival" });
   }
-  return { rivals, big };
+  // Relevance (26 Nov): like-for-like rivals first ("Coupon platform" before "Retailer with coupons").
+  return { rivals: byBusinessModel(rivals), big };
 }
 
 // ───────────────────────────────────────────── followers for "Big in your space"
@@ -272,6 +309,7 @@ const obj = (properties: Record<string, unknown>) => ({
 });
 const S = { type: "string" };
 const GROUP = { type: "string", enum: ["rival", "big"] };
+const B = { type: "boolean" };
 
 export const DISCOVER_SCHEMA = {
   name: "discovery",
@@ -288,9 +326,23 @@ export const DISCOVER_SCHEMA = {
         about: S,
         why: S,
         group: GROUP,
+        model: S,
+        same_model: B,
       }),
     },
-    brands: { type: "array", items: obj({ name: S, website: S, about: S, why: S, group: GROUP }) },
+    brands: {
+      type: "array",
+      items: obj({
+        name: S,
+        website: S,
+        about: S,
+        why: S,
+        group: GROUP,
+        model: S,
+        same_model: B,
+      }),
+    },
+    client_model: S,
   }),
 };
 
@@ -304,6 +356,8 @@ export const HOP_SCHEMA = {
         name: S,
         about: S,
         group: { type: "string", enum: ["rival", "big", "skip"] },
+        model: S,
+        same_model: B,
       }),
     },
   }),
@@ -311,6 +365,12 @@ export const HOP_SCHEMA = {
 
 const FACTS =
   "Facts: Breakthirty is the agency; 30reach is its tool; you are Blip. We are adding a new client and finding who it competes with on social media.";
+
+/** Relevance (26 Nov): The Krazy Coupon Lady's top "rivals" were Food4Less and Kroger. */
+const MODEL = [
+  "First decide the client's business model in 2–4 words (client_model): how it makes money, e.g. 'Coupon platform', 'Telehealth clinic', 'Gift box shop'.",
+  "For every brand give model (its own business model, same style: e.g. 'Coupon platform' vs 'Retailer with coupons') and same_model: true ONLY if it makes money the same way as the client. A store that merely offers coupons is not a coupon platform.",
+].join("\n");
 
 const GROUPS = [
   "- rival: sells the same kind of product to the same shoppers (the closest competitors).",
@@ -320,10 +380,11 @@ const GROUPS = [
 export function discoverSystem(): string {
   return [
     FACTS,
-    "You get web search results. For each result give i, kind and, for competitors, name (the brand), about (what they sell, ≤ 6 words), why (one short line: why they compete with the client) and group.",
+    MODEL,
+    "You get web search results. For each result give i, kind and, for competitors, name (the brand), about (what they sell, ≤ 6 words), why (one short line: why they compete with the client), group, model and same_model.",
     "- competitor: the home or shop page of one business in the client's space. listicle: an article ranking several. marketplace: many sellers or a directory. forum: Reddit, Quora. news: press, blogs, reviews. other: anything else.",
     GROUPS,
-    "Then list up to 12 more brands you know compete with the client (brands: name, website domain, about, why, group), including big names in the space. Only real brands with their real website. Never the client itself.",
+    "Then list up to 12 more brands you know compete with the client (brands: name, website domain, about, why, group, model, same_model), same business model first, then big names in the space. Only real brands with their real website. Never the client itself.",
     "Answer in JSON only.",
   ].join("\n");
 }
@@ -347,7 +408,7 @@ export const discoverUser = (
 export function hopSystem(): string {
   return [
     FACTS,
-    "These websites were named as competitors of one of the client's rivals. For each: domain, name (the brand's own name, e.g. worthepenny.com → Worth a Penny), about (≤ 6 words) and group:",
+    "These websites were named as competitors of one of the client's rivals. For each: domain, name (the brand's own name, e.g. worthepenny.com → Worth a Penny), about (≤ 6 words), model (its business model in 2–4 words), same_model (true only if it makes money the same way as the client) and group:",
     GROUPS,
     "- skip: not in the client's space (agencies, tools, unrelated sites).",
     "Answer in JSON only.",

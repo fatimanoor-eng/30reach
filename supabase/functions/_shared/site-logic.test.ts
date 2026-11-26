@@ -234,8 +234,8 @@ describe("Add client prompts stay small", () => {
     const { profileSystem, listicleSystem } = await import("./site-logic");
     const { discoverSystem, discoverUser, hopSystem } = await import("./discovery-logic");
     expect(profileSystem().length).toBeLessThan(2000);
-    expect(discoverSystem().length).toBeLessThan(1400);
-    expect(hopSystem().length).toBeLessThan(900);
+    expect(discoverSystem().length).toBeLessThan(1700); // + business model (26 Nov)
+    expect(hopSystem().length).toBeLessThan(1000);
     expect(listicleSystem().length).toBeLessThan(500);
     const many = Array.from({ length: 20 }, () => ({
       domain: "x.com",

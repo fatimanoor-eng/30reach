@@ -46,13 +46,17 @@ export type Suggestion = {
   why?: string;
   /** "rival" = Closest rivals (default), "big" = Big in your space. */
   group?: "rival" | "big";
+  /** Same business model as the client (relevance fix 26 Nov): only these are pre-ticked. */
+  sameModel?: boolean;
+  /** Its business model ("Coupon platform", "Retailer with coupons"). */
+  model?: string;
   /** A 128 px square logo from its site (client-logos), and a signed URL to show it. */
   logoPath?: string | null;
   logoUrl?: string | null;
   followers?: SnippetFollowers | null;
 };
 
-/** The top closest rivals ticked by default (UI polish 26 Nov: with or without accounts found). */
+/** At most this many closest rivals ticked by default: same business model only, accounts found or not. */
 export const PRE_TICKED = 4;
 
 /** Closest rivals whose home pages are read during the scan (the rest, and big brands, on tick). */
@@ -213,6 +217,8 @@ export type CompetitorDraft = {
   /** Discovery 2.0 */
   why?: string;
   group?: "rival" | "big";
+  sameModel?: boolean;
+  model?: string;
   /** Its home page was read (accounts + logo). Not yet → read when ticked (1 credit). */
   scanned?: boolean;
   logoPath?: string | null;
@@ -246,8 +252,9 @@ export type ReviewDraft = {
 /**
  * Review defaults (15d): the scan's fields; platforms linked on the site are ALWAYS ON (website rows),
  * Instagram / TikTok / LinkedIn / Facebook / X not on the site are team rows, off; competitors pre-ticked:
- * the top 4 closest rivals, accounts found or not (UI polish 26 Nov: a rival without links keeps
- * "No accounts found · add"). Big in your space stays unticked.
+ * up to 4 closest rivals Groq is confident share the client's business model (relevance fix 26 Nov: a
+ * grocery chain with coupons isn't a coupon platform), accounts found or not (a rival without links keeps
+ * "No accounts found · add"). Different or unknown model, and Big in your space: suggested, unticked.
  */
 export function reviewDefaults(
   scan: SiteScan,
@@ -287,11 +294,20 @@ export function reviewDefaults(
     rules: scan.rules.map((r) => ({ ...r, source: "blip" as const })),
     platforms: [...site, ...team],
     competitors: [
-      ...suggestions.map((s, i) => draftOf(s, "rival", i < PRE_TICKED)),
+      ...preTicked(suggestions),
       // Big in your space: unticked; their pages are read only if someone ticks them.
       ...big.map((s) => draftOf(s, "big", false)),
     ],
   };
+}
+
+function preTicked(suggestions: readonly Suggestion[]): CompetitorDraft[] {
+  let ticks = 0;
+  return suggestions.map((s) => {
+    const tick = ticks < PRE_TICKED && s.sameModel === true;
+    if (tick) ticks++;
+    return draftOf(s, "rival", tick);
+  });
 }
 
 function draftOf(s: Suggestion, group: "rival" | "big", ticked: boolean): CompetitorDraft {
@@ -306,6 +322,8 @@ function draftOf(s: Suggestion, group: "rival" | "big", ticked: boolean): Compet
     inputs: {},
     why: s.why ?? "",
     group,
+    ...(s.sameModel !== undefined ? { sameModel: s.sameModel } : {}),
+    ...(s.model ? { model: s.model } : {}),
     scanned: s.accounts !== null || !!s.unreadable,
     logoPath: s.logoPath ?? null,
     logoUrl: s.logoUrl ?? null,
@@ -316,6 +334,15 @@ function draftOf(s: Suggestion, group: "rival" | "big", ticked: boolean): Compet
 /** Platforms that will be pulled: supported ones that are on (website rows always are). */
 export const platformsOn = (d: Pick<ReviewDraft, "platforms">): Platform[] =>
   PLATFORMS.filter((p) => d.platforms.some((x) => x.platform === p && x.on));
+
+/**
+ * Platforms a competitor's account fields offer in Review (26 Nov): every platform the client will track,
+ * including ones switched on in Review, in the usual order. None on yet → Instagram and TikTok.
+ */
+export function competitorPlatforms(d: Pick<ReviewDraft, "platforms">): Platform[] {
+  const on = platformsOn(d);
+  return on.length ? on : ["instagram", "tiktok"];
+}
 
 /** Sticky bar (15d / M16): "4 COMPETITORS · 2 PLATFORMS · FIRST PULL IS NEXT". */
 export function summaryLine(d: ReviewDraft, { short = false } = {}): string {

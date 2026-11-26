@@ -1,3 +1,4 @@
+import { type FollowerTask, followerTable } from "./followers";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabase";
 import { useClient } from "../../lib/useClient";
@@ -112,6 +113,31 @@ export function useThumbnails(paths: string[]) {
         .createSignedUrls(key, 3600);
       if (error) throw error;
       return new Map((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path!, d.signedUrl]));
+    },
+  });
+}
+
+/**
+ * Follower readings of the latest and previous pulls (26 Nov): counts, growth and engagement rate come
+ * from what every pull already saved (pull_tasks.followers). No credits. Null pull ids → an empty table.
+ */
+export function useFollowerTable(latestId: string | null | undefined, previousId?: string | null) {
+  return useQuery({
+    queryKey: ["followers", latestId, previousId ?? null],
+    enabled: !!latestId,
+    staleTime: Infinity, // saved pulls never change
+    queryFn: async () => {
+      const ids = [latestId!, ...(previousId ? [previousId] : [])];
+      const { data, error } = await supabase
+        .from("pull_tasks")
+        .select("pull_id, competitor_id, platform, followers, error_code")
+        .in("pull_id", ids);
+      if (error) throw error;
+      const rows = (data ?? []) as (FollowerTask & { pull_id: string })[];
+      return followerTable(
+        rows.filter((r) => r.pull_id === latestId),
+        rows.filter((r) => r.pull_id === previousId),
+      );
     },
   });
 }

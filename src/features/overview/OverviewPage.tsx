@@ -21,7 +21,7 @@ import {
   PlatformPicker,
 } from "./OverviewControls";
 import { TopPostsCard } from "./TopPostsCard";
-import { type SavedPull, usePullPosts, useSavedPulls } from "./useOverviewData";
+import { type SavedPull, useFollowerTable, usePullPosts, useSavedPulls } from "./useOverviewData";
 import { WhatsNewBar } from "./WhatsNewBar";
 
 /** 03 First run (no real pull yet) or 04 Overview, from the last saved pull. Never fetches from Firecrawl. */
@@ -69,6 +69,7 @@ function Dashboard({
   const { selected } = useBrandSelection();
   const latestPosts = usePullPosts(latest.id);
   const previousPosts = usePullPosts(previous?.id);
+  const followers = useFollowerTable(latest.id, previous?.id);
 
   const brands: BrandRef[] = competitors.map(({ id, name, initials, logo_path }) => ({
     id,
@@ -194,7 +195,12 @@ function Dashboard({
             ))}
           </div>
           <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
-            <LeaderboardCard rows={leaderboard(posts, inScope)} rankDelta={news?.rankDelta} />
+            <LeaderboardCard
+              rowsFor={(sortBy) =>
+                leaderboard(posts, inScope, { followers: followers.data, sortBy })
+              }
+              rankDelta={news?.rankDelta}
+            />
             <TopPostsCard posts={posts} brands={brands} newIds={news?.newPostIds} />
           </div>
         </>

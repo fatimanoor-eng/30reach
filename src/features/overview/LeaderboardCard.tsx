@@ -3,26 +3,38 @@ import { Card } from "../../components/Card";
 import { compareColor, type CompareColor } from "../../lib/brand-selection";
 import { useBrandSelection } from "../../lib/brand-selection-context";
 import { formatCompact, plural } from "../../lib/format";
+import { InfoTip } from "../../components/InfoTip";
+import { SegmentedControl } from "../../components/SegmentedControl";
+import { formatDelta, formatFollowers, formatRate } from "./followers";
 import { SMALL_SAMPLE } from "./metrics";
-import type { LeaderRow } from "./metrics";
+import type { LeaderRow, LeaderSort } from "./metrics";
+
+export const RATE_HELP =
+  "Engagement rate = average engagement per post ÷ the brand's followers on that platform. It's fairer between big and small accounts. Followers come from your pulls (no extra credits); “—” means the count wasn't available.";
 
 const FILL: Record<CompareColor, string> = { ink: "bg-ink", pop: "bg-pop", blue: "bg-blue" };
 const MOBILE_ROWS = 4;
 
 /**
- * Leaderboard (04 / M02): sorted by avg engagement = (likes + comments) / posts.
- * Click a brand = select its pill. Bars: #1 ink, others grey; in compare mode the brands' compare colours.
- * ▲/▼ = rank change since the previous pull (05e).
+ * Leaderboard (04 / M02): sorted by avg engagement = (likes + comments) / posts, or (26 Nov) by engagement
+ * rate. Followers + growth since the previous pull from the pulls (no credits). Click a brand = select its
+ * pill. Bars: #1 ink, others grey; in compare mode the brands' compare colours. ▲/▼ = rank change since the
+ * previous pull (05e). Avg likes / comments: in the avg engagement cell's tooltip (no room for both).
  */
 export function LeaderboardCard({
-  rows,
+  rowsFor,
   rankDelta,
+  title = "Leaderboard",
 }: {
-  rows: LeaderRow[];
+  /** The rows in the chosen order. */
+  rowsFor: (sortBy: LeaderSort) => LeaderRow[];
   rankDelta?: Map<string, number>;
+  title?: string;
 }) {
   const { selected, toggle } = useBrandSelection();
   const [showAll, setShowAll] = useState(false);
+  const [sortBy, setSortBy] = useState<LeaderSort>("engagement");
+  const rows = rowsFor(sortBy);
   const compare = selected.length >= 2;
   const max = Math.max(...rows.map((r) => r.share), 0.0001);
 
@@ -37,7 +49,9 @@ export function LeaderboardCard({
     const d = rankDelta?.get(id);
     if (!d) return null;
     return (
-      <span className={`ml-2 font-mono text-label ${d > 0 ? "text-fresh" : "text-spark"}`}>
+      <span
+        className={`ml-2 font-mono text-label whitespace-nowrap ${d > 0 ? "text-fresh" : "text-spark"}`}
+      >
         <span aria-hidden="true">{d > 0 ? "▲" : "▼"}</span> {Math.abs(d)}
         <span className="sr-only"> {d > 0 ? "up" : "down"} since the last pull</span>
       </span>
@@ -54,6 +68,18 @@ export function LeaderboardCard({
       </span>
     ) : null;
 
+  const growth = (row: LeaderRow) => {
+    const d = formatDelta(row.followers.delta);
+    if (!d) return null;
+    const up = (row.followers.delta ?? 0) > 0;
+    return (
+      <span className={`block font-mono text-label ${up ? "text-fresh" : "text-spark-text"}`}>
+        {d} <span aria-hidden="true">{up ? "↑" : "↓"}</span>
+        <span className="sr-only"> since the last pull</span>
+      </span>
+    );
+  };
+
   const bar = (row: LeaderRow, className = "") => (
     <div className={`h-1.5 overflow-hidden rounded-full bg-soft ${className}`} aria-hidden="true">
       <div
@@ -65,10 +91,19 @@ export function LeaderboardCard({
 
   return (
     <Card
-      title="Leaderboard"
+      title={title}
       action={
-        <span className="hidden font-mono text-small text-muted md:inline">
-          Sorted by avg engagement
+        <span className="flex items-center gap-2">
+          <SegmentedControl
+            label="Sort the leaderboard by"
+            value={sortBy}
+            onChange={setSortBy}
+            options={[
+              { value: "engagement", label: "Engagement" },
+              { value: "rate", label: "Engagement rate" },
+            ]}
+          />
+          <InfoTip text={RATE_HELP} label="What is engagement rate?" />
         </span>
       }
     >
@@ -76,11 +111,12 @@ export function LeaderboardCard({
       <table className="hidden w-full text-left md:table">
         <thead>
           <tr className="border-b border-line mono-label text-muted">
-            <th className="py-2 font-normal">Brand</th>
-            <th className="py-2 font-normal">Posts</th>
-            <th className="py-2 font-normal">Avg likes</th>
-            <th className="py-2 font-normal">Avg comments</th>
-            <th className="py-2 font-normal">Share of engagement</th>
+            <th className="py-2 pr-4 font-normal">Brand</th>
+            <th className="py-2 pr-4 font-normal">Posts</th>
+            <th className="py-2 pr-4 font-normal">Followers</th>
+            <th className="py-2 pr-4 font-normal">Avg eng.</th>
+            <th className="py-2 pr-4 font-normal">Eng. rate</th>
+            <th className="py-2 pr-4 font-normal">Share of engagement</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -101,10 +137,23 @@ export function LeaderboardCard({
                 {delta(row.brand.id)}
                 {sampleHint(row)}
               </td>
-              <td className="py-2.5">{row.posts}</td>
-              <td className="py-2.5">{row.posts ? formatCompact(row.avgLikes) : "—"}</td>
-              <td className="py-2.5">{row.posts ? formatCompact(row.avgComments) : "—"}</td>
-              <td className="py-2.5">
+              <td className="py-2.5 pr-4">{row.posts}</td>
+              <td className="py-2.5 pr-4">
+                {formatFollowers(row.followers.count)}
+                {growth(row)}
+              </td>
+              <td
+                className="py-2.5 pr-4"
+                title={
+                  row.posts
+                    ? `${formatCompact(row.avgLikes)} likes + ${formatCompact(row.avgComments)} comments per post`
+                    : undefined
+                }
+              >
+                {row.posts ? formatCompact(row.avgEngagement) : "—"}
+              </td>
+              <td className="py-2.5 pr-4">{formatRate(row.engagementRate)}</td>
+              <td className="py-2.5 pr-4">
                 <div className="flex items-center gap-3">
                   {bar(row, "w-24 xl:w-28")}
                   <span className="font-mono text-label text-muted">
@@ -136,10 +185,27 @@ export function LeaderboardCard({
                   {delta(row.brand.id)}
                   {sampleHint(row)}
                 </span>
+                <span className="block font-mono text-label text-muted">
+                  {row.followers.count !== null
+                    ? `${formatFollowers(row.followers.count)} followers`
+                    : "Followers —"}
+                  {formatDelta(row.followers.delta) ? ` · ${formatDelta(row.followers.delta)}` : ""}
+                </span>
                 {bar(row, "mt-1.5 w-full max-w-44")}
               </span>
-              <span className="text-body">
-                {row.posts ? formatCompact(row.avgEngagement) : "—"}
+              <span className="text-right text-body">
+                {sortBy === "rate"
+                  ? formatRate(row.engagementRate)
+                  : row.posts
+                    ? formatCompact(row.avgEngagement)
+                    : "—"}
+                <span className="block font-mono text-label text-muted">
+                  {sortBy === "rate"
+                    ? row.posts
+                      ? formatCompact(row.avgEngagement)
+                      : ""
+                    : formatRate(row.engagementRate)}
+                </span>
               </span>
             </button>
           </li>
@@ -157,7 +223,8 @@ export function LeaderboardCard({
 
       <p className="mt-4 hidden font-mono text-label text-muted md:block">
         <span className="uppercase">How to read this</span> · Avg engagement = likes + comments per
-        post. Longer bar = bigger share. Small sample = fewer than 10 posts.
+        post. Eng. rate = that ÷ followers. Longer bar = bigger share. Small sample = fewer than 10
+        posts.
       </p>
     </Card>
   );

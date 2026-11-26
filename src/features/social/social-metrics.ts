@@ -4,6 +4,12 @@
 // LinkedIn (Slice 15b): likes = reactions, reposts shown in the caption (never ranked), no views.
 // Facebook (Slice 16b): likes = reactions, shares shown in the caption (never ranked), views on video posts.
 
+import {
+  brandFollowers,
+  engagementRate,
+  type FollowerCell,
+  type FollowerTable,
+} from "../overview/followers";
 import { formatCompact, plural } from "../../lib/format";
 import type { Platform } from "../../lib/platforms";
 import {
@@ -239,10 +245,18 @@ export type HeadToHeadColumn = {
   smallSample: boolean;
   aheadPosts: boolean;
   aheadEngagement: boolean;
+  /** This platform's followers + growth since the previous pull, and the engagement rate (26 Nov). */
+  followers: FollowerCell;
+  engagementRate: number | null;
 };
 
 /** One column per selected brand, in selection order (= compare colours ink / Pop / Blue). */
-export function headToHead(posts: OverviewPost[], brands: BrandRef[]): HeadToHeadColumn[] {
+export function headToHead(
+  posts: OverviewPost[],
+  brands: BrandRef[],
+  followers: FollowerTable = new Map(),
+  platform: Platform | "all" = "all",
+): HeadToHeadColumn[] {
   const cols = brands.map((brand) => {
     const own = posts.filter((p) => p.competitor_id === brand.id);
     const counted = own.filter(countable);
@@ -258,6 +272,8 @@ export function headToHead(posts: OverviewPost[], brands: BrandRef[]): HeadToHea
       smallSample: own.length > 0 && own.length < SMALL_SAMPLE,
       aheadPosts: false,
       aheadEngagement: false,
+      followers: brandFollowers(followers, brand.id, platform),
+      engagementRate: engagementRate(own, followers, brand.id),
     };
   });
   const leader = (key: "posts" | "avgEngagement") => {

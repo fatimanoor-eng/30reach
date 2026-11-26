@@ -88,6 +88,8 @@ const isStr = (v: unknown): v is string => typeof v === "string";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (v: unknown): v is string => isStr(v) && UUID.test(v);
 const round = (n: number) => Math.round(n);
+/** 2 decimals, for small percentages (0.35). */
+const round2 = (n: number) => Math.round(n * 100) / 100;
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
 /** Collapses whitespace and trims. */
@@ -261,6 +263,8 @@ export type Summary = {
     /** Facebook only. */
     avg_shares?: number;
     followers: number | null;
+    /** Avg engagement per post ÷ followers × 100 (26 Nov); null without a follower count. */
+    engagement_rate_pct: number | null;
     formats: { format: Format; posts: number; avg_engagement: number }[];
     best_slot: string | null;
     new_since_previous: number | null;
@@ -294,7 +298,7 @@ export type Summary = {
  * The rule lives here, in <data>, so Ask Blip's system prompt stays under its size budget.
  */
 const ENGAGEMENT_MEANS =
-  "likes + comments; on LinkedIn and Facebook likes = all reactions (say reactions); a Facebook carousel is an album. Compare brands within one platform";
+  "likes + comments; on LinkedIn and Facebook likes = all reactions (say reactions); a Facebook carousel is an album. Compare brands within one platform. engagement_rate_pct = avg engagement per post ÷ followers × 100: use it to compare brands of different sizes (say 'engagement rate')";
 
 /** Hard facts the model must not pretend to know. */
 const NOT_IN_DATA = [
@@ -363,6 +367,9 @@ export function buildSummary(
   const brands = [...groups].map(([key, posts]) => {
     const [competitorId, platform] = key.split("|") as [string, Platform];
     const s = brandStats(posts);
+    const followers =
+      data.followers.find((f) => f.competitor_id === competitorId && f.platform === platform)
+        ?.followers ?? null;
     const formats = (Object.keys(FORMAT_LABEL) as Format[])
       .map((f) => {
         const fp = posts.filter((p) => p.format === f);
@@ -380,9 +387,8 @@ export function buildSummary(
       ...(platform === "linkedin" && { avg_reposts: s.avg_shares }),
       ...(platform === "facebook" && { avg_shares: s.avg_shares }),
       ...(platform === "x" && { avg_reposts: s.avg_shares }),
-      followers:
-        data.followers.find((f) => f.competitor_id === competitorId && f.platform === platform)
-          ?.followers ?? null,
+      followers,
+      engagement_rate_pct: followers ? round2((s.avg_engagement / followers) * 100) : null,
       formats,
       best_slot: bestSlot(posts),
       new_since_previous: prevIds ? posts.filter((p) => !prevIds.has(p.external_id)).length : null,

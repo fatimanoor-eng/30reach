@@ -11,6 +11,7 @@ import {
   hopDomains,
   namedInResults,
   normName,
+  discoverSystem,
 } from "./discovery-logic.ts";
 import { cleanResults, isNotCompetitor, type SearchResult } from "./site-logic.ts";
 
@@ -222,5 +223,110 @@ describe("namedInResults", () => {
   it("normalises names", () => {
     expect(normName("The Coupon Chaser")).toBe("coupon chaser");
     expect(normName("Hims & Hers")).toBe("hims and hers");
+  });
+});
+
+describe("relevance — The Krazy Coupon Lady (26 Nov)", () => {
+  // Live run: Food4Less and Kroger (grocery stores that offer coupons) came out as the top closest rivals.
+  // Groq now labels each brand's business model; same-model rivals rank first and lead with the label.
+  const CLIENT = "thekrazycouponlady.com";
+  const hit = (url: string, title: string, position: number) => ({
+    url,
+    title,
+    description: "",
+    position,
+  });
+  const res = cleanResults(
+    [
+      hit("https://www.food4less.com/savings/cl/coupons/", "Digital Coupons | Food 4 Less", 1),
+      hit("https://www.kroger.com/savings/cl/coupons/", "Digital Coupons | Kroger", 2),
+      hit("https://www.retailmenot.com/", "RetailMeNot: Coupons & Promo Codes", 3),
+      hit("https://hip2save.com/", "Hip2Save | Deals, Coupons & Freebies", 4),
+      hit("https://www.couponmom.com/", "Coupon Mom", 5),
+    ],
+    CLIENT,
+  );
+  const at = (d: string) => res.findIndex((r) => r.domain === d);
+  const retailer = { model: "Retailer with coupons", same_model: false, group: "rival" };
+  const platform = { model: "Coupon platform", same_model: true, group: "rival" };
+  const { rivals } = assembleDiscovery({
+    results: res,
+    sort: {
+      results: [
+        {
+          i: at("food4less.com"),
+          kind: "competitor",
+          name: "Food4Less",
+          about: "Groceries",
+          why: "Digital coupons for its stores",
+          ...retailer,
+        },
+        {
+          i: at("kroger.com"),
+          kind: "competitor",
+          name: "Kroger",
+          about: "Groceries",
+          why: "Digital coupons for its stores",
+          ...retailer,
+        },
+        {
+          i: at("retailmenot.com"),
+          kind: "competitor",
+          name: "RetailMeNot",
+          about: "Coupons",
+          why: "Coupons across stores",
+          ...platform,
+        },
+        {
+          i: at("hip2save.com"),
+          kind: "competitor",
+          name: "Hip2Save",
+          about: "Deals blog",
+          why: "Coupon and deal posts",
+          ...platform,
+        },
+        {
+          i: at("couponmom.com"),
+          kind: "competitor",
+          name: "Coupon Mom",
+          about: "Coupons",
+          why: "",
+          ...platform,
+        },
+      ],
+      brands: [],
+      client_model: "Coupon platform",
+    },
+    hop: null,
+    proposals: null,
+    clientDomain: CLIENT,
+    corpus: "",
+    isBlocked: isNotCompetitor,
+  });
+
+  it("ranks same-business-model rivals first; retailers with coupons follow, still suggested", () => {
+    expect(rivals.map((r) => r.name)).toEqual([
+      "RetailMeNot",
+      "Hip2Save",
+      "Coupon Mom",
+      "Food4Less",
+      "Kroger",
+    ]);
+    expect(rivals.map((r) => r.sameModel)).toEqual([true, true, true, false, false]);
+  });
+
+  it("the why leads with the business model", () => {
+    expect(rivals[0].why).toBe("Coupon platform · Coupons across stores");
+    expect(rivals.find((r) => r.name === "Kroger")?.why).toBe(
+      "Retailer with coupons · Digital coupons for its stores",
+    );
+    expect(rivals.find((r) => r.name === "Coupon Mom")?.why).toBe(
+      "Coupon platform · Same kind of product, found in search",
+    );
+  });
+
+  it("asks Groq for the business model", () => {
+    expect(discoverSystem()).toMatch(/same_model/);
+    expect(discoverSystem()).toMatch(/A store that merely offers coupons is not a coupon platform/);
   });
 });

@@ -25,7 +25,8 @@ import {
 } from "../../lib/platforms";
 import { useClient } from "../../lib/useClient";
 import { type Competitor, useCompetitors } from "../../lib/useCompetitors";
-import { usePullPosts, useSavedPulls } from "../overview/useOverviewData";
+import { useFollowerTable, usePullPosts, useSavedPulls } from "../overview/useOverviewData";
+import { brandFollowers, formatFollowers } from "../overview/followers";
 import { usePull } from "../pulls/pull-context";
 import {
   competitorStatus,
@@ -52,6 +53,9 @@ export function CompetitorsPage() {
   const client = useClient();
   const competitors = useCompetitors();
   const saved = useSavedPulls();
+  // 26 Nov: followers in each account chip's tooltip, from the latest pull (Facebook / YouTube also
+  // keep the count from the account check).
+  const followers = useFollowerTable(saved.data?.latest?.id);
   const latestPosts = usePullPosts(saved.data?.latest?.id);
   const [params, setParams] = useSearchParams();
   // `removing` stays set while the confirm closes, so its text doesn't change mid-animation.
@@ -192,7 +196,14 @@ export function CompetitorsPage() {
           const Icon = PLATFORM_ICON[p];
           const bad = c[statusKey(p)] === "not_found";
           const shown = targetNoun(p) === "page" ? targetDisplay(p, h) : handleLabel(p, h);
-          const label = `${PLATFORM_NAME[p]} · ${shown}${bad ? " · not found" : ""}`;
+          const count =
+            brandFollowers(followers.data ?? new Map(), c.id, p).count ??
+            (p === "facebook"
+              ? c.facebook_followers
+              : p === "youtube"
+                ? c.youtube_subscribers
+                : null);
+          const label = `${PLATFORM_NAME[p]} · ${shown}${bad ? " · not found" : count !== null ? ` · ${formatFollowers(count)} followers` : ""}`;
           return (
             <li key={p}>
               <Tooltip content={label}>

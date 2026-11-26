@@ -1,3 +1,4 @@
+import { formatDelta, formatFollowers, formatRate } from "../overview/followers";
 import type { ReactNode } from "react";
 import { Card } from "../../components/Card";
 import { Chip } from "../../components/Chip";
@@ -58,6 +59,30 @@ export function HeadToHeadCard({ cols, days }: { cols: HeadToHeadColumn[]; days:
           {ahead(c.aheadEngagement)}
         </>
       ),
+    },
+    {
+      key: "followers",
+      label: "Followers",
+      short: "Followers",
+      cell: (c) => (
+        <>
+          {formatFollowers(c.followers.count)}
+          {formatDelta(c.followers.delta) && (
+            <span
+              className={`ml-2 font-mono text-label ${(c.followers.delta ?? 0) > 0 ? "text-fresh" : "text-spark-text"}`}
+            >
+              {formatDelta(c.followers.delta)}
+              <span className="sr-only"> since the last pull</span>
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: "rate",
+      label: "Engagement rate",
+      short: "Eng. rate",
+      cell: (c) => formatRate(c.engagementRate),
     },
     { key: "format", label: "Best format", short: "Best format", cell: (c) => c.bestFormat },
     {

@@ -10,7 +10,7 @@ import { useBrandSelection } from "../../lib/brand-selection-context";
 import { type Platform, PLATFORM_NAME as NAME, TARGET_KEY, targetNoun } from "../../lib/platforms";
 import { type Competitor, useCompetitors } from "../../lib/useCompetitors";
 import { useOverviewFilters } from "../overview/filters";
-import { type BrandRef, filterPosts } from "../overview/metrics";
+import { type BrandRef, filterPosts, leaderboard } from "../overview/metrics";
 import {
   DateRangeControl,
   DateRangeSelect,
@@ -20,10 +20,12 @@ import {
 } from "../overview/OverviewControls";
 import {
   type SavedPull,
+  useFollowerTable,
   usePullPosts,
   useSavedPulls,
   useXCapped,
 } from "../overview/useOverviewData";
+import { LeaderboardCard } from "../overview/LeaderboardCard";
 import { RefreshButton } from "../pulls/RefreshButton";
 import { FormatsSideBySideCard, HashtagOverlapCard, HeadToHeadCard } from "./CompareCards";
 import { BestTimesCard, FormatsCard, HashtagsCard, SocialTopPosts } from "./SocialCards";
@@ -156,6 +158,7 @@ export function SocialPage({ platform }: { platform: Platform }) {
       {header}
       <SocialBody
         latest={latest}
+        previousId={saved.data?.previous?.id ?? null}
         platform={platform}
         brands={brands}
         chosen={chosen}
@@ -168,12 +171,15 @@ export function SocialPage({ platform }: { platform: Platform }) {
 
 function SocialBody({
   latest,
+  previousId,
   platform,
   brands,
   chosen,
   competitors,
 }: {
   latest: SavedPull;
+  /** The pull before, for follower growth (26 Nov). */
+  previousId: string | null;
   platform: Platform;
   brands: BrandRef[];
   chosen: BrandRef[];
@@ -183,6 +189,7 @@ function SocialBody({
   const { selected } = useBrandSelection();
   const latestPosts = usePullPosts(latest.id);
   const xCapped = useXCapped(latest.id, platform === "x");
+  const followers = useFollowerTable(latest.id, previousId);
 
   if (latestPosts.isError) {
     return (
@@ -255,7 +262,7 @@ function SocialBody({
     return (
       <div className="mt-6 flex flex-col gap-6">
         <div>
-          <HeadToHeadCard cols={headToHead(posts, chosen)} days={days} />
+          <HeadToHeadCard cols={headToHead(posts, chosen, followers.data, platform)} days={days} />
           {cap}
         </div>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
@@ -284,6 +291,14 @@ function SocialBody({
         ))}
       </div>
       {cap}
+      {/* 26 Nov: followers, growth and engagement rate per brand on this platform. */}
+      <div className="mt-6">
+        <LeaderboardCard
+          rowsFor={(sortBy) =>
+            leaderboard(allBrandPosts, onPlatform, { followers: followers.data, platform, sortBy })
+          }
+        />
+      </div>
       <div className="mt-6">
         <SocialTopPosts posts={posts} brands={brands} platform={platform} />
       </div>

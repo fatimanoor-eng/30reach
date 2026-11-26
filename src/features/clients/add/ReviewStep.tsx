@@ -21,6 +21,7 @@ import { Switch } from "../../../components/Switch";
 import { TextField } from "../../../components/TextField";
 import { checksSummary, initialsFor, normaliseWebsite, siteHost } from "../../../lib/client-rules";
 import { COUNTRIES, countryName, LANGUAGES, languageName } from "../../../lib/countries";
+import type { Platform } from "../../../lib/platforms";
 import { MQ_TABLET_UP, useMediaQuery } from "../../../lib/useMediaQuery";
 import { suggestInitials } from "../../competitors/competitor-rules";
 import { lookAlikeNote } from "../../competitors/look-alike";
@@ -31,6 +32,7 @@ import { ACCOUNT_PLACEHOLDER, parseAccount } from "./account-input";
 import {
   accountLabel,
   competitorMeta,
+  competitorPlatforms,
   type CompetitorDraft,
   noAccountsFound,
   type FoundPlatform,
@@ -517,12 +519,14 @@ function CompetitorsCard({
     // Not read yet (a lower rival, or Big in your space): read its site now, once (1 credit).
     if (on && c.scanned === false && !c.scanning) actions.onRead(c.key);
   };
+  const platforms = competitorPlatforms(draft);
   const rivals = draft.competitors.filter((c) => c.group !== "big");
   const big = draft.competitors.filter((c) => c.group === "big");
   const row = (c: CompetitorDraft) => (
     <CompetitorRow
       key={c.key}
       c={c}
+      platforms={platforms}
       tabletUp={tabletUp}
       tried={tried}
       update={update}
@@ -566,6 +570,7 @@ function CompetitorsCard({
             set({ competitors: [...draft.competitors, c] });
             setAdding(false);
           }}
+          platforms={platforms}
           taken={draft.competitors.map((c) => c.domain)}
         />
       ) : (
@@ -603,12 +608,14 @@ function CompetitorMark({ c }: { c: Pick<CompetitorDraft, "name" | "logoUrl"> })
 
 function CompetitorRow({
   c,
+  platforms,
   tabletUp,
   tried,
   update,
   tick,
 }: {
   c: CompetitorDraft;
+  platforms: Platform[];
   tabletUp: boolean;
   tried: boolean;
   update: (c: CompetitorDraft, patch: Partial<CompetitorDraft>) => void;
@@ -689,30 +696,80 @@ function CompetitorRow({
             : "No social accounts found on their site"}
       </span>
       {c.ticked && none && (
-        <div className="mt-2 grid gap-3 pl-8 md:grid-cols-2">
-          {(["instagram", "tiktok"] as const).map((p) => {
-            const v = c.inputs[p] ?? "";
-            const parsed = v.trim() ? parseAccount(p, v) : null;
-            const note = parsed?.value
-              ? lookAlikeNote(parsed.value, { name: c.name, website: c.website })
-              : null;
-            return (
-              <TextField
-                key={p}
-                label={PLATFORM_LABEL[p]}
-                value={v}
-                onChange={(e) => update(c, { inputs: { ...c.inputs, [p]: e.target.value } })}
-                placeholder="@handle"
-                autoCapitalize="none"
-                autoFocus={c.adding && p === "instagram"}
-                tone={tried && parsed?.error ? "error" : "default"}
-                message={tried && parsed?.error ? parsed.error : (note ?? undefined)}
-              />
-            );
-          })}
-        </div>
+        <AccountFields
+          className="mt-2 pl-8"
+          platforms={platforms}
+          values={c.inputs}
+          onChange={(p, v) => update(c, { inputs: { ...c.inputs, [p]: v } })}
+          brand={{ name: c.name, website: c.website }}
+          showErrors={tried}
+          autoFocus={c.adding}
+        />
       )}
     </li>
+  );
+}
+
+/**
+ * A competitor's account fields (26 Nov): one per platform the client tracks. The first two show; the rest
+ * open with "+ N more platforms" (and stay open once something is typed in them). Format check + the soft
+ * look-alike note.
+ */
+function AccountFields({
+  platforms,
+  values,
+  onChange,
+  brand,
+  showErrors,
+  autoFocus,
+  className = "",
+}: {
+  platforms: Platform[];
+  values: Partial<Record<Platform, string>>;
+  onChange: (p: Platform, value: string) => void;
+  brand: { name: string; website?: string | null };
+  showErrors: boolean;
+  autoFocus?: boolean;
+  className?: string;
+}) {
+  const [all, setAll] = useState(false);
+  const extra = platforms.slice(2);
+  const open = all || extra.some((p) => values[p]?.trim());
+  const shown = open ? platforms : platforms.slice(0, 2);
+  return (
+    <div className={className}>
+      <div className="grid gap-3 md:grid-cols-2">
+        {shown.map((p, i) => {
+          const v = values[p] ?? "";
+          const parsed = v.trim() ? parseAccount(p, v) : null;
+          const note = parsed?.value ? lookAlikeNote(parsed.value, brand) : null;
+          return (
+            <TextField
+              key={p}
+              label={PLATFORM_LABEL[p]}
+              value={v}
+              onChange={(e) => onChange(p, e.target.value)}
+              placeholder={ACCOUNT_PLACEHOLDER[p]}
+              autoCapitalize="none"
+              autoFocus={autoFocus && i === 0}
+              tone={showErrors && parsed?.error ? "error" : "default"}
+              message={showErrors && parsed?.error ? parsed.error : (note ?? undefined)}
+            />
+          );
+        })}
+      </div>
+      {!open && extra.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setAll(true)}
+          className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-small font-medium text-blue hover:underline md:min-h-8"
+        >
+          <Plus size={14} aria-hidden="true" />
+          {extra.length} more {extra.length === 1 ? "platform" : "platforms"}
+          <span className="sr-only">: {extra.map((p) => PLATFORM_LABEL[p]).join(", ")}</span>
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -722,12 +779,14 @@ function CompetitorRow({
  * name + website / handles form (format checks as 07b, plus the look-alike note).
  */
 function AddCompetitorRow({
+  platforms,
   onAdd,
   onFind,
   onAdded,
   onCancel,
   taken,
 }: {
+  platforms: Platform[];
   onAdd: (c: CompetitorDraft) => void;
   onFind: CompetitorActions["onFind"];
   onAdded: () => void;
@@ -745,6 +804,7 @@ function AddCompetitorRow({
         initialName={isSite ? "" : query.trim()}
         initialWebsite={isSite ? query.trim() : ""}
         notFound={result === "not_found"}
+        platforms={platforms}
         onAdd={onAdd}
         onCancel={onCancel}
         taken={taken}
@@ -809,11 +869,12 @@ function AddCompetitorRow({
   );
 }
 
-/** The by-hand form: name + website or handles (format only, 07b), with the look-alike note. */
+/** The by-hand form: name + website or accounts (format only, 07b), with the look-alike note. */
 function ManualCompetitorForm({
   initialName,
   initialWebsite,
   notFound,
+  platforms,
   onAdd,
   onCancel,
   taken,
@@ -821,27 +882,28 @@ function ManualCompetitorForm({
   initialName: string;
   initialWebsite: string;
   notFound: boolean;
+  platforms: Platform[];
   onAdd: (c: CompetitorDraft) => void;
   onCancel: () => void;
   taken: string[];
 }) {
   const [name, setName] = useState(initialName);
   const [website, setWebsite] = useState(initialWebsite);
-  const [instagram, setInstagram] = useState("");
-  const [tiktok, setTiktok] = useState("");
+  const [inputs, setInputs] = useState<Partial<Record<Platform, string>>>({});
   const [tried, setTried] = useState(false);
   const host = siteHost(website);
-  const ig = instagram.trim() ? parseAccount("instagram", instagram) : null;
-  const tt = tiktok.trim() ? parseAccount("tiktok", tiktok) : null;
-  const brand = { name, website: host };
+  const parsed = platforms
+    .filter((p) => inputs[p]?.trim())
+    .map((p) => [p, parseAccount(p, inputs[p]!)] as const);
   const websiteError =
     website.trim() && !host
       ? "That doesn’t look like a website address."
       : host && taken.includes(host)
         ? "Already in the list."
         : null;
+  const accountError = parsed.some(([, r]) => r.error);
   const valid =
-    name.trim() && !websiteError && !ig?.error && !tt?.error && (host || ig?.value || tt?.value);
+    name.trim() && !websiteError && !accountError && (host || parsed.some(([, r]) => r.value));
   return (
     <div className="mt-2 flex flex-col gap-3 border-t border-line pt-4">
       {notFound && (
@@ -867,32 +929,17 @@ function ManualCompetitorForm({
           tone={websiteError ? "error" : "default"}
           message={websiteError ?? undefined}
         />
-        <TextField
-          label="Instagram"
-          value={instagram}
-          onChange={(e) => setInstagram(e.target.value)}
-          placeholder="@handle"
-          autoCapitalize="none"
-          tone={ig?.error ? "error" : "default"}
-          message={
-            ig?.error ?? (ig?.value ? (lookAlikeNote(ig.value, brand) ?? undefined) : undefined)
-          }
-        />
-        <TextField
-          label="TikTok"
-          value={tiktok}
-          onChange={(e) => setTiktok(e.target.value)}
-          placeholder="@handle"
-          autoCapitalize="none"
-          tone={tt?.error ? "error" : "default"}
-          message={
-            tt?.error ?? (tt?.value ? (lookAlikeNote(tt.value, brand) ?? undefined) : undefined)
-          }
-        />
       </div>
+      <AccountFields
+        platforms={platforms}
+        values={inputs}
+        onChange={(p, v) => setInputs((x) => ({ ...x, [p]: v }))}
+        brand={{ name, website: host }}
+        showErrors
+      />
       {tried && !valid && (
         <p role="alert" className="text-small text-spark-text">
-          Add a name and a website or a handle.
+          Add a name and a website or an account.
         </p>
       )}
       <div className="flex justify-end gap-2">
@@ -910,14 +957,14 @@ function ManualCompetitorForm({
               website: host ? normaliseWebsite(website)! : "",
               domain: host ?? "",
               about: "",
-              accounts: [
-                ...(ig?.value
-                  ? [{ platform: "instagram" as const, handle: ig.value, url: null }]
-                  : []),
-                ...(tt?.value
-                  ? [{ platform: "tiktok" as const, handle: tt.value, url: null }]
-                  : []),
-              ],
+              // Page links for LinkedIn / Facebook; handles (or a YouTube channel id) for the rest.
+              accounts: parsed
+                .filter(([, r]) => r.value)
+                .map(([p, r]) =>
+                  p === "facebook" || p === "linkedin"
+                    ? { platform: p, handle: null, url: r.value }
+                    : { platform: p, handle: r.value, url: null },
+                ),
               ticked: true,
               inputs: {},
               manual: true,

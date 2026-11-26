@@ -4,6 +4,7 @@
 // Facebook (Slice 16b): `likes` = all reactions, `shares` = shares, views on videos / reels only (shown,
 // never ranked).
 
+import { brandFollowers, engagementRate, type FollowerCell, type FollowerTable } from "./followers";
 import { formatClock, formatCompact, formatShortDate, plural } from "../../lib/format";
 import { type Platform, PLATFORM_NAME } from "../../lib/platforms";
 
@@ -47,7 +48,7 @@ export const STALE_AFTER_DAYS = 7;
 
 export const engagement = (p: OverviewPost) => (p.likes ?? 0) + (p.comments ?? 0);
 /** Posts whose like counts are hidden on Instagram can't be averaged honestly. */
-const countable = (p: OverviewPost) => !p.counts_hidden;
+export const countable = (p: OverviewPost) => !p.counts_hidden;
 
 /** Platform + brands + date range. The range counts back from the PULL time, not today. */
 export type Carried = Partial<Record<Platform, string>> | null | undefined;
@@ -83,12 +84,29 @@ export type LeaderRow = {
   share: number;
   /** Fewer than SMALL_SAMPLE posts in the range — averages can swing a lot. */
   smallSample: boolean;
+  /** Followers in this view (one platform, or the sum on All) + growth since the previous pull (26 Nov). */
+  followers: FollowerCell;
+  /** Avg engagement ÷ followers (0–1), post by post on that post's platform; null when unknown. */
+  engagementRate: number | null;
 };
+
+export type LeaderSort = "engagement" | "rate";
 
 export const SMALL_SAMPLE = 10;
 
-/** Sorted by avg engagement = (likes + comments) / posts. Brands without posts come last. */
-export function leaderboard(posts: OverviewPost[], brands: BrandRef[]): LeaderRow[] {
+/**
+ * Sorted by avg engagement = (likes + comments) / posts (or by engagement rate, 26 Nov: unknown rates
+ * last). Brands without posts come last. `followers` (from the pulls) adds counts, growth and the rate.
+ */
+export function leaderboard(
+  posts: OverviewPost[],
+  brands: BrandRef[],
+  {
+    followers = new Map(),
+    platform = "all",
+    sortBy = "engagement",
+  }: { followers?: FollowerTable; platform?: Platform | "all"; sortBy?: LeaderSort } = {},
+): LeaderRow[] {
   const total = posts.filter(countable).reduce((sum, p) => sum + engagement(p), 0);
   return brands
     .map((brand) => {
@@ -106,10 +124,13 @@ export function leaderboard(posts: OverviewPost[], brands: BrandRef[]): LeaderRo
         avgEngagement: n ? eng / n : 0,
         share: total ? eng / total : 0,
         smallSample: own.length > 0 && own.length < SMALL_SAMPLE,
+        followers: brandFollowers(followers, brand.id, platform),
+        engagementRate: engagementRate(own, followers, brand.id),
       };
     })
     .sort(
       (a, b) =>
+        (sortBy === "rate" ? (b.engagementRate ?? -1) - (a.engagementRate ?? -1) : 0) ||
         b.avgEngagement - a.avgEngagement ||
         b.posts - a.posts ||
         a.brand.name.localeCompare(b.brand.name),

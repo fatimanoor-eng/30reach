@@ -61,6 +61,7 @@ const sug = (name: string, domain: string, accounts: Suggestion["accounts"]): Su
   domain,
   about: "gifts",
   accounts,
+  sameModel: true,
 });
 const suggestions = [
   sug("Carnaby & Vine", "carnabyandvine.com", [
@@ -171,6 +172,42 @@ describe("15d review defaults", () => {
     expect(noAccountsFound(d.competitors[1])).toBe(true);
     expect(noAccountsFound(d.competitors[0])).toBe(false);
     expect(competitorMeta(d.competitors[0])).toBe("carnabyandvine.com · gifts");
+  });
+});
+
+describe("relevance: pre-tick only the same business model (26 Nov)", () => {
+  // The Krazy Coupon Lady: grocery chains that offer coupons came first and were pre-ticked.
+  const row = (name: string, domain: string, sameModel: boolean | undefined): Suggestion => ({
+    name,
+    website: `https://${domain}`,
+    domain,
+    about: "",
+    accounts: [ig(domain.split(".")[0])],
+    ...(sameModel !== undefined ? { sameModel } : {}),
+  });
+  const d = reviewDefaults(scan, [
+    row("Food4Less", "food4less.com", false),
+    row("Kroger", "kroger.com", false),
+    row("RetailMeNot", "retailmenot.com", true),
+    row("Hip2Save", "hip2save.com", true),
+    row("Unknown Deals", "unknowndeals.com", undefined),
+    row("Coupons.com", "coupons.com", true),
+    row("CouponMom", "couponmom.com", true),
+    row("Slickdeals", "slickdeals.net", true),
+  ]);
+  it("ticks up to 4 confident same-model rivals; retailers and unknowns stay suggested, unticked", () => {
+    expect(d.competitors.filter((c) => c.ticked).map((c) => c.name)).toEqual([
+      "RetailMeNot",
+      "Hip2Save",
+      "Coupons.com",
+      "CouponMom",
+    ]);
+    expect(d.competitors.find((c) => c.name === "Kroger")).toMatchObject({
+      ticked: false,
+      sameModel: false,
+    });
+    expect(d.competitors.find((c) => c.name === "Unknown Deals")?.ticked).toBe(false);
+    expect(d.competitors).toHaveLength(8); // nothing dropped
   });
 });
 
