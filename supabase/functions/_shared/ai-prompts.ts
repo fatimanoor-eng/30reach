@@ -155,14 +155,21 @@ export function planSystem(o: {
   year: number;
   today: string;
   ctx?: Pick<ClientContext, "brief" | "checks">;
+  /** Round 3: how many ideas and how they're split ("4 instagram, 3 tiktok"); default 6, spread freely. */
+  count?: number;
+  shares?: { platform: string; ideas: number }[];
 }) {
+  const count = o.count ?? 6;
+  const split = o.shares?.length
+    ? `Exactly: ${o.shares.map((s) => `${s.ideas} ${s.platform}`).join(", ")} (only these platforms).`
+    : "Spread them across the platforms in <data> (only those).";
   return `${todayLine(o.today)} You plan social posts for ${o.client} for ${o.monthName} ${o.year}.
 ${FACTS(o.client)}
 ${BLIP_VOICE_JSON}
 ${clientRules(o.ctx)}
 Inputs: upcoming events (holidays, health months, marketing dates), what works for competitors now (<data>, a 30-day pull), and ideas already on the idea board. There is no data from last year, so don't refer to last year.
-Suggest 6 post ideas. Each is tied to a date in ${o.monthName} ${o.year} and has a one-sentence reason grounded in the inputs (an event, a competitor post, a format or time that works, or a board idea).
-Prefer the best-performing formats and posting times from the data. Spread the ideas across the month and the platforms in <data> (only those).
+Suggest ${count} post ideas. Each is tied to a date in ${o.monthName} ${o.year} and has a one-sentence reason grounded in the inputs (an event, a competitor post, a format or time that works, or a board idea).
+Prefer the best-performing formats and posting times from the data. Spread the ideas across the month, no two on the same day and platform. ${split}
 Formats: instagram = reel, carousel or image; tiktok = video or carousel; linkedin = text, image, document, video, article (a link post) or poll; facebook = reel, video, image, carousel (an album), article (a link post) or text; x = text, image, video or carousel (several photos); youtube = video or short. LinkedIn ideas are professional: insights, team, research, behind the scenes; not trends. Facebook ideas are warm and community-minded: questions, tips, everyday moments. X ideas are short and timely: a clear take, a quick tip or a question. YouTube ideas are searchable and useful: how-tos, explainers, myths, Q&As; a short is one quick tip or moment. For youtube the title is the video title: keyword first, specific, no clickbait.
 title: max 60 characters. reason: max 140 characters, starting with what it's based on. source_refs: refs of top_posts used ([] if none).
 ${ALL_KEYS}

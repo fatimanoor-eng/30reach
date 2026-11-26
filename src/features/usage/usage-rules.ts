@@ -21,6 +21,27 @@ export type UsageClient = {
   posts: number;
   ideas: number;
   cards: number;
+  /** 27 Nov: a deleted client's usage (kept by name), and Add client scans that never became a client. */
+  deleted?: boolean;
+  unfinished?: boolean;
+  /** Unfinished scans: how many Add client runs. */
+  runs?: number;
+};
+/** A deleted client's usage this month (by name). */
+export type UsageDeleted = Pick<
+  UsageClient,
+  "name" | "credits" | "pull_credits" | "check_credits" | "scan_credits" | "groq_requests" | "pulls"
+>;
+/** Who triggered what this billing month (usage_events.actor; id null = not recorded). */
+export type UsagePerson = {
+  id: string | null;
+  full_name: string | null;
+  email: string | null;
+  credits: number;
+  pulls: number;
+  scans: number;
+  checks: number;
+  requests: number;
 };
 export type UsageWeekRow = {
   week: string; // Monday, YYYY-MM-DD (US Eastern)
@@ -28,8 +49,77 @@ export type UsageWeekRow = {
   kind: "pull" | "handle_check" | "scan" | "competitor_search";
   credits: number;
   pulls: number;
+  /** A deleted client's name (client_id null), or an unfinished scan (27 Nov). */
+  client_name?: string | null;
+  unfinished?: boolean;
 };
-export type UsageOverview = { clients: UsageClient[]; weeks: UsageWeekRow[]; unassigned: number };
+export type UsageOverview = {
+  clients: UsageClient[];
+  weeks: UsageWeekRow[];
+  unassigned: number;
+  deleted: UsageDeleted[];
+  unfinished: { runs: number; credits: number };
+  people: UsagePerson[];
+};
+
+export const UNFINISHED_ID = "unfinished";
+export const deletedId = (name: string) => `deleted:${name}`;
+
+/**
+ * The table's extra rows (27 Nov): each deleted client as "Name (deleted)" (greyed, not a link), and
+ * "Unfinished scans" when Add client runs never became a client. Same shape as a client row.
+ */
+export function extraRows(o: Pick<UsageOverview, "deleted" | "unfinished">): UsageClient[] {
+  const blank = {
+    slug: "",
+    initials: null,
+    brand_color: null,
+    is_demo: false,
+    archived_at: null,
+    last_pull: null,
+    storage_bytes: 0,
+    posts: 0,
+    ideas: 0,
+    cards: 0,
+  };
+  return [
+    ...o.deleted.map((d) => ({
+      ...blank,
+      ...d,
+      id: deletedId(d.name),
+      name: `${d.name} (deleted)`,
+      deleted: true,
+    })),
+    ...(o.unfinished.credits > 0
+      ? [
+          {
+            ...blank,
+            id: UNFINISHED_ID,
+            name: "Unfinished scans",
+            credits: o.unfinished.credits,
+            pull_credits: 0,
+            check_credits: 0,
+            scan_credits: o.unfinished.credits,
+            groq_requests: 0,
+            pulls: 0,
+            unfinished: true,
+            runs: o.unfinished.runs,
+          },
+        ]
+      : []),
+  ];
+}
+
+/** Week rows → the id they belong to: a client, a deleted client's row, unfinished scans, or none. */
+export function weekRowId(r: Pick<UsageWeekRow, "client_id" | "client_name" | "unfinished">) {
+  if (r.client_id) return r.client_id;
+  if (r.unfinished) return UNFINISHED_ID;
+  return r.client_name ? deletedId(r.client_name) : null;
+}
+
+/** "Fatima Noor" / their email / "Not recorded" (before 27 Nov, who did it wasn't saved). */
+export const personName = (p: Pick<UsagePerson, "id" | "full_name" | "email">) =>
+  p.id ? p.full_name?.trim() || p.email || "Someone" : "Not recorded (before 27 Nov)";
 
 export const WEEKS = 8;
 
@@ -54,7 +144,9 @@ export function lastWeeks(today: string, n = WEEKS): string[] {
  * archived last (greyed).
  */
 export function tableRows(clients: readonly UsageClient[]): UsageClient[] {
-  const rank = (c: UsageClient) => (c.archived_at ? 2 : c.is_demo ? 1 : 0);
+  // Then deleted clients, then unfinished scans (27 Nov).
+  const rank = (c: UsageClient) =>
+    c.unfinished ? 4 : c.deleted ? 3 : c.archived_at ? 2 : c.is_demo ? 1 : 0;
   return [...clients].sort(
     (a, b) =>
       rank(a) - rank(b) ||
@@ -90,7 +182,8 @@ export function otherCredits(used: number | null, counted: number): number {
 export const avgPerPull = (c: Pick<UsageClient, "pull_credits" | "pulls">) =>
   c.pulls > 0 ? Math.round(c.pull_credits / c.pulls) : null;
 
-export type Series = { key: string; name: string; ids: string[]; shade: 0 | 1 | 2 };
+/** Shades 0–2 = neutral greys; 3 = unfinished scans (hatched, 27 Nov). */
+export type Series = { key: string; name: string; ids: string[]; shade: 0 | 1 | 2 | 3 };
 export type WeekBar = { week: string; total: number; parts: { key: string; credits: number }[] };
 
 /**
@@ -102,19 +195,27 @@ export function chartSeries(
   weeks: readonly UsageWeekRow[],
 ): Series[] {
   const spent = new Map<string, number>();
-  for (const w of weeks)
-    if (w.client_id) spent.set(w.client_id, (spent.get(w.client_id) ?? 0) + w.credits);
-  const top = clients
+  for (const w of weeks) {
+    const id = weekRowId(w);
+    if (id) spent.set(id, (spent.get(id) ?? 0) + w.credits);
+  }
+  // Unfinished scans always get their own series; deleted clients compete for the top two like any client.
+  const named = clients.filter((c) => !c.unfinished);
+  const top = named
     .filter((c) => (spent.get(c.id) ?? 0) > 0)
     .sort((a, b) => (spent.get(b.id) ?? 0) - (spent.get(a.id) ?? 0))
     .slice(0, 2);
-  const rest = clients.filter((c) => !top.includes(c)).map((c) => c.id);
-  const anyRest =
-    weeks.some((w) => !w.client_id || rest.includes(w.client_id)) &&
-    weeks.some((w) => w.credits > 0);
+  const rest = named.filter((c) => !top.includes(c)).map((c) => c.id);
+  const anyRest = weeks.some(
+    (w) => w.credits > 0 && (weekRowId(w) === null || rest.includes(weekRowId(w)!)),
+  );
+  const unfinished = (spent.get(UNFINISHED_ID) ?? 0) > 0;
   return [
     ...top.map((c, i) => ({ key: c.id, name: c.name, ids: [c.id], shade: i as 0 | 1 })),
     ...(anyRest ? [{ key: "other", name: "Demo + other", ids: rest, shade: 2 as const }] : []),
+    ...(unfinished
+      ? [{ key: UNFINISHED_ID, name: "Unfinished scans", ids: [UNFINISHED_ID], shade: 3 as const }]
+      : []),
   ];
 }
 
@@ -126,12 +227,12 @@ export function weekBars(
 ): WeekBar[] {
   const seriesOf = (id: string | null) =>
     series.find((s) => id !== null && s.ids.includes(id) && s.key !== "other")?.key ??
-    (series.some((s) => s.key === "other") ? "other" : null);
+    (series.some((s) => s.key === "other") && id !== UNFINISHED_ID ? "other" : null);
   return weeksShown.map((week) => {
     const parts = series.map((s) => ({ key: s.key, credits: 0 }));
     for (const r of rows) {
       if (r.week !== week) continue;
-      const key = seriesOf(r.client_id);
+      const key = seriesOf(weekRowId(r));
       const part = parts.find((p) => p.key === key);
       if (part) part.credits += r.credits;
     }
@@ -163,13 +264,11 @@ export function tooltipLines(
   week: string,
   rows: readonly UsageWeekRow[],
 ): { title: string; detail: string } {
-  const mine = rows.filter(
-    (r) =>
-      r.week === week &&
-      (series.key === "other"
-        ? !r.client_id || series.ids.includes(r.client_id)
-        : series.ids.includes(r.client_id ?? "")),
-  );
+  const mine = rows.filter((r) => {
+    if (r.week !== week) return false;
+    const id = weekRowId(r);
+    return series.key === "other" ? !id || series.ids.includes(id) : series.ids.includes(id ?? "");
+  });
   const by = new Map<string, number>();
   let pulls = 0;
   for (const r of mine) {

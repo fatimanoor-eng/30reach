@@ -22,14 +22,25 @@ import {
   otherCredits,
   type Series,
   tableRows,
+  extraRows,
+  personName,
   tooltipLines,
   totals,
   type UsageClient,
+  type UsagePerson,
   weekBars,
 } from "./usage-rules";
 
-/** Neutral shades, never brand colours (17): the top 2 clients, then "Demo + other". */
-const SHADE = ["bg-ink", "bg-muted", "bg-line-dash"] as const;
+/**
+ * Neutral shades, never brand colours (17): the top 2 clients, then "Demo + other"; unfinished scans are
+ * hatched (27 Nov), so they read as "not a client" at a glance.
+ */
+const SHADE = [
+  "bg-ink",
+  "bg-muted",
+  "bg-line-dash",
+  "bg-[repeating-linear-gradient(135deg,var(--color-muted)_0_2px,var(--color-soft)_2px_5px)]",
+] as const;
 
 /**
  * 17 / M20 Usage (Slice 17f), team-wide: opened from the sidebar / rail credits meter (phones: More →
@@ -69,7 +80,9 @@ export function UsagePage() {
           </div>
         ) : (
           <UsageBody
-            clients={overview.data.clients}
+            // Deleted clients and unfinished scans get their own rows (27 Nov).
+            clients={[...overview.data.clients, ...extraRows(overview.data)]}
+            people={overview.data.people}
             weeksShown={weeks}
             rows={overview.data.weeks}
             // No honest plan total (extra credits beyond the monthly plan): "used" is unknown, not negative.
@@ -87,6 +100,7 @@ export function UsagePage() {
 
 function UsageBody({
   clients,
+  people,
   weeksShown,
   rows,
   firecrawlUsed,
@@ -94,6 +108,7 @@ function UsageBody({
   setActive,
 }: {
   clients: UsageClient[];
+  people: UsagePerson[];
   weeksShown: string[];
   rows: Parameters<typeof weekBars>[2];
   firecrawlUsed: number | null;
@@ -131,7 +146,76 @@ function UsageBody({
         active={active}
         setActive={setActive}
       />
+      <PeopleCard people={people} />
     </>
+  );
+}
+
+/**
+ * "By person · this billing month" (27 Nov): who triggered the credits, pulls, scans, checks and Blip
+ * requests (usage_events.actor). Before the 27 Nov fix it wasn't recorded: those show as one row.
+ */
+function PeopleCard({ people }: { people: UsagePerson[] }) {
+  const head = "py-2 pr-3 text-left font-mono text-label font-normal text-muted uppercase";
+  const cell = "py-3 pr-3 text-body-sm";
+  return (
+    <Card title="By person · this billing month">
+      {people.length === 0 ? (
+        <p className="text-body-sm text-muted">Nobody has used any credits or Blip this month.</p>
+      ) : (
+        <>
+          <table className="hidden w-full border-collapse md:table">
+            <thead>
+              <tr className="border-b border-line">
+                <th className={head}>Person</th>
+                <th className={head}>Credits</th>
+                <th className={head}>Pulls</th>
+                <th className={head}>Scans</th>
+                <th className={head}>Checks</th>
+                <th className={head}>Blip</th>
+              </tr>
+            </thead>
+            <tbody>
+              {people.map((p) => (
+                <tr
+                  key={p.id ?? "none"}
+                  className={`border-b border-line last:border-0 ${p.id ? "" : "text-muted"}`}
+                >
+                  <td className={cell}>{personName(p)}</td>
+                  <td className={`${cell} font-mono`}>{dash(p.credits)}</td>
+                  <td className={`${cell} font-mono`}>{dash(p.pulls)}</td>
+                  <td className={`${cell} font-mono`}>{dash(p.scans)}</td>
+                  <td className={`${cell} font-mono`}>{dash(p.checks)}</td>
+                  <td className={`${cell} font-mono`}>{dash(p.requests)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <ul className="md:hidden">
+            {people.map((p) => (
+              <li
+                key={p.id ?? "none"}
+                className={`flex flex-col gap-1 border-t border-line py-3 first:border-t-0 ${p.id ? "" : "text-muted"}`}
+              >
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 truncate text-body-sm">{personName(p)}</span>
+                  <span className="shrink-0 font-mono text-small">
+                    {plural(p.credits, "credit")}
+                  </span>
+                </span>
+                <span className="font-mono text-label text-muted">
+                  {plural(p.pulls, "pull")} · {plural(p.scans, "scan")} ·{" "}
+                  {plural(p.checks, "check")} · {plural(p.requests, "Blip request")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p className="mt-3 text-small text-muted">
+        Blip = every AI request (Ask Blip, Plan, checks, hooks, captions). Scans = Add client runs.
+      </p>
+    </Card>
   );
 }
 
@@ -152,6 +236,13 @@ function Bar({ value, top }: { value: number; top: number }) {
       />
     </span>
   );
+}
+
+/** A client's mark; unfinished scans get a hatched square (like their chart colour), not a client mark. */
+function RowMark({ c }: { c: UsageClient }) {
+  if (c.unfinished)
+    return <span aria-hidden="true" className={`size-8 shrink-0 rounded-[6px] ${SHADE[3]}`} />;
+  return <ClientMark client={c} />;
 }
 
 function Tag({ c }: { c: UsageClient }) {
@@ -199,24 +290,39 @@ function ClientTable({
         <tbody>
           {rows.map((c) => {
             const key = seriesOf(c.id);
-            const dim = !!c.archived_at || (active !== null && key !== active);
+            // Deleted clients and unfinished scans have no page to open (27 Nov).
+            const link = !c.deleted && !c.unfinished;
+            const dim = !!c.archived_at || !!c.deleted || (active !== null && key !== active);
             return (
               <tr
                 key={c.id}
-                tabIndex={0}
-                aria-label={`${c.name}: ${plural(c.credits, "credit")} this month. Open its Overview`}
-                onClick={() => navigate(clientPath(c.slug, "/overview"))}
-                onKeyDown={(e) => e.key === "Enter" && navigate(clientPath(c.slug, "/overview"))}
+                tabIndex={link ? 0 : undefined}
+                aria-label={
+                  link
+                    ? `${c.name}: ${plural(c.credits, "credit")} this month. Open its Overview`
+                    : undefined
+                }
+                onClick={link ? () => navigate(clientPath(c.slug, "/overview")) : undefined}
+                onKeyDown={(e) =>
+                  link && e.key === "Enter" && navigate(clientPath(c.slug, "/overview"))
+                }
                 onPointerEnter={() => setActive(key)}
                 onPointerLeave={() => setActive(null)}
                 onFocus={() => setActive(key)}
                 onBlur={() => setActive(null)}
-                className={`cursor-pointer border-b border-line transition-opacity hover:bg-bg ${dim ? "opacity-50" : ""}`}
+                className={`border-b border-line transition-opacity ${link ? "cursor-pointer hover:bg-bg" : ""} ${dim ? "opacity-50" : ""}`}
               >
                 <td className={cell}>
                   <span className="flex items-center gap-3">
-                    <ClientMark client={c} />
-                    <span className="truncate">{c.name}</span>
+                    <RowMark c={c} />
+                    <span className="min-w-0">
+                      <span className="block truncate">{c.name}</span>
+                      {c.unfinished && (
+                        <span className="block text-small text-muted">
+                          {plural(c.runs ?? 0, "Add client run")} that never became a client
+                        </span>
+                      )}
+                    </span>
                     <Tag c={c} />
                   </span>
                 </td>
@@ -237,7 +343,7 @@ function ClientTable({
                   {c.storage_bytes ? formatBytes(c.storage_bytes) : "—"}
                 </td>
                 <td className={`${cell} font-mono`}>
-                  {c.posts} · {c.ideas} · {c.cards}
+                  {c.deleted || c.unfinished ? "—" : `${c.posts} · ${c.ideas} · ${c.cards}`}
                 </td>
                 <td className={`${cell} font-mono`}>{dash(c.groq_requests)}</td>
               </tr>
@@ -277,26 +383,32 @@ function ClientList({ rows, top, sum, seriesOf, setActive }: RowsProps) {
           <li key={c.id} className="border-t border-line first:border-t-0">
             <button
               type="button"
+              // Deleted clients and unfinished scans have no page to open (27 Nov).
+              disabled={c.deleted || c.unfinished}
               onClick={() => navigate(clientPath(c.slug, "/overview"))}
               onFocus={() => setActive(seriesOf(c.id))}
               onBlur={() => setActive(null)}
-              className={`flex w-full flex-col gap-1.5 py-3 text-left ${c.archived_at ? "opacity-50" : ""}`}
+              className={`flex w-full flex-col gap-1.5 py-3 text-left disabled:cursor-default ${c.archived_at || c.deleted ? "opacity-50" : ""}`}
             >
               <span className="flex items-center gap-3">
-                <ClientMark client={c} />
+                <RowMark c={c} />
                 <span className="min-w-0 flex-1 truncate text-body-sm">{c.name}</span>
                 <Tag c={c} />
                 <span className="font-mono text-small">{plural(c.credits, "credit")}</span>
               </span>
               <Bar value={c.credits} top={top} />
               <span className="text-small text-muted">
-                {c.is_demo
-                  ? "Pulls off"
-                  : `${plural(c.pulls, "pull")} · last ${c.last_pull ? lastPullLabel(c.last_pull, new Date(), { short: true }).toLowerCase() : "none"}${avgPerPull(c) ? ` · avg ${avgPerPull(c)}` : ""}`}
-                {c.check_credits ? ` · checks ${c.check_credits}` : ""}
-                {c.scan_credits ? ` · scans ${c.scan_credits}` : ""}
+                {c.unfinished
+                  ? `${plural(c.runs ?? 0, "Add client run")} that never became a client`
+                  : c.is_demo
+                    ? "Pulls off"
+                    : `${plural(c.pulls, "pull")} · last ${c.last_pull ? lastPullLabel(c.last_pull, new Date(), { short: true }).toLowerCase() : "none"}${avgPerPull(c) ? ` · avg ${avgPerPull(c)}` : ""}`}
+                {!c.unfinished && c.check_credits ? ` · checks ${c.check_credits}` : ""}
+                {!c.unfinished && c.scan_credits ? ` · scans ${c.scan_credits}` : ""}
               </span>
-              <span className="font-mono text-label text-muted">
+              <span
+                className={`font-mono text-label text-muted ${c.deleted || c.unfinished ? "hidden" : ""}`}
+              >
                 {c.storage_bytes ? formatBytes(c.storage_bytes) : "0 MB"} · {c.posts} posts ·{" "}
                 {c.ideas} ideas · {c.cards} cards
               </span>

@@ -33,6 +33,7 @@ import {
   WINDOW_DAYS,
 } from "../_shared/pull-logic.ts";
 import {
+  userIdOf,
   fetchCreditUsage,
   json,
   readJson,
@@ -184,7 +185,7 @@ export default {
       .from("pulls")
       .insert({
         client_id: clientId,
-        started_by: ctx.userClaims?.sub ?? null,
+        started_by: userIdOf(ctx),
         platforms,
         status: "running",
         credits_estimated: est.expected,

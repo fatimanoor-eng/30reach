@@ -923,7 +923,76 @@ export function parseAskInput(body: Record<string, unknown>): AskInput | InputEr
 }
 
 export type PlanEvent = { date: string; name: string; kind: "holiday" | "marketing" | "health" };
-export type PlanInput = { clientId: string; month: string; events: PlanEvent[] };
+export type PlanInput = {
+  clientId: string;
+  month: string;
+  events: PlanEvent[];
+  /** Round 3: how many ideas (6 / 10 / 15; the browser suggests one from competitors' rhythm). */
+  count: PlanCount;
+  /** The platforms the client tracks, to spread the ideas over ([] = the ones in the pull). */
+  platforms: Platform[];
+};
+
+export const PLAN_COUNTS = [6, 10, 15] as const;
+export type PlanCount = (typeof PLAN_COUNTS)[number];
+
+/**
+ * Competitors' posting rhythm per platform (round 3): the median brand's posts per week over the 30-day
+ * window. Platforms with no posts get 0.
+ */
+export function platformCadence(
+  posts: readonly Pick<SummaryPost, "competitor_id" | "platform">[],
+  platforms: readonly Platform[],
+  days = 30,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const p of platforms) {
+    const per = new Map<string, number>();
+    for (const x of posts)
+      if (x.platform === p) per.set(x.competitor_id, (per.get(x.competitor_id) ?? 0) + 1);
+    const counts = [...per.values()].sort((a, b) => a - b);
+    const median = counts.length
+      ? counts.length % 2
+        ? counts[(counts.length - 1) / 2]
+        : (counts[counts.length / 2 - 1] + counts[counts.length / 2]) / 2
+      : 0;
+    out[p] = Math.round((median / (days / 7)) * 10) / 10;
+  }
+  return out;
+}
+
+/**
+ * Spread `count` ideas over the platforms by competitors' rhythm (largest remainder), at least one each
+ * when there are enough ideas; platforms nobody posts on still get one (the client may post there).
+ */
+export function planShares(
+  count: number,
+  platforms: readonly Platform[],
+  cadence: Record<string, number>,
+): { platform: Platform; ideas: number }[] {
+  if (!platforms.length) return [];
+  const weight = (p: Platform) => Math.max(cadence[p] ?? 0, 0.5);
+  const total = platforms.reduce((s, p) => s + weight(p), 0);
+  const base = platforms.map((p) => ({
+    platform: p,
+    ideas: 0,
+    exact: (count * weight(p)) / total,
+  }));
+  const min = count >= platforms.length ? 1 : 0;
+  for (const b of base) b.ideas = Math.max(min, Math.floor(b.exact));
+  let left = count - base.reduce((s, b) => s + b.ideas, 0);
+  const byRemainder = [...base].sort(
+    (a, b) => b.exact - Math.floor(b.exact) - (a.exact - Math.floor(a.exact)),
+  );
+  for (let i = 0; left > 0; i = (i + 1) % byRemainder.length, left--) byRemainder[i].ideas++;
+  // Too many after the minimums: take back from the biggest.
+  while (left < 0) {
+    const big = [...base].sort((a, b) => b.ideas - a.ideas)[0];
+    big.ideas--;
+    left++;
+  }
+  return base.filter((b) => b.ideas > 0).map(({ platform, ideas }) => ({ platform, ideas }));
+}
 const MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -951,7 +1020,13 @@ export function parsePlanInput(
     )
     .slice(0, LIMITS.events)
     .map((e) => ({ date: e.date, name: clip(e.name, LIMITS.eventName), kind: e.kind }));
-  return { clientId: body.clientId, month, events };
+  const count = (PLAN_COUNTS as readonly number[]).includes(Number(body.count))
+    ? (Number(body.count) as PlanCount)
+    : 6;
+  const platforms = (Array.isArray(body.platforms) ? body.platforms : [])
+    .filter((p): p is Platform => PLATFORMS.includes(p as Platform))
+    .filter((p, i, all) => all.indexOf(p) === i);
+  return { clientId: body.clientId, month, events, count, platforms };
 }
 
 export type ClaimsInput = { cardId: string; draft: string };
@@ -1219,7 +1294,15 @@ const daysInMonth = (month: string) => {
  */
 export function validatePlan(
   raw: unknown,
-  ctx: { month: string; today: string; refs: string[]; labels?: string[]; min?: number },
+  ctx: {
+    month: string;
+    today: string;
+    refs: string[];
+    labels?: string[];
+    min?: number;
+    /** Round 3: at most this many (the count asked for). */
+    max?: number;
+  },
 ): PlanIdea[] | null {
   if (!isObj(raw) || !Array.isArray(raw.ideas)) return null;
   const last = `${ctx.month}-${String(daysInMonth(ctx.month)).padStart(2, "0")}`;
@@ -1259,7 +1342,7 @@ export function validatePlan(
     });
   }
   if (ideas.length < (ctx.min ?? 3)) return null;
-  return ideas.sort((a, b) => a.date.localeCompare(b.date)).slice(0, LIMITS.planIdeas);
+  return ideas.sort((a, b) => a.date.localeCompare(b.date)).slice(0, ctx.max ?? LIMITS.planIdeas);
 }
 
 /** For matching quotes: lower case, straight quotes and dashes, single spaces. */

@@ -1,6 +1,6 @@
 // `plan-month` Edge Function: Plan {month} (10), Slice 11. Prompt: AI_PROMPTS.md §2.
 //
-// POST { clientId, month: "YYYY-MM", events: [{ date, name, kind }] } →
+// POST { clientId, month: "YYYY-MM", events: [{ date, name, kind }], count?: 6 | 10 | 15, platforms?: [] } →
 //   200 { month, ideas: [{ date, platform, format, title, reason, sources: SourcePost[] }], facts }
 //   400 { error: "bad_client" | "bad_month" }   this month … 3 months ahead
 //   409 { error: "no_pull" } · 429 { error: "rate_limited", retryAfter } · 502 { error: "ai_*" }
@@ -18,6 +18,9 @@ import {
   LIMITS,
   PLAN_SCHEMA,
   parsePlanInput,
+  planShares,
+  platformCadence,
+  PLATFORMS,
   planFacts,
   todayContext,
   validatePlan,
@@ -31,7 +34,7 @@ import {
   sourcePost,
   loadClientContext,
 } from "../_shared/ai-server.ts";
-import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
+import { userIdOf, json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
 
 const MONTH_NAME = new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" });
 
@@ -65,6 +68,15 @@ export default {
       .map((i) => ({ ...i, note: clip(i.note, LIMITS.ideaNoteChars) }))
       .filter((i) => i.note);
     const { refs, labels, json: summaryJson } = buildSummary(loaded.data);
+    // Round 3: the count the team picked, split over the client's platforms by competitors' rhythm.
+    const platforms = input.platforms.length
+      ? input.platforms
+      : PLATFORMS.filter((p) => loaded.data.posts.some((x) => x.platform === p));
+    const shares = planShares(
+      input.count,
+      platforms,
+      platformCadence(loaded.data.posts, platforms),
+    );
     const [year, month] = input.month.split("-").map(Number);
     const monthName = MONTH_NAME.format(new Date(Date.UTC(year, month - 1, 1)));
 
@@ -72,25 +84,30 @@ export default {
       admin: ctx.supabaseAdmin,
       fn: "plan-month",
       clientId: input.clientId,
-      actor: ctx.userClaims?.sub ?? null,
+      actor: userIdOf(ctx),
       system: planSystem({
         client: loaded.data.clientName,
         monthName,
         year,
         today: todayLabel,
         ctx: (await loadClientContext(ctx.supabase, input.clientId)) ?? undefined,
+        count: input.count,
+        shares,
       }),
       user: planUser({ summaryJson, events: input.events, boardIdeas }),
       schema: PLAN_SCHEMA,
-      maxTokens: 2500,
-      // First try needs 4+ good ideas; the retry accepts 3.
+      // ~170 tokens per idea plus reasoning: 6 → 2.5K, 10 → 2.5K, 15 → 3.25K (≈ 6.7K with the input,
+      // under Groq's 8K a minute).
+      maxTokens: Math.max(2500, 700 + 170 * input.count),
+      // First try needs 60% of the ideas asked for; the retry accepts 40% (6 → 4 then 3, as before).
       validate: (raw, attempt) =>
         validatePlan(raw, {
           month: input.month,
           today,
           refs,
           labels,
-          min: attempt === 1 ? 4 : 3,
+          min: Math.max(3, Math.ceil(input.count * (attempt === 1 ? 0.6 : 0.4))),
+          max: input.count,
         }),
     });
     if (!result.ok) return aiFailure(result);

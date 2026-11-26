@@ -22,7 +22,7 @@ import {
 } from "../_shared/ai-logic.ts";
 import { captionsSystem, captionsUser } from "../_shared/ai-prompts.ts";
 import { aiFailure, groqJson, loadPull, loadClientContext } from "../_shared/ai-server.ts";
-import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
+import { userIdOf, json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
@@ -45,7 +45,7 @@ export default {
       admin: ctx.supabaseAdmin,
       fn: "suggest-caption",
       clientId: input.clientId,
-      actor: ctx.userClaims?.sub ?? null,
+      actor: userIdOf(ctx),
       system: captionsSystem({
         client: client?.name ?? "the client",
         platform: input.platform,

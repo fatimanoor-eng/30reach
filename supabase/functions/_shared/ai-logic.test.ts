@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  type Platform,
+  planShares,
+  platformCadence,
   repeatsLast,
   GENERAL_CHARS,
   plainWords,
@@ -494,6 +497,8 @@ describe("inputs from the browser", () => {
       clientId: CLIENT,
       month: "2027-01",
       events: [{ date: "2027-01-01", name: "New Year's Day", kind: "holiday" }],
+      count: 6, // round 3 default
+      platforms: [],
     });
   });
 
@@ -1864,5 +1869,72 @@ describe("corrections and repeats (27 Nov)", () => {
       expect(p).toMatch(/well-known person, place, event/);
       expect(p).toMatch(/not someone you know/);
     }
+  });
+});
+
+describe("adaptive Plan {month} (round 3)", () => {
+  const posts = (brand: string, platform: Platform, n: number) =>
+    Array.from({ length: n }, () => ({ competitor_id: brand, platform }));
+  // 30 days ≈ 4.3 weeks: Instagram brands post 13, 9 and 4 times (median 9 → 2.1 / week); TikTok 4 and 2.
+  const data = [
+    ...posts("a", "instagram", 13),
+    ...posts("b", "instagram", 9),
+    ...posts("c", "instagram", 4),
+    ...posts("a", "tiktok", 4),
+    ...posts("b", "tiktok", 2),
+  ];
+  it("cadence = the median brand's posts per week, per platform", () => {
+    expect(platformCadence(data, ["instagram", "tiktok", "linkedin"])).toEqual({
+      instagram: 2.1,
+      tiktok: 0.7,
+      linkedin: 0,
+    });
+  });
+  it("shares follow the rhythm, every platform gets at least one, they add up", () => {
+    const cad = platformCadence(data, ["instagram", "tiktok", "linkedin"]);
+    for (const n of [6, 10, 15]) {
+      const s = planShares(n, ["instagram", "tiktok", "linkedin"], cad);
+      expect(s.reduce((t, x) => t + x.ideas, 0)).toBe(n);
+      expect(s.every((x) => x.ideas >= 1)).toBe(true);
+      expect(s[0]).toMatchObject({ platform: "instagram" });
+      expect(s[0].ideas).toBeGreaterThan(s[1].ideas);
+    }
+    expect(
+      planShares(2, ["instagram", "tiktok", "linkedin"], cad).reduce((t, x) => t + x.ideas, 0),
+    ).toBe(2);
+    expect(planShares(6, [], cad)).toEqual([]);
+  });
+  it("count and platforms come from the browser, checked", () => {
+    const ok = parsePlanInput(
+      {
+        clientId: CLIENT,
+        month: "2026-12",
+        count: 15,
+        platforms: ["instagram", "nope", "instagram", "tiktok"],
+      },
+      "2026-11-27",
+    );
+    expect(ok).toMatchObject({ count: 15, platforms: ["instagram", "tiktok"] });
+    expect(
+      parsePlanInput({ clientId: CLIENT, month: "2026-12", count: 99 }, "2026-11-27"),
+    ).toMatchObject({
+      count: 6,
+      platforms: [],
+    });
+  });
+  it("the prompt asks for the exact count and split", () => {
+    const p = planSystem({
+      client: "OBU Health",
+      monthName: "December",
+      year: 2026,
+      today: TODAY,
+      count: 10,
+      shares: [
+        { platform: "instagram", ideas: 6 },
+        { platform: "tiktok", ideas: 4 },
+      ],
+    });
+    expect(p).toMatch(/Suggest 10 post ideas/);
+    expect(p).toMatch(/Exactly: 6 instagram, 4 tiktok/);
   });
 });

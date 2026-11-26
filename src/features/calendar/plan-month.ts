@@ -95,3 +95,35 @@ export const planLoadingLines = (monthName: string) => [
   "Writing ideas…",
 ];
 export const PLAN_LINE_MS = 2200;
+
+// ───────────────────────────── Round 3: how many ideas
+export const PLAN_COUNTS = [6, 10, 15] as const;
+export type PlanCount = (typeof PLAN_COUNTS)[number];
+
+/**
+ * The count to start on (round 3), from competitors' rhythm on the client's platforms: the median brand's
+ * posts per week on each (30-day pull, same rule as the server's platformCadence), summed, × ~4.3 weeks,
+ * snapped to 6 / 10 / 15. No posts → 6. `perWeek` is said under the picker.
+ */
+export function suggestedPlanCount(
+  posts: readonly { competitor_id: string; platform: string }[],
+  platforms: readonly string[],
+  days = 30,
+): { count: PlanCount; perWeek: number } {
+  let perWeek = 0;
+  for (const p of platforms) {
+    const per = new Map<string, number>();
+    for (const x of posts)
+      if (x.platform === p) per.set(x.competitor_id, (per.get(x.competitor_id) ?? 0) + 1);
+    const c = [...per.values()].sort((a, b) => a - b);
+    const median = c.length
+      ? c.length % 2
+        ? c[(c.length - 1) / 2]
+        : (c[c.length / 2 - 1] + c[c.length / 2]) / 2
+      : 0;
+    perWeek += median / (days / 7);
+  }
+  const month = perWeek * (30 / 7);
+  const count: PlanCount = month <= 8 ? 6 : month <= 12.5 ? 10 : 15;
+  return { count, perWeek: Math.round(perWeek * 10) / 10 };
+}

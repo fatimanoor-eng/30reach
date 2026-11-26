@@ -27,6 +27,7 @@
 // The Firecrawl key comes from the FIRECRAWL_API_KEY secret and is never returned or logged.
 
 import {
+  userIdOf,
   FirecrawlHttpError,
   FirecrawlRateLimited,
   fetchCreditUsage,
@@ -136,7 +137,7 @@ export default {
       clientName: await clientName(admin, clientId),
       credits: outcome.creditsUsed,
       fn: "check-handle",
-      actor: ctx.userClaims?.sub ?? null,
+      actor: userIdOf(ctx),
     });
 
     // Refresh the sidebar meter cache (0 credits) so the spend shows up straight away.

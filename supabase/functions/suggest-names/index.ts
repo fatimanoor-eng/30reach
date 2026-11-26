@@ -19,7 +19,7 @@ import {
   namesUser,
   validateNames,
 } from "../_shared/names.ts";
-import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
+import { userIdOf, json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
 
 type Row = {
   id: string;
@@ -75,7 +75,7 @@ export default {
       admin: ctx.supabaseAdmin,
       fn: "suggest-names",
       clientId,
-      actor: ctx.userClaims?.sub ?? null,
+      actor: userIdOf(ctx),
       system: namesSystem(),
       user: namesUser(items),
       schema: NAMES_SCHEMA,

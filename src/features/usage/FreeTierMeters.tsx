@@ -14,7 +14,7 @@ import { runningLow } from "./usage-rules";
 /**
  * 17 / M20 free-tier meters, moved from Settings (13): Firecrawl credits left (live, 0 credits, cached
  * 5 min), Groq requests left today (from the last AI response), database and storage size. Four cards in a
- * row; two per row on phones. Under 10% left → amber "Running low".
+ * row; two per row on phones. Ink bars; under 10% left → amber "Running low" (27 Nov: no yellow default).
  */
 export function FreeTierMeters({ now }: { now: number }) {
   const credits = useCredits();
@@ -35,7 +35,6 @@ export function FreeTierMeters({ now }: { now: number }) {
         value={c ? creditsLeft(c.remaining, c.plan) : null}
         fraction={c ? creditsFraction(c.remaining, creditsTotal(c.remaining, c.plan) ?? 0) : null}
         low={c ? runningLow(c.remaining, creditsTotal(c.remaining, c.plan) ?? 0) : false}
-        tone="flash"
         caption={
           credits.status === "error"
             ? "Couldn’t reach Firecrawl."
@@ -91,7 +90,6 @@ function MeterCard({
   low,
   caption,
   retry,
-  tone = "ink",
 }: {
   label: string;
   /** null while loading */
@@ -101,7 +99,6 @@ function MeterCard({
   low: boolean;
   caption: string;
   retry?: () => void;
-  tone?: "ink" | "flash";
 }) {
   const bar = fraction === null ? 0 : Math.min(1, Math.max(0, used ? 1 - fraction : fraction));
   return (
@@ -124,7 +121,8 @@ function MeterCard({
         className="h-1.5 overflow-hidden rounded-full bg-soft"
       >
         <div
-          className={`h-full rounded-full ${low ? "bg-amber" : tone === "flash" ? "bg-flash" : "bg-ink"}`}
+          // One style for all four (27 Nov): ink, amber only when running low.
+          className={`h-full rounded-full ${low ? "bg-amber" : "bg-ink"}`}
           style={{ width: `${bar * 100}%` }}
         />
       </div>

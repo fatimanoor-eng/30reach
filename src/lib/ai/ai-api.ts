@@ -106,8 +106,13 @@ export type PlanFacts = {
   boardIdeas: number;
 };
 export type MonthPlan = { month: string; ideas: PlanSuggestion[]; facts: PlanFacts };
-export const planMonth = (clientId: string, month: string, events: PlanEvent[]) =>
-  call<MonthPlan>("plan-month", { clientId, month, events });
+/** Round 3: `count` (6 / 10 / 15) and the client's platforms to spread them over. */
+export const planMonth = (
+  clientId: string,
+  month: string,
+  events: PlanEvent[],
+  opts: { count?: number; platforms?: string[] } = {},
+) => call<MonthPlan>("plan-month", { clientId, month, events, ...opts });
 
 // ───────────────────────────── check-claims
 export type ClaimIssue = { quote: string; why: string };

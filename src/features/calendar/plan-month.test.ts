@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlanSuggestion } from "../../lib/ai/ai-api";
 import {
+  suggestedPlanCount,
   factChips,
   ideaFromSuggestion,
   PLAN_LINE_MS,
@@ -132,5 +133,25 @@ describe("planLoadingLines: what Blip/Scanning says while planning", () => {
       "Writing ideas…",
     ]);
     expect(PLAN_LINE_MS).toBeGreaterThanOrEqual(1500);
+  });
+});
+
+describe("suggested idea count (round 3)", () => {
+  const posts = (brand: string, platform: string, n: number) =>
+    Array.from({ length: n }, () => ({ competitor_id: brand, platform }));
+  it("follows competitors' weekly rhythm on the client's platforms", () => {
+    // Instagram median 9 posts in 30 days (≈ 2.1 / week) → ≈ 9 a month → 10.
+    const ig = [
+      ...posts("a", "instagram", 13),
+      ...posts("b", "instagram", 9),
+      ...posts("c", "instagram", 4),
+    ];
+    expect(suggestedPlanCount(ig, ["instagram"])).toEqual({ count: 10, perWeek: 2.1 });
+    // + TikTok median 6 (1.4 / week) → ≈ 15 a month → 15.
+    const both = [...ig, ...posts("a", "tiktok", 6), ...posts("b", "tiktok", 6)];
+    expect(suggestedPlanCount(both, ["instagram", "tiktok"]).count).toBe(15);
+    // Quiet competitors, or no pull: 6.
+    expect(suggestedPlanCount(posts("a", "instagram", 4), ["instagram"]).count).toBe(6);
+    expect(suggestedPlanCount([], ["instagram"])).toEqual({ count: 6, perWeek: 0 });
   });
 });

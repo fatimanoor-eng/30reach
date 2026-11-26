@@ -23,7 +23,7 @@ import {
 import { claimsSystem, claimsUser } from "../_shared/ai-prompts.ts";
 import { aiFailure, groqJson, loadClientContext } from "../_shared/ai-server.ts";
 import { anyCheck } from "../_shared/client-context.ts";
-import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
+import { userIdOf, json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
@@ -59,7 +59,7 @@ export default {
       admin: ctx.supabaseAdmin,
       fn: "check-claims",
       clientId,
-      actor: ctx.userClaims?.sub ?? null,
+      actor: userIdOf(ctx),
       system: claimsSystem({ today: todayContext().label, client: client.name, ctx: client }),
       user: claimsUser(input.draft),
       schema: CLAIMS_SCHEMA,

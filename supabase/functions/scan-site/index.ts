@@ -38,6 +38,7 @@ import { cleanResults, isNotCompetitor } from "../_shared/site-logic.ts";
 import { groqJson } from "../_shared/ai-server.ts";
 import { isUuid } from "../_shared/ai-logic.ts";
 import {
+  userIdOf,
   fetchCreditUsage,
   FirecrawlRateLimited,
   json,
@@ -103,7 +104,7 @@ export default {
     let url = siteUrl(body.url);
     if (mode === "find" ? !findName : !url) return json({ error: "bad_url" }, 400);
     const admin = ctx.supabaseAdmin;
-    const actor = ctx.userClaims?.sub ?? null;
+    const actor = userIdOf(ctx);
     // One id per Add client run (Slice 17f): creating the client claims these usage rows.
     const scanId = isUuid(body.scanId) ? body.scanId : null;
 

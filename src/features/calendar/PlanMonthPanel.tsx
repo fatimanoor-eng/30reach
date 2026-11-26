@@ -14,10 +14,20 @@ import { shortDay } from "./format";
 import {
   factChips,
   ideaFromSuggestion,
+  PLAN_COUNTS,
   PLAN_LINE_MS,
+  type PlanCount,
   planEvents,
   planLoadingLines,
+  suggestedPlanCount,
 } from "./plan-month";
+import { SegmentedControl } from "../../components/SegmentedControl";
+import { usePullPosts, useSavedPulls } from "../overview/useOverviewData";
+import { useClientPlatforms } from "./platform-options";
+
+/** "2.5 times" / "once". */
+const formatPerWeek = (n: number) =>
+  n < 1.25 ? "once" : `${Math.round(n * 2) / 2} times`.replace(".0 ", " ");
 import { useEventRules } from "./useEventRules";
 import { useHolidays } from "./useHolidays";
 import { useClientPath } from "../../lib/useClient";
@@ -52,10 +62,20 @@ export function PlanMonthPanel({
   const holidays = useHolidays([year]);
   const rules = useEventRules();
   const eventsReady = holidays.byYear.has(year) || holidays.failedYears.includes(year);
+  // Round 3: how many ideas. Starts on a count from competitors' rhythm on the client's platforms; the
+  // team can pick 6 / 10 / 15 (each change asks Blip again).
+  const platforms = useClientPlatforms();
+  const saved = useSavedPulls();
+  const posts = usePullPosts(saved.data?.latest?.id);
+  const postsSettled = !!posts.data || posts.isError || (saved.isFetched && !saved.data?.latest);
+  const suggestion = suggestedPlanCount(posts.data ?? [], platforms);
+  const [chosen, setChosen] = useState<PlanCount | null>(null);
+  const count: PlanCount = chosen ?? suggestion.count;
   const plan = useQuery({
-    queryKey: ["plan-month", clientId, month, round],
-    enabled: open && eventsReady,
-    queryFn: () => planMonth(clientId, month, planEvents(month, holidays.byYear, rules)),
+    queryKey: ["plan-month", clientId, month, round, count, platforms.join(",")],
+    enabled: open && eventsReady && postsSettled,
+    queryFn: () =>
+      planMonth(clientId, month, planEvents(month, holidays.byYear, rules), { count, platforms }),
     retry: false,
     staleTime: Infinity,
     gcTime: 30 * 60_000,
@@ -216,6 +236,29 @@ export function PlanMonthPanel({
       wide
     >
       <div className="flex flex-col gap-4.5" aria-live="polite" aria-busy={loading}>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="mono-label text-muted">How many ideas</p>
+            <SegmentedControl
+              label="How many ideas"
+              value={String(count) as `${PlanCount}`}
+              onChange={(v) => {
+                setSaveError(null);
+                setChosen(Number(v) as PlanCount);
+              }}
+              options={PLAN_COUNTS.map((n) => ({
+                value: String(n) as `${PlanCount}`,
+                label: String(n),
+                disabled: busy,
+              }))}
+            />
+          </div>
+          <p className="text-small text-muted">
+            {suggestion.perWeek > 0
+              ? `Suggested ${suggestion.count}: competitors post about ${formatPerWeek(suggestion.perWeek)} a week on your platforms. Spread across ${platforms.length === 1 ? "your platform" : `your ${platforms.length} platforms`} by how often they post on each.`
+              : `Spread across ${platforms.length === 1 ? "your platform" : `your ${platforms.length} platforms`}.`}
+          </p>
+        </div>
         {plan.data && (
           <div className="flex flex-col gap-2 rounded-tile bg-bg px-3.5 py-3">
             <p className="mono-label text-muted">30reach looked at</p>

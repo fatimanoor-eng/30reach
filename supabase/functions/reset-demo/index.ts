@@ -8,7 +8,7 @@
 // service role after the team check; nothing here touches any other client.
 
 import { DEMO_CLIENT, DEMO_SLUG, demoData } from "../_shared/demo-data.ts";
-import { json, requireTeam, withSupabase } from "../_shared/server.ts";
+import { userIdOf, json, requireTeam, withSupabase } from "../_shared/server.ts";
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
@@ -47,7 +47,7 @@ export default {
     } else {
       const { data: row, error } = await admin
         .from("clients")
-        .insert({ ...fields, content_rules, created_by: ctx.userClaims?.sub ?? null })
+        .insert({ ...fields, content_rules, created_by: userIdOf(ctx) })
         .select("id")
         .single();
       if (error || !row) return fail("insert client", error);

@@ -38,7 +38,7 @@ import {
   loadFailure,
   loadPull,
 } from "../_shared/ai-server.ts";
-import { json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
+import { userIdOf, json, readJson, requireTeam, withSupabase } from "../_shared/server.ts";
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
@@ -50,7 +50,7 @@ export default {
     if ("error" in input) return json(input, 400);
 
     const today = todayContext().label;
-    const userId = ctx.userClaims?.sub;
+    const userId = userIdOf(ctx);
     const profileQuery = userId
       ? ctx.supabase.from("profiles").select("full_name, email").eq("id", userId).maybeSingle()
       : Promise.resolve({ data: null });
@@ -66,7 +66,7 @@ export default {
         admin: ctx.supabaseAdmin,
         fn: "ask-blip",
         clientId: input.clientId,
-        actor: ctx.userClaims?.sub ?? null,
+        actor: userIdOf(ctx),
         label: "ask-blip light",
         system: askLightSystem({
           client: client.name,
@@ -101,7 +101,7 @@ export default {
       admin: ctx.supabaseAdmin,
       fn: "ask-blip",
       clientId: input.clientId,
-      actor: ctx.userClaims?.sub ?? null,
+      actor: userIdOf(ctx),
       label: "ask-blip full",
       system: askSystem({
         client,

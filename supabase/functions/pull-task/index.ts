@@ -39,6 +39,7 @@ import {
 } from "../_shared/pull-logic.ts";
 import { parseYouTubePage, type YouTubePageBody } from "../_shared/youtube-logic.ts";
 import {
+  userIdOf,
   FirecrawlHttpError,
   FirecrawlRateLimited,
   json,
@@ -305,7 +306,7 @@ export default {
       credits: page.creditsCost,
       fn: "pull-task",
       refId: pull.id,
-      actor: ctx.userClaims?.sub ?? null,
+      actor: userIdOf(ctx),
     });
     const creditsUsed = task.credits_used + page.creditsCost;
     const pages = pagesSoFar + 1;

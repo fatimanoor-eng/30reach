@@ -5,7 +5,11 @@ import {
   shortWeekLabels,
   axisMax,
   chartSeries,
+  extraRows,
   lastWeeks,
+  personName,
+  UNFINISHED_ID,
+  weekRowId,
   mondayOf,
   otherCredits,
   runningLow,
@@ -154,5 +158,89 @@ describe("labels", () => {
     expect(
       shortWeekLabels(["2026-10-05", "2026-10-12", "2026-10-26", "2026-11-02", "2026-11-09"]),
     ).toEqual(["5 Oct", "12", "26", "2 Nov", "9"]);
+  });
+});
+
+describe("deleted clients, unfinished scans, people (27 Nov)", () => {
+  const extras = extraRows({
+    deleted: [
+      {
+        name: "Old Co",
+        credits: 40,
+        pull_credits: 30,
+        check_credits: 0,
+        scan_credits: 10,
+        groq_requests: 3,
+        pulls: 1,
+      },
+    ],
+    unfinished: { runs: 3, credits: 33 },
+  });
+  it("adds a greyed row per deleted client and one for unfinished scans", () => {
+    expect(extras.map((r) => [r.id, r.name, r.credits])).toEqual([
+      ["deleted:Old Co", "Old Co (deleted)", 40],
+      [UNFINISHED_ID, "Unfinished scans", 33],
+    ]);
+    expect(extras[0].deleted).toBe(true);
+    expect(extras[1]).toMatchObject({ unfinished: true, runs: 3, scan_credits: 33 });
+    expect(extraRows({ deleted: [], unfinished: { runs: 0, credits: 0 } })).toEqual([]);
+  });
+  it("orders: clients, demo, archived, deleted, unfinished", () => {
+    const rows = tableRows([
+      ...extras,
+      client("a", "Active", { credits: 1 }),
+      client("z", "Zed archived", { archived_at: "2026-11-01" }),
+    ]);
+    expect(rows.map((r) => r.name)).toEqual([
+      "Active",
+      "Zed archived",
+      "Old Co (deleted)",
+      "Unfinished scans",
+    ]);
+  });
+  it("week rows find their row; unfinished scans get their own hatched series", () => {
+    expect(weekRowId({ client_id: "a", client_name: null })).toBe("a");
+    expect(weekRowId({ client_id: null, client_name: "Old Co" })).toBe("deleted:Old Co");
+    expect(weekRowId({ client_id: null, client_name: null, unfinished: true })).toBe(UNFINISHED_ID);
+    expect(weekRowId({ client_id: null, client_name: null })).toBeNull();
+    const weeks = [
+      { week: "2026-11-23", client_id: "a", kind: "pull" as const, credits: 50, pulls: 1 },
+      {
+        week: "2026-11-23",
+        client_id: null,
+        client_name: "Old Co",
+        kind: "pull" as const,
+        credits: 30,
+        pulls: 1,
+      },
+      {
+        week: "2026-11-23",
+        client_id: null,
+        client_name: null,
+        unfinished: true,
+        kind: "scan" as const,
+        credits: 33,
+        pulls: 0,
+      },
+    ];
+    const series = chartSeries([client("a", "Active"), ...extras], weeks);
+    expect(series.map((s) => [s.key, s.shade])).toEqual([
+      ["a", 0],
+      ["deleted:Old Co", 1],
+      [UNFINISHED_ID, 3],
+    ]);
+    const [bar] = weekBars(["2026-11-23"], series, weeks);
+    expect(bar.parts).toEqual([
+      { key: "a", credits: 50 },
+      { key: "deleted:Old Co", credits: 30 },
+      { key: UNFINISHED_ID, credits: 33 },
+    ]);
+  });
+  it("people: name, email, or not recorded", () => {
+    expect(personName({ id: "u", full_name: "Fatima Noor", email: "f@x" })).toBe("Fatima Noor");
+    expect(personName({ id: "u", full_name: null, email: "f@x" })).toBe("f@x");
+    expect(personName({ id: null, full_name: null, email: null })).toBe(
+      "Not recorded (before 27 Nov)",
+    );
   });
 });

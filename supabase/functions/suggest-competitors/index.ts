@@ -46,6 +46,7 @@ import {
 import { groqJson } from "../_shared/ai-server.ts";
 import { isUuid } from "../_shared/ai-logic.ts";
 import {
+  userIdOf,
   fetchCreditUsage,
   FirecrawlRateLimited,
   json,
@@ -84,7 +85,7 @@ export default {
     if (queries.length === 0) queries = [[industry || name, "brands"].join(" ")];
 
     const admin = ctx.supabaseAdmin;
-    const actor = ctx.userClaims?.sub ?? null;
+    const actor = userIdOf(ctx);
     const scanId = isUuid(body.scanId) ? body.scanId : null; // Slice 17f: claimed by the new client
     const credits = await fetchCreditUsage();
     if (!credits) return json({ error: "credits_unavailable" }, 502);

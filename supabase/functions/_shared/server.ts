@@ -410,3 +410,5 @@ export async function fetchYouTubePage(
   }
   return { channel, channelId, playlist, videos, shorts };
 }
+
+export { userIdOf } from "./user-id.ts";
