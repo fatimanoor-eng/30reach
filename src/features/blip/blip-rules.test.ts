@@ -16,6 +16,7 @@ import {
   clientShort,
   firstNameOf,
   greeting,
+  chipsFor,
   historyFrom,
   type Message,
   matchSmallTalk,
@@ -124,18 +125,45 @@ describe("Ask Blip rules", () => {
     );
   });
 
-  it("history = the last 2 answered turns, as short text", () => {
+  it("history = the last 6 answered turns, as short text (Smart Blip round 1)", () => {
     const messages: Message[] = [
-      { id: 1, question: "q1", status: "done", answer: answer("one") },
+      ...[1, 3, 4, 5, 6, 7, 8].map((n): Message => ({
+        id: n,
+        question: `q${n}`,
+        status: "done",
+        answer: answer(`a${n}`),
+      })),
       { id: 2, question: "q2", status: "error", kind: "failed" },
-      { id: 3, question: "q3", status: "done", answer: answer("three") },
-      { id: 4, question: "q4", status: "done", answer: answer("four") },
-      { id: 5, question: "q5", status: "pending" },
+      { id: 9, question: "q9", status: "pending" },
     ];
-    expect(historyFrom(messages)).toEqual([
-      { q: "q3", a: "three\n1. a\n2. b\nFor OBU: try it" },
-      { q: "q4", a: "four\n1. a\n2. b\nFor OBU: try it" },
+    const h = historyFrom(messages);
+    expect(h.map((t) => t.q)).toEqual(["q3", "q4", "q5", "q6", "q7", "q8"]);
+    expect(h[0].a).toBe("a3\n1. a\n2. b\nFor OBU: try it");
+  });
+
+  it("chips: the latest answer's follow-ups, else the starters", () => {
+    const starters = ["What changed?"];
+    const withFollowUps: Message = {
+      id: 1,
+      question: "q",
+      status: "done",
+      answer: {
+        ...answer("x"),
+        followUps: ["Who grew fastest?", "What about TikTok?"],
+      } as BlipAnswer,
+    };
+    expect(chipsFor([withFollowUps], starters)).toEqual([
+      "Who grew fastest?",
+      "What about TikTok?",
     ]);
+    expect(chipsFor([], starters)).toEqual(starters);
+    const chat: Message = {
+      id: 2,
+      question: "hi",
+      status: "done",
+      answer: { type: "chat", message: "hey" },
+    };
+    expect(chipsFor([withFollowUps, chat], starters)).toEqual(starters);
   });
 
   it("history leaves out small talk answered in code, keeps chat replies from Groq", () => {

@@ -123,6 +123,16 @@ function fakeDb() {
 
 const has = (q: Query, column: string, value: unknown) =>
   q.filters.some(([, c, v]) => c === column && v === value);
+/** An `in` filter whose values are all allowed (both pulls' follower readings in one query, round 1). */
+const hasOnly = (q: Query, column: string, allowed: unknown[]) =>
+  q.filters.some(
+    ([op, c, v]) =>
+      op === "in" &&
+      c === column &&
+      Array.isArray(v) &&
+      v.length > 0 &&
+      v.every((x) => allowed.includes(x)),
+  );
 
 describe("AI data is the current client's only", () => {
   it("loadPull reads only that client's pull, posts, brands and followers", async () => {
@@ -143,7 +153,11 @@ describe("AI data is the current client's only", () => {
       else if (q.table === "pulls" || q.table === "competitors")
         expect(has(q, "client_id", "client-2")).toBe(true);
       else if (q.table === "posts" || q.table === "pull_tasks")
-        expect(has(q, "pull_id", "pull-atb-2") || has(q, "pull_id", "pull-atb-1")).toBe(true);
+        expect(
+          has(q, "pull_id", "pull-atb-2") ||
+            has(q, "pull_id", "pull-atb-1") ||
+            hasOnly(q, "pull_id", ["pull-atb-2", "pull-atb-1"]),
+        ).toBe(true);
       else throw new Error(`unexpected table ${q.table}`);
     }
   });

@@ -5,6 +5,7 @@ import { AiError, askBlip } from "../../lib/ai/ai-api";
 import { useProfile } from "../../lib/auth/useProfile";
 import { useClient } from "../../lib/useClient";
 import { useCompetitors } from "../../lib/useCompetitors";
+import { useSavedPulls } from "../overview/useOverviewData";
 import {
   clientShort,
   firstNameOf,
@@ -35,6 +36,8 @@ import {
  * New answers arrive with `animate: true` (the panel reveals them word by word, then calls
  * finishReveal). Code replies show the typing dots for 400–700 ms first.
  */
+const NO_MESSAGES: Message[] = [];
+
 export function useBlipThread(clientId: string | undefined) {
   const profile = useProfile();
   const firstName = firstNameOf(profile.data?.full_name);
@@ -50,14 +53,31 @@ export function useBlipThread(clientId: string | undefined) {
     ],
     [competitors.data, clientName],
   );
-  const [messages, setMessages] = useState<Message[]>([]);
-  // One thread per client (Slice 17b): switching clients starts a fresh one. A switch passes through
-  // `undefined` while the next client loads, so only a new, known client resets it.
-  const [threadFor, setThreadFor] = useState(clientId);
-  if (clientId && clientId !== threadFor) {
-    setThreadFor(clientId);
-    if (threadFor) setMessages([]);
-  }
+  // One thread per client (Slice 17b) and per pull (Smart Blip round 1: with longer memory, an old thread
+  // would talk about the old numbers). The thread is stored with the client + pull it belongs to and reads
+  // as empty when they don't match, so a switch can't keep the old one (render-time resets could be
+  // dropped by React's navigation transition and leave the previous client's messages on screen).
+  const latestPull = useSavedPulls().data?.latest?.id;
+  const threadKey = `${clientId ?? ""}|${latestPull ?? ""}`;
+  const [thread, setThread] = useState<{ key: string; messages: Message[] }>({
+    key: threadKey,
+    messages: [],
+  });
+  const messages = thread.key === threadKey ? thread.messages : NO_MESSAGES;
+  const keyRef = useRef(threadKey);
+  useEffect(() => {
+    keyRef.current = threadKey;
+  }, [threadKey]);
+  /** Same shape as a useState setter; always writes into the current client + pull's thread. */
+  const setMessages = useCallback((update: Message[] | ((prev: Message[]) => Message[])) => {
+    setThread((t) => {
+      const base = t.key === keyRef.current ? t.messages : [];
+      return {
+        key: keyRef.current,
+        messages: typeof update === "function" ? update(base) : update,
+      };
+    });
+  }, []);
   const nextId = useRef(1);
   const inFlight = useRef(false); // set at once, so a quick double click can't ask twice
   // ask() reads the committed thread (it's only called from events, after a commit).
@@ -168,21 +188,24 @@ export function useBlipThread(clientId: string | undefined) {
         inFlight.current = false;
       }
     },
-    [clientId, firstName, names, queryClient, clientName, competitors.data],
+    [clientId, firstName, names, queryClient, clientName, competitors.data, setMessages],
   );
 
   /** The reveal ended or was skipped: show the message in full from now on (no replay on reopen). */
-  const finishReveal = useCallback((id?: number) => {
-    setMessages((m) =>
-      m.some((x) => x.status === "done" && x.animate && (id == null || x.id === id))
-        ? m.map((x) =>
-            x.status === "done" && x.animate && (id == null || x.id === id)
-              ? { ...x, animate: false }
-              : x,
-          )
-        : m,
-    );
-  }, []);
+  const finishReveal = useCallback(
+    (id?: number) => {
+      setMessages((m) =>
+        m.some((x) => x.status === "done" && x.animate && (id == null || x.id === id))
+          ? m.map((x) =>
+              x.status === "done" && x.animate && (id == null || x.id === id)
+                ? { ...x, animate: false }
+                : x,
+            )
+          : m,
+      );
+    },
+    [setMessages],
+  );
 
   /** Drop a failed turn and ask it again. */
   const retry = useCallback(
@@ -193,7 +216,7 @@ export function useBlipThread(clientId: string | undefined) {
       setMessages(latest.current);
       void ask(failed.question);
     },
-    [ask],
+    [ask, setMessages],
   );
 
   return {

@@ -62,6 +62,8 @@ export type BlipInsight = {
   inData: boolean;
   sources: SourcePost[];
   pull: { id: string; startedAt: string };
+  /** 0–3 next questions about this answer (Smart Blip round 1): the chips above the input. */
+  followUps?: string[];
 };
 /** Small talk: one or two warm sentences, no sources, nothing to add to the board. */
 export type BlipChat = {

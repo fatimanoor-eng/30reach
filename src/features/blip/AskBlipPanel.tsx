@@ -13,6 +13,7 @@ import { useMediaQuery } from "../../lib/useMediaQuery";
 import { createIdea } from "../ideas/ideas-api";
 import { usePullPosts, useSavedPulls } from "../overview/useOverviewData";
 import {
+  chipsFor,
   BREATHER_TEXT,
   clientShort,
   firstNameOf,
@@ -140,7 +141,11 @@ export function AskBlipPanel({
     ask(draft);
   }
 
-  const chips = suggestions(clientName, topBrand(blipPosts ?? [], competitors.data ?? []));
+  // Smart Blip round 1: after an answer, its own follow-ups; otherwise the usual starters.
+  const chips = chipsFor(
+    messages,
+    suggestions(clientName, topBrand(blipPosts ?? [], competitors.data ?? [])),
+  );
   const pullDate = latest ? (formatShortDate(latest.started_at) ?? "").toUpperCase() : null;
 
   return (

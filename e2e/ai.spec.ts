@@ -983,3 +983,33 @@ test("card — Suggest caption needs a title or hook first", async ({ page }) =>
     "true",
   );
 });
+
+test("Ask Blip — follow-up chips come from the answer; history grows (Smart Blip round 1)", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  const { sent } = await setup(page, {
+    "ask-blip": async (r) =>
+      r.fulfill(
+        json({
+          ...ANSWER,
+          followUps: ["Who grew fastest since the last pull?", "What about Ro on TikTok?"],
+        }),
+      ),
+  });
+  await open(page, "/overview");
+  const dialog = await openAskBlip(page);
+  await dialog.getByRole("button", { name: "What changed since the last pull?" }).click();
+  await idle(dialog);
+  // The starters make way for this answer's own follow-ups.
+  await expect(
+    dialog.getByRole("button", { name: "Who grew fastest since the last pull?" }),
+  ).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Give me 3 post ideas for OBU" })).toHaveCount(0);
+  // Tapping one asks it, with the earlier turn as memory.
+  await dialog.getByRole("button", { name: "What about Ro on TikTok?" }).click();
+  await idle(dialog);
+  const last = sent["ask-blip"].at(-1) as unknown as { question: string; history: { q: string }[] };
+  expect(last.question).toBe("What about Ro on TikTok?");
+  expect(last.history.map((t) => t.q)).toEqual(["What changed since the last pull?"]);
+});

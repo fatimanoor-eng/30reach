@@ -6,6 +6,7 @@
 // token use is logged (Supabase → Edge Functions → Logs), never the prompt or the answer.
 
 import {
+  type Followers,
   DEFAULT_GROQ_MODEL,
   type Format,
   GROQ_URL,
@@ -181,7 +182,11 @@ export async function loadPull(
     prev
       ? db.from("posts").select(POST_COLUMNS).eq("pull_id", prev.id).eq("hidden", false)
       : Promise.resolve({ data: [], error: null }),
-    db.from("pull_tasks").select("competitor_id, platform, followers").eq("pull_id", latest.id),
+    // Both pulls' follower readings (Smart Blip round 1): growth since the previous pull.
+    db
+      .from("pull_tasks")
+      .select("pull_id, competitor_id, platform, followers, error_code")
+      .in("pull_id", prev ? [latest.id, prev.id] : [latest.id]),
   ]);
   if (brands.error || posts.error || prevPosts.error || tasks.error) {
     return { ok: false, error: "load_failed" };
@@ -194,11 +199,12 @@ export async function loadPull(
       brands: (brands.data ?? []) as { id: string; name: string }[],
       pull: latest,
       posts: rows,
-      followers: (tasks.data ?? []) as {
-        competitor_id: string;
-        platform: Platform;
-        followers: number | null;
-      }[],
+      followers: ((tasks.data ?? []) as (Followers & { pull_id: string })[]).filter(
+        (t) => t.pull_id === latest.id,
+      ),
+      previousFollowers: ((tasks.data ?? []) as (Followers & { pull_id: string })[]).filter(
+        (t) => prev && t.pull_id === prev.id,
+      ),
       previous: prev ? { ...prev, posts: (prevPosts.data ?? []) as SummaryPost[] } : null,
     },
     posts: new Map(rows.map((p) => [p.id, p])),

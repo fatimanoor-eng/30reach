@@ -19,8 +19,14 @@ export const LIMITS = {
   question: 500,
   /** Light mode (no data summary) only for questions this short. The browser decides; we cap it. */
   lightChars: 40,
-  historyTurns: 2,
+  /** Smart Blip round 1: up to 6 turns, within historyBudget (oldest dropped first). */
+  historyTurns: 6,
   historyChars: 600,
+  /** All turns together, ≈ 600 tokens. The last 2 keep their full answers; older ones their first line. */
+  historyBudget: 2_400,
+  /** Follow-up chips: at most 3, each this long. */
+  followUps: 3,
+  followUpChars: 60,
   /** ≈ 2.5K tokens at ~4 chars/token. */
   summaryChars: 10_000,
   topPosts: 25,
@@ -88,6 +94,24 @@ const isStr = (v: unknown): v is string => typeof v === "string";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (v: unknown): v is string => isStr(v) && UUID.test(v);
 const round = (n: number) => Math.round(n);
+/** Growth since the previous pull, only when both pulls really read the count (same rule as the app). */
+export function followersChange(
+  data: Pick<PullData, "followers" | "previousFollowers">,
+  competitorId: string,
+  platform: Platform,
+): number | null {
+  if (platform === "facebook") return null;
+  const find = (list: readonly Followers[] | undefined) =>
+    list?.find((f) => f.competitor_id === competitorId && f.platform === platform);
+  const now = find(data.followers);
+  const before = find(data.previousFollowers);
+  if (!now || !before || now.error_code === "carried" || before.error_code === "carried")
+    return null;
+  return now.followers !== null && before.followers !== null
+    ? now.followers - before.followers
+    : null;
+}
+
 /** 2 decimals, for small percentages (0.35). */
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
@@ -198,7 +222,13 @@ export type SummaryPost = {
   counts_hidden: boolean;
 };
 export type SummaryBrand = { id: string; name: string };
-export type Followers = { competitor_id: string; platform: Platform; followers: number | null };
+export type Followers = {
+  competitor_id: string;
+  platform: Platform;
+  followers: number | null;
+  /** "carried": copied from an earlier pull, not read this time (18b). */
+  error_code?: string | null;
+};
 export type PullData = {
   clientName: string;
   brands: SummaryBrand[];
@@ -206,6 +236,8 @@ export type PullData = {
   pull: { id: string; started_at: string; carried?: Partial<Record<Platform, string>> | null };
   posts: SummaryPost[];
   followers: Followers[];
+  /** The previous pull's readings (Smart Blip round 1: followers_change). */
+  previousFollowers?: Followers[];
   previous: { id: string; started_at: string; posts: SummaryPost[] } | null;
 };
 
@@ -265,6 +297,11 @@ export type Summary = {
     followers: number | null;
     /** Avg engagement per post ÷ followers × 100 (26 Nov); null without a follower count. */
     engagement_rate_pct: number | null;
+    /**
+     * Followers gained (or lost) since the previous pull; null unless both pulls read the count (not carried
+     * over, not Facebook, whose count is only read when the page is saved). Smart Blip round 1.
+     */
+    followers_change: number | null;
     formats: { format: Format; posts: number; avg_engagement: number }[];
     best_slot: string | null;
     new_since_previous: number | null;
@@ -306,7 +343,7 @@ const NOT_IN_DATA = [
   "Facebook views on photo, link and text posts",
   "Facebook posts beyond each brand's latest 12",
   "anything older than the 30-day window",
-  "follower history or growth",
+  "follower history before the previous pull",
   "the client's own posts",
   "ad spend, reach or impressions",
   "Instagram shares and saves",
@@ -389,6 +426,7 @@ export function buildSummary(
       ...(platform === "x" && { avg_reposts: s.avg_shares }),
       followers,
       engagement_rate_pct: followers ? round2((s.avg_engagement / followers) * 100) : null,
+      followers_change: followersChange(data, competitorId, platform),
       formats,
       best_slot: bestSlot(posts),
       new_since_previous: prevIds ? posts.filter((p) => !prevIds.has(p.external_id)).length : null,
@@ -759,6 +797,7 @@ export const ASK_SCHEMA = {
     for_client: { type: "string" },
     post_refs: strArray,
     in_data: { type: "boolean" },
+    follow_ups: strArray,
   }),
 };
 
@@ -818,15 +857,36 @@ export type AskInput = {
   /** Small talk: persona + rules + last turns only, no data summary (~400 tokens instead of ~3K). */
   light: boolean;
 };
+/**
+ * Conversation memory (Smart Blip round 1): the last 6 turns. The 2 newest keep their answers (≤ 600
+ * chars); older answers shrink to their first line (≤ 160). Then the oldest turns go until everything fits
+ * LIMITS.historyBudget (≈ 600 tokens), so a long chat never pushes a request past Groq's 8K a minute.
+ */
+export function trimHistory(
+  turns: readonly { q: string; a: string }[],
+): { q: string; a: string }[] {
+  const recent = turns.slice(-LIMITS.historyTurns);
+  const shaped = recent.map((t, i) => {
+    const old = i < recent.length - 2;
+    const a = old ? (t.a.split("\n")[0] ?? "") : t.a;
+    return { q: clip(t.q, old ? 200 : 300), a: clip(a, old ? 160 : LIMITS.historyChars) };
+  });
+  const size = (list: { q: string; a: string }[]) =>
+    list.reduce((n, t) => n + t.q.length + t.a.length, 0);
+  while (shaped.length > 1 && size(shaped) > LIMITS.historyBudget) shaped.shift();
+  return shaped;
+}
+
 export function parseAskInput(body: Record<string, unknown>): AskInput | InputError {
   if (!isUuid(body.clientId)) return bad("bad_client");
   const question = isStr(body.question) ? squish(body.question) : "";
   if (!question) return bad("empty_question");
   if (question.length > LIMITS.question) return bad("question_too_long");
-  const history = (Array.isArray(body.history) ? body.history : [])
-    .filter((t): t is { q: string; a: string } => isObj(t) && isStr(t.q) && isStr(t.a))
-    .slice(-LIMITS.historyTurns)
-    .map((t) => ({ q: clip(t.q, LIMITS.historyChars), a: clip(t.a, LIMITS.historyChars) }));
+  const history = trimHistory(
+    (Array.isArray(body.history) ? body.history : []).filter(
+      (t): t is { q: string; a: string } => isObj(t) && isStr(t.q) && isStr(t.a),
+    ),
+  );
   const light = body.light === true && question.length <= LIMITS.lightChars;
   return { clientId: body.clientId, question, history, light };
 }
@@ -911,6 +971,8 @@ export type AskInsight = {
   forClient: string;
   postIds: string[];
   inData: boolean;
+  /** 0–3 next questions about this answer, shown as chips (Smart Blip round 1). */
+  followUps: string[];
 };
 /** Small talk (greetings, hype, thanks, feelings, off-topic): 1–2 sentences, then back to the data. */
 export type AskChat = { type: "chat"; message: string };
@@ -978,7 +1040,33 @@ export function validateAskAnswer(
     forClient: cleanChat(forClient, 300, labels),
     postIds: postIds.slice(0, 8),
     inData: typeof raw.in_data === "boolean" ? raw.in_data : points.length > 0,
+    followUps: cleanFollowUps(raw.follow_ups, labels),
   };
+}
+
+/** Topics the pull can't answer: a chip about them would only lead to "that's not in the data". */
+const UNANSWERABLE =
+  /\b(last year|ad spend|ads?\b|reach|impressions|shares and saves|our own posts|client's own|budget|revenue|sales)\b/i;
+
+/**
+ * Follow-up chips: questions only (ends with "?"), ≤ 60 chars, no post refs, no duplicates, nothing the
+ * data can't answer; at most 3. Anything else is dropped (the panel falls back to its usual starters).
+ */
+export function cleanFollowUps(raw: unknown, labels: string[] = []): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    if (!isStr(item)) continue;
+    const text = squish(stripEmoji(humanizeRefs(item, labels)))
+      .replace(/\[p\d+\]/gi, "")
+      .trim();
+    if (!text || !text.endsWith("?") || text.length > LIMITS.followUpChars) continue;
+    if (UNANSWERABLE.test(text) || /\bp\d+\b/i.test(text)) continue;
+    if (out.some((o) => o.toLowerCase() === text.toLowerCase())) continue;
+    out.push(text);
+    if (out.length === LIMITS.followUps) break;
+  }
+  return out;
 }
 
 /** A chat reply (light mode, or type "chat"): clipped, ≤ 2 emoji, no p-refs. Empty → null (retry). */

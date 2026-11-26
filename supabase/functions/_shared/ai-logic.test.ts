@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  cleanFollowUps,
+  trimHistory,
+  followersChange,
   ASK_LIGHT_SCHEMA,
   ASK_SCHEMA,
   bestFormat,
@@ -374,7 +377,7 @@ describe("Groq responses", () => {
 });
 
 describe("inputs from the browser", () => {
-  it("ask: needs a client and a question ≤ 500 chars; keeps the last 2 turns", () => {
+  it("ask: needs a client and a question ≤ 500 chars; keeps the turns that fit (round 1)", () => {
     expect(parseAskInput({ clientId: "x", question: "hi" })).toEqual({ error: "bad_client" });
     expect(parseAskInput({ clientId: CLIENT, question: "   " })).toEqual({
       error: "empty_question",
@@ -389,9 +392,66 @@ describe("inputs from the browser", () => {
     });
     expect(ok).toMatchObject({ question: "What changed?" });
     if ("error" in ok) throw new Error();
-    expect(ok.history.map((t) => t.q)).toEqual(["2", "3"]);
-    expect(ok.history[1].a.length).toBeLessThanOrEqual(LIMITS.historyChars);
+    expect(ok.history.map((t) => t.q)).toEqual(["1", "2", "3"]);
+    expect(ok.history[2].a.length).toBeLessThanOrEqual(LIMITS.historyChars);
     expect(ok.light).toBe(false);
+  });
+
+  it("memory: up to 6 turns; older answers shrink to their first line; fits the budget", () => {
+    const turn = (n: number) => ({
+      q: `question ${n} ${"q".repeat(250)}`,
+      a: `first line ${n}\n${"detail ".repeat(100)}`,
+    });
+    const kept = trimHistory(Array.from({ length: 9 }, (_, i) => turn(i + 1)));
+    expect(kept.length).toBeLessThanOrEqual(6);
+    expect(kept.at(-1)!.q).toMatch(/^question 9/); // newest always kept
+    expect(kept.at(-1)!.a.length).toBeLessThanOrEqual(LIMITS.historyChars); // full (clipped) answer
+    expect(kept[0].a).not.toContain("\n"); // older: first line only
+    expect(kept[0].a.length).toBeLessThanOrEqual(160);
+    const size = kept.reduce((n, t) => n + t.q.length + t.a.length, 0);
+    expect(size).toBeLessThanOrEqual(LIMITS.historyBudget);
+    // Short chats keep everything.
+    expect(
+      trimHistory([
+        { q: "a", a: "b" },
+        { q: "c", a: "d" },
+      ]),
+    ).toHaveLength(2);
+  });
+
+  it("followers_change: both pulls must have read it (not carried, not Facebook)", () => {
+    const f = (
+      platform: "instagram" | "facebook",
+      followers: number,
+      error_code: string | null = null,
+    ) => ({
+      competitor_id: HIMS,
+      platform,
+      followers,
+      error_code,
+    });
+    expect(
+      followersChange(
+        { followers: [f("instagram", 1200)], previousFollowers: [f("instagram", 1000)] },
+        HIMS,
+        "instagram",
+      ),
+    ).toBe(200);
+    expect(
+      followersChange(
+        { followers: [f("instagram", 1200, "carried")], previousFollowers: [f("instagram", 1000)] },
+        HIMS,
+        "instagram",
+      ),
+    ).toBeNull();
+    expect(
+      followersChange(
+        { followers: [f("facebook", 9)], previousFollowers: [f("facebook", 8)] },
+        HIMS,
+        "facebook",
+      ),
+    ).toBeNull();
+    expect(followersChange({ followers: [f("instagram", 1)] }, HIMS, "instagram")).toBeNull();
   });
 
   it("ask: light mode only when asked for and the question is ≤ 40 chars", () => {
@@ -532,6 +592,7 @@ describe("validateAskAnswer", () => {
       forClient: "",
       postIds: ["id-2"], // the inline ref still counts
       inData: true, // has points
+      followUps: [], // none sent: the panel shows its usual starters
     });
     expect(insight({ lead: "Can't see that in this pull", points: [] }).inData).toBe(false);
     expect(insight({ ...good, in_data: "yes" }).inData).toBe(true); // wrong type → default
@@ -1135,9 +1196,10 @@ describe("prompts", () => {
       hooksSystem({ client: "OBU Health", platform: null, today: TODAY, ctx: OBU_CTX }),
       captionsSystem({ client: "OBU Health", platform: "instagram", today: TODAY, ctx: OBU_CTX }),
     ].map((s) => s.length);
-    // ≈ 900 tokens. Ask Blip is the biggest (voice + chat rules + the client brief, Slice 17e); its
-    // ~2.5K-token data summary is the real cost, which light mode skips for small talk.
-    expect(Math.max(...sizes)).toBeLessThan(3600);
+    // ≈ 1K tokens. Ask Blip is the biggest (voice + chat rules + the client brief, Slice 17e; + numbers and
+    // follow-up rules, Smart Blip round 1, ≈ +90 tokens); its ~2.5K-token data summary is the real cost,
+    // which light mode skips for small talk.
+    expect(Math.max(...sizes)).toBeLessThan(4000);
   });
 
   it("the client's brief and rules follow the client (Slice 17e)", () => {
@@ -1654,5 +1716,40 @@ describe("carried platforms in Blip's data (Slice 18b)", () => {
       previous: null,
     });
     expect(none.summary.older_data).toBeUndefined();
+  });
+});
+
+describe("follow-up chips (Smart Blip round 1)", () => {
+  it("keeps up to 3 short questions the data can answer", () => {
+    expect(
+      cleanFollowUps([
+        "Which Hims post did best? [p2]",
+        "What about TikTok?",
+        "what about tiktok?", // duplicate
+        "Tell me more", // not a question
+        "How much did Ro spend on ads?", // not in the data
+        "Who grew fastest since the last pull?",
+        "A question that is far too long to fit on one small chip in the panel?",
+        42,
+        "One more?",
+      ]),
+    ).toEqual([
+      "Which Hims post did best?",
+      "What about TikTok?",
+      "Who grew fastest since the last pull?",
+    ]);
+    expect(cleanFollowUps("nope")).toEqual([]);
+  });
+  it("comes through validateAskAnswer on insights", () => {
+    const a = validateAskAnswer(
+      {
+        type: "insight",
+        lead: "Reels lead",
+        points: ["2× likes"],
+        follow_ups: ["Which format is next?"],
+      },
+      [],
+    );
+    expect(a).toMatchObject({ type: "insight", followUps: ["Which format is next?"] });
   });
 });

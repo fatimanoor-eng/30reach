@@ -34,6 +34,17 @@ export function clientShort(name: string) {
  * Suggestion chips. "Explain this chart" (Figma) is swapped for "What changed since the last pull?":
  * Blip can't see which chart is on screen. The brand chip names the brand with the most engagement.
  */
+/**
+ * The chips above the input (Smart Blip round 1): the latest answer's follow-ups when it has some,
+ * otherwise the usual starters.
+ */
+export function chipsFor(messages: Message[], starters: string[]): string[] {
+  const last = [...messages].reverse().find((m) => m.status === "done");
+  const next =
+    last?.status === "done" && last.answer.type === "insight" ? (last.answer.followUps ?? []) : [];
+  return next.length ? next : starters;
+}
+
 export function suggestions(clientName: string, topBrand: string | null): string[] {
   return [
     WHAT_CHANGED,
@@ -508,10 +519,14 @@ export type Message =
     }
   | { id: number; question: string; status: "error"; kind: "rate_limited" | "no_pull" | "failed" };
 
-/** The last 2 answered turns from Groq, sent with a new question so follow-ups make sense. */
+/**
+ * The last answered turns from Groq (up to 6, Smart Blip round 1), sent with a new question so follow-ups
+ * make sense. The server trims them to its token budget (older answers keep their first line).
+ */
+export const HISTORY_TURNS = 6;
 export function historyFrom(messages: Message[]): AskTurn[] {
   return messages
     .filter((m): m is Extract<Message, { status: "done" }> => m.status === "done" && !m.local)
-    .slice(-2)
+    .slice(-HISTORY_TURNS)
     .map((m) => ({ q: m.question, a: answerText(m.answer) }));
 }
