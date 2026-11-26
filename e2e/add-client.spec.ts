@@ -270,7 +270,7 @@ test("15d / M16 review, then Create client and 15e first pull", async ({ page },
   await expect(page.getByText("Always on")).toHaveCount(2);
   await expect(page.getByRole("switch", { name: "Track Instagram" })).toHaveCount(0);
   await expect(page.getByRole("switch", { name: "Track TikTok" })).not.toBeChecked();
-  // Strongest 4 pre-ticked; Giften Market (no links) isn't.
+  // The top 4 closest rivals pre-ticked (accounts found or not; UI polish 26 Nov); the rest aren't.
   await expect(page.getByRole("checkbox", { checked: true })).toHaveCount(4);
   // Phones show just the domain (M16); tablet / desktop add what they sell (15d). No accounts on its
   // site: "No accounts found · add" (Discovery 2.0).
@@ -533,4 +533,19 @@ test("Discovery 2.0 review: Big in your space unticked with followers; ticking r
     page.getByText("This doesn’t look like Giften Market’s account. Save anyway?"),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Create client" })).toBeEnabled();
+
+  // UI polish 26 Nov: the whole row toggles; its website link opens a new tab and doesn't.
+  const pfd = rivals.getByRole("listitem").filter({ hasText: "Pasadena Floral Design" });
+  const box = pfd.getByRole("checkbox", { name: "Track Pasadena Floral Design" });
+  await expect(box).not.toBeChecked();
+  await pfd.getByText("Pasadena Floral Design", { exact: true }).click();
+  await expect(box).toBeChecked();
+  await page
+    .context()
+    .route("https://pasadenafloraldesign.com/**", (r) => r.fulfill({ status: 200, body: "ok" }));
+  const link = pfd.getByRole("link", { name: "pasadenafloraldesign.com (opens in a new tab)" });
+  await expect(link).toHaveAttribute("target", "_blank");
+  const [tab] = await Promise.all([page.context().waitForEvent("page"), link.click()]);
+  await tab.close();
+  await expect(box).toBeChecked();
 });
