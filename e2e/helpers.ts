@@ -49,7 +49,9 @@ export async function tapTargetsOk(page: Page) {
         // Ignore visually hidden elements (e.g. the skip link until it's focused).
         const srOnly = s.clipPath !== "none" || s.clip.startsWith("rect");
         const visible = r.width > 1 && r.height > 1 && s.visibility !== "hidden" && !srOnly;
-        return visible && (r.width < 44 || r.height < 44);
+        // Half a pixel of slack: layout rounding can measure a 44 px target as 43.99 (27 Nov: this showed
+        // as "44×44 too small" and made tests flaky).
+        return visible && (r.width < 43.5 || r.height < 43.5);
       })
       .map((el) => {
         const r = el.getBoundingClientRect();

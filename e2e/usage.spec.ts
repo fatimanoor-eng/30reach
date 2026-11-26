@@ -169,3 +169,94 @@ test("Demo client: pulls are off; Settings can reset it", async ({ page }, info)
   await expect(page.getByRole("status")).toContainText("Demo data reset");
   expect(calls).toHaveLength(1);
 });
+
+test("deleted clients, unfinished scans and By person (27 Nov)", async ({ page }, info) => {
+  await setup(page);
+  await page.route("**/rest/v1/rpc/usage_overview", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...OVERVIEW,
+        weeks: [
+          ...OVERVIEW.weeks,
+          {
+            week: "2026-11-23",
+            client_id: null,
+            client_name: "Old Co",
+            kind: "pull",
+            credits: 30,
+            pulls: 1,
+          },
+          {
+            week: "2026-11-23",
+            client_id: null,
+            client_name: null,
+            unfinished: true,
+            kind: "scan",
+            credits: 22,
+            pulls: 0,
+          },
+        ],
+        deleted: [
+          {
+            name: "Old Co",
+            credits: 30,
+            pull_credits: 30,
+            check_credits: 0,
+            scan_credits: 0,
+            groq_requests: 2,
+            pulls: 1,
+          },
+        ],
+        unfinished: { runs: 2, credits: 22 },
+        people: [
+          {
+            id: "u-1",
+            full_name: "Fatima Noor",
+            email: "f@example.com",
+            credits: 141,
+            pulls: 2,
+            scans: 1,
+            checks: 2,
+            requests: 18,
+          },
+          {
+            id: null,
+            full_name: null,
+            email: null,
+            credits: 63,
+            pulls: 1,
+            scans: 2,
+            checks: 0,
+            requests: 9,
+          },
+        ],
+      }),
+    }),
+  );
+  await ready(page, "/usage");
+  const rows = page.getByText("Old Co (deleted)").locator("visible=true");
+  await expect(rows.first()).toBeVisible();
+  await expect(page.getByText("Unfinished scans").locator("visible=true").first()).toBeVisible();
+  await expect(
+    page.getByText("2 Add client runs that never became a client").locator("visible=true").first(),
+  ).toBeVisible();
+  const people = page
+    .getByRole("region", { name: "By person · this billing month" })
+    .or(page.locator("section", { hasText: "By person · this billing month" }));
+  await expect(people.getByText("Fatima Noor").locator("visible=true").first()).toBeVisible();
+  await expect(
+    people.getByText("Not recorded (before 27 Nov)").locator("visible=true").first(),
+  ).toBeVisible();
+  // Meters: ink by default (no yellow), amber only when low.
+  const bar = page
+    .getByRole("region", { name: "Free-tier meters" })
+    .getByRole("meter", { name: "Firecrawl" })
+    .locator("div");
+  await expect(bar).toHaveClass(/bg-ink/);
+  await page.evaluate(() => document.fonts.ready);
+  await noSidewaysScroll(page);
+  if (info.project.name === "mobile-390") await tapTargetsOk(page);
+  await expect(page).toHaveScreenshot(`usage-extra-${info.project.name}.png`, { fullPage: true });
+});

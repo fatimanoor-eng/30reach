@@ -1099,3 +1099,23 @@ test("Ask Blip — first pull: no “what changed” chip; asking it gets the fi
   ).toBeVisible();
   expect(sent["ask-blip"] ?? []).toHaveLength(0); // answered in code, no tokens
 });
+
+test("Plan January — how many ideas: suggested from competitors, 15 asks again (round 3)", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  const { sent } = await setup(page, { "plan-month": (r) => r.fulfill(json(PLAN)) });
+  await open(page, "/calendar?date=2026-12-24");
+  await page.getByRole("button", { name: "Plan January" }).click();
+  const dialog = page.getByRole("dialog", { name: "Plan January" });
+  await expect(dialog.getByRole("heading", { name: "6 ideas for January 2027" })).toBeVisible();
+  const first = sent["plan-month"][0] as { count: number; platforms: string[] };
+  expect(first.count).toBe(6); // the fixture's competitors post about 1.5 times a week
+  expect(first.platforms.length).toBeGreaterThan(0);
+  await expect(
+    dialog.getByText(/Suggested 6: competitors post about 1.5 times a week/),
+  ).toBeVisible();
+  await dialog.getByRole("radio", { name: "15" }).click();
+  await expect.poll(() => sent["plan-month"].length).toBe(2);
+  expect((sent["plan-month"][1] as { count: number }).count).toBe(15);
+});
