@@ -24,6 +24,7 @@ import {
   buildSummary,
   firstName,
   parseAskInput,
+  repeatsLast,
   todayContext,
   validateAskAnswer,
   validateLightAnswer,
@@ -76,7 +77,10 @@ export default {
         user: askLightUser({ history: input.history, question: input.question }),
         schema: ASK_LIGHT_SCHEMA,
         maxTokens: 400,
-        validate: (raw) => validateLightAnswer(raw),
+        validate: (raw, attempt) => {
+          const a = validateLightAnswer(raw);
+          return a && attempt === 1 && repeatsLast(a, input.history) ? null : a;
+        },
       });
       if (!result.ok) return aiFailure(result);
       return json(result.value);
@@ -111,7 +115,11 @@ export default {
       // was finished (Groq 400). ~3K in + 3K max stays under the 8K tokens/minute.
       maxTokens: 3000,
       // Refs become "Ro’s reel from 9 Nov" (or go) in every text field.
-      validate: (raw) => validateAskAnswer(raw, refs, labels),
+      // A repeat of the last answer gets one more try; the second answer is kept either way.
+      validate: (raw, attempt) => {
+        const a = validateAskAnswer(raw, refs, labels);
+        return a && attempt === 1 && repeatsLast(a, input.history) ? null : a;
+      },
     });
     if (!result.ok) return aiFailure(result);
 

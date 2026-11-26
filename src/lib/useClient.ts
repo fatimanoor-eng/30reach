@@ -10,7 +10,7 @@ export { clientInitials } from "./client-path";
 export type { ClientSummary } from "./client-path";
 
 const CLIENT_COLUMNS =
-  "id, slug, name, short_name, aliases, initials, brand_color, logo_path, website, is_demo, archived_at, archived_by, country, health_months";
+  "id, slug, name, short_name, aliases, names_suggested_at, initials, brand_color, logo_path, website, is_demo, archived_at, archived_by, country, health_months";
 
 /** This browser's last client (fallback when the profile can't be read). */
 export const LAST_CLIENT_KEY = "30reach:last-client";

@@ -19,6 +19,7 @@ import { useMediaQuery } from "../../lib/useMediaQuery";
 import { createIdea } from "../ideas/ideas-api";
 import { usePullPosts, useSavedPulls } from "../overview/useOverviewData";
 import {
+  composerPlaceholder,
   chipsFor,
   BREATHER_TEXT,
   clientShort,
@@ -164,7 +165,9 @@ export function AskBlipPanel({
       {...modal}
       aria-labelledby={titleId}
       data-motion="drawer"
-      className="m-0 h-dvh w-full max-w-none bg-surface text-ink md:ml-auto md:w-115 md:border-l md:border-line md:shadow-xl"
+      // Full height: 100vh where dvh isn't supported (older Safari), else the dynamic viewport, so the
+      // composer sits on the bottom edge with only the thread scrolling (27 Nov).
+      className="m-0 h-screen w-full max-w-none bg-surface text-ink supports-[height:100dvh]:h-dvh md:ml-auto md:w-115 md:border-l md:border-line md:shadow-xl"
     >
       <div className="flex h-full flex-col">
         {/* Header: desktop = Blip + title + ✕, then the "Reading" line; phone = ‹ Blip title / line. */}
@@ -214,7 +217,7 @@ export function AskBlipPanel({
             const el = e.currentTarget;
             stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
           }}
-          className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:border-t md:border-line md:px-6 md:py-5"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 md:border-t md:border-line md:px-6 md:py-5"
         >
           <div ref={contentRef} className="flex flex-col gap-4 md:gap-5">
             {noPull ? (
@@ -327,7 +330,7 @@ export function AskBlipPanel({
               maxLength={MAX_QUESTION}
               disabled={noPull}
               aria-label="Ask Blip a question"
-              placeholder={`Ask about ${clientShort(clientName)}’s competitors…`}
+              placeholder={composerPlaceholder(clientShort(clientName))}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {

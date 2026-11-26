@@ -17,6 +17,7 @@ import {
   firstNameOf,
   greeting,
   chipsFor,
+  composerPlaceholder,
   historyFrom,
   type Message,
   matchSmallTalk,
@@ -525,5 +526,13 @@ describe("Ask Blip: hesitation and “how do you work?” (code, no Groq)", () =
       "I read the saved pull from 16 Nov: 169 posts from 6 brands. No live internet, so press Refresh on the Overview for newer posts.",
     );
     expect(howReply(null)).toMatch(/there isn’t one yet\. Press Refresh/);
+  });
+});
+
+describe("composer placeholder (27 Nov)", () => {
+  it("names the client when the short name fits on one line", () => {
+    expect(composerPlaceholder("OBU")).toBe("Ask Blip about OBU…");
+    expect(composerPlaceholder("Faculty of Computing & Information Technology")).toBe("Ask Blip…");
+    expect(composerPlaceholder("")).toBe("Ask Blip…");
   });
 });

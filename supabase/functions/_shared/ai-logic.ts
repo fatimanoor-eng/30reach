@@ -1146,6 +1146,24 @@ export function cleanFollowUps(raw: unknown, labels: string[] = []): string[] {
   return out;
 }
 
+/**
+ * The new answer says the same as the last one (27 Nov: Blip repeated itself after a correction). Compares
+ * the first line, normalised; short replies ("ok!") never count.
+ */
+export function repeatsLast(a: AskAnswer, history: readonly { a: string }[]): boolean {
+  const last = history.at(-1)?.a;
+  if (!last) return false;
+  const norm = (s: string) =>
+    s
+      .split("\n")[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  const now = norm(a.type === "chat" ? a.message : a.lead);
+  return now.length >= 20 && now === norm(last);
+}
+
 /** A chat reply (light mode, or type "chat"): clipped, ≤ 2 emoji, no p-refs. Empty → null (retry). */
 export function validateLightAnswer(raw: unknown, labels: string[] = []): AskChat | null {
   if (!isObj(raw) || !isStr(raw.message)) return null;

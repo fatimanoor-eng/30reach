@@ -162,3 +162,7 @@ export const suggestCaption = (
     format: string | null;
   },
 ) => call<{ captions: string[] }>("suggest-caption", { clientId, ...draft });
+
+// ───────────────────────────── suggest-names (27 Nov: short names backfill, once per client)
+export const suggestNames = (clientId: string) =>
+  call<{ status: "ok" | "done_before"; updated?: number }>("suggest-names", { clientId });

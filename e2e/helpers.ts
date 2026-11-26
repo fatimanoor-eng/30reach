@@ -233,6 +233,10 @@ export const OBU: TestClient = {
 
 const DETAIL_DEFAULTS = {
   archived_by: null,
+  // Short names already suggested (27 Nov backfill): specs that test it set null.
+  names_suggested_at: "2026-11-27T00:00:00Z",
+  short_name: null,
+  aliases: [],
   logo_path: null,
   website: null,
   description: null,

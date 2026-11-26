@@ -62,6 +62,12 @@
     display: block;
   }
 
+  /* 27 Nov: the page behind an open modal (Ask Blip, drawers, sheets) doesn't scroll, so a phone can't drag
+     it under the panel and leave a gap below the composer. */
+  html:has(dialog:modal) {
+    overflow: hidden;
+  }
+
   /* Icons: 1.75 stroke everywhere (DESIGN_SYSTEM › Icons). CSS beats the SVG attribute. */
   svg.lucide,
   svg.icon {

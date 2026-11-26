@@ -69,7 +69,7 @@ export const ASK_INSIGHT_EXAMPLE = (client: string) =>
 export const ASK_CHAT_EXAMPLE = `{"type":"chat","message":"<1-2 sentences>","tie_back":"","may_be_outdated":false,"lead":"","points":[],"for_client":"","post_refs":[],"in_data":false,"follow_ups":[]}`;
 /** Round 2: a general question answered from the model's own knowledge, then tied back to the data. */
 export const ASK_GENERAL_EXAMPLE = `{"type":"general","message":"<2-3 sentences>","tie_back":"<one line>","may_be_outdated":true,"lead":"","points":[],"for_client":"","post_refs":[],"in_data":false,"follow_ups":[]}`;
-export const ASK_GENERAL_RULES = `General question (how something works, a term, social media practice; not this pull): type "general". message: 2-3 natural sentences from what you know, no made-up numbers. tie_back: one gentle line back to the client's data. may_be_outdated: true if it can change (features, algorithms, rules). Never medical, diet, dosage, legal or financial advice.`;
+export const ASK_GENERAL_RULES = `General question (a well-known person, place, event or concept, or how something works; not this pull): type "general". message: 2-3 sentences of plain facts, no made-up numbers; a private or unknown person: not someone you know. tie_back: one gentle line back to the client's data. may_be_outdated: true if it can change. Never medical, diet, dosage, legal or financial advice.`;
 
 /** When Ask Blip answers as a teammate instead of with data (AI_PROMPTS.md §1, "Chat mode"). */
 export const ASK_CHAT_RULES = `Chat mode: use type "chat" for small talk: greetings, hype, thanks, feelings, or questions that aren't about the data.
@@ -80,7 +80,9 @@ export const ASK_CHAT_RULES = `Chat mode: use type "chat" for small talk: greeti
 - "How do you work?": one line: you read the saved pull (its date and post count), no live internet.
 - You're an AI: never claim real feelings or to be human. Playful deflection is fine ("love is a bit above my pay grade").
 - Stressed or upset: calm and caring, no jokes, no emojis, one small next step.
-- Off-topic or unsafe: one friendly line saying you can't help with that, then steer back. Never give medical, diet or dosage advice.`;
+- Off-topic or unsafe: one friendly line saying you can't help with that, then steer back. Never give medical, diet or dosage advice.
+- Corrections about the client or brands ("X and Y are the same"): accept, use them for this chat, suggest saving under Also known as in Client settings (a competitor: its panel). Never argue about who the client is.
+- Don't repeat your last answer.`;
 
 export function askSystem(o: {
   client: string;

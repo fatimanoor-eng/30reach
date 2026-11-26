@@ -31,3 +31,68 @@ export function cleanAliases(raw: unknown, name: string, shortName = ""): string
 /** The name to show where space is tight. */
 export const displayName = (b: { name: string; short_name?: string | null }) =>
   b.short_name?.trim() || b.name;
+
+// ───────────────────────────────────────────── suggest-names (one Groq call per client, once)
+export type NameItem = { name: string; website?: string | null };
+export type NameSuggestion = { shortName: string; aliases: string[] };
+
+export const NAMES_SCHEMA = {
+  name: "short_names",
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["items"],
+    properties: {
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["i", "short_name", "aliases"],
+          properties: {
+            i: { type: "integer" },
+            short_name: { type: "string" },
+            aliases: { type: "array", items: { type: "string" } },
+          },
+        },
+      },
+    },
+  },
+};
+
+export function namesSystem(): string {
+  return [
+    "Facts: Breakthirty is the agency; 30reach is its tool; you are Blip. These are a client and the brands it competes with.",
+    "For each numbered organisation give i, short_name and aliases.",
+    "- short_name: what people usually call it in 1-2 words when the name is long (an acronym or the brand word, e.g. 'ABCU' for 'Acme Business & Commerce University'); '' if the name is already short or you're not sure.",
+    "- aliases: other names people really use for the SAME organisation (acronyms, old names, common short forms); [] if none or unsure. Never another organisation, never a slogan.",
+    "Answer in JSON only.",
+  ].join("\n");
+}
+
+export const namesUser = (items: readonly NameItem[]) =>
+  items
+    .map(
+      (it, i) =>
+        `${i}. ${it.name}${it.website ? ` (${it.website.replace(/^https?:\/\//, "")})` : ""}`,
+    )
+    .join("\n");
+
+/** Groq's answer → a suggestion per item index; empty ones and junk are dropped (code decides). */
+export function validateNames(
+  raw: unknown,
+  items: readonly NameItem[],
+): Map<number, NameSuggestion> | null {
+  const list = (raw as { items?: unknown } | null)?.items;
+  if (!Array.isArray(list)) return null;
+  const out = new Map<number, NameSuggestion>();
+  for (const x of list as Record<string, unknown>[]) {
+    const i = Number(x?.i);
+    const item = items[i];
+    if (!item || out.has(i)) continue;
+    const shortName = cleanShortName(x.short_name, item.name);
+    const aliases = cleanAliases(x.aliases, item.name, shortName);
+    if (shortName || aliases.length) out.set(i, { shortName, aliases });
+  }
+  return out;
+}

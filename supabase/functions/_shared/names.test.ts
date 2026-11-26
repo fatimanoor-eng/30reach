@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { cleanAliases, cleanShortName, displayName } from "./names.ts";
+import {
+  cleanAliases,
+  cleanShortName,
+  displayName,
+  namesSystem,
+  namesUser,
+  validateNames,
+} from "./names.ts";
 import { alsoCalled } from "./ai-logic.ts";
 import { validateProfile } from "./site-logic.ts";
 
@@ -53,5 +60,37 @@ describe("short names and aliases (27 Nov)", () => {
       LUMS: ["Lahore University of Management Sciences"],
     });
     expect(alsoCalled([{ id: "2", name: "Hims" }])).toBeNull();
+  });
+});
+
+describe("suggest-names (backfill, 27 Nov)", () => {
+  const items = [
+    { name: "Faculty of Computing & Information Technology", website: "https://fcit.example.edu" },
+    { name: "National University of Sciences and Technology" },
+    { name: "Hims" },
+  ];
+  it("keeps useful suggestions only, by index", () => {
+    const m = validateNames(
+      {
+        items: [
+          { i: 0, short_name: "FCIT", aliases: ["PUCIT", "FCIT"] },
+          { i: 1, short_name: "NUST", aliases: [] },
+          { i: 2, short_name: "Hims", aliases: [] }, // same as the name: nothing to add
+          { i: 9, short_name: "X", aliases: [] }, // no such item
+        ],
+      },
+      items,
+    )!;
+    expect([...m.entries()]).toEqual([
+      [0, { shortName: "FCIT", aliases: ["PUCIT"] }],
+      [1, { shortName: "NUST", aliases: [] }],
+    ]);
+    expect(validateNames({ nope: 1 }, items)).toBeNull();
+  });
+  it("lists the organisations with their sites, and uses no real client names in the prompt", () => {
+    expect(namesUser(items)).toBe(
+      "0. Faculty of Computing & Information Technology (fcit.example.edu)\n1. National University of Sciences and Technology\n2. Hims",
+    );
+    expect(namesSystem()).not.toMatch(/NUST|PUCIT|FCIT/);
   });
 });

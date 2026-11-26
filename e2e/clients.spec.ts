@@ -377,3 +377,27 @@ test("no active clients — no loop; Restore, Add client (Close comes back), Set
   expect(patches[0]).toEqual({ archived_at: null, archived_by: null });
   await expect(page.getByText("OBU Health restored")).toBeVisible();
 });
+
+test("short names backfill: once per client, then a toast to review them (27 Nov)", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-1440", "behaviour check, once");
+  await stubClients(page, [{ ...OBU, names_suggested_at: null } as never]);
+  const calls: unknown[] = [];
+  await page.route("**/functions/v1/suggest-names**", (r) => {
+    calls.push(r.request().postDataJSON());
+    return r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ status: "ok", updated: 3, names: [] }),
+    });
+  });
+  await signInAs(page, { lastClient: "obu-health" });
+  await ready(page, "/c/obu-health/overview");
+  await expect(page.getByText("Blip suggested short names for 3 brands")).toBeVisible();
+  expect(calls).toEqual([{ clientId: OBU.id }]);
+  // Another page in the same tab doesn't ask again.
+  await page.getByRole("link", { name: "Competitors" }).first().click();
+  await page.waitForTimeout(300);
+  expect(calls).toHaveLength(1);
+});

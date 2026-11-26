@@ -14,6 +14,7 @@ import { SaveAsIdeaProvider } from "../features/posts/SaveAsIdeaProvider";
 import { PullProvider } from "../features/pulls/PullProvider";
 import { ClientActionsProvider } from "../features/clients/ClientActionsProvider";
 import { LocationNotice } from "./LocationNotice";
+import { NameSuggestions } from "./NameSuggestions";
 import { AskBlipContext } from "./ask-blip-context";
 import { BrandSelectionProvider } from "../lib/BrandSelectionProvider";
 import { isTyping } from "../lib/is-typing";
@@ -63,6 +64,7 @@ export function AppShell() {
           <ClientActionsProvider>
             <IdeaCaptureProvider>
               <LocationNotice />
+              <NameSuggestions />
               <SaveAsIdeaProvider>
                 <AskBlipContext value={openAsk}>
                   <a

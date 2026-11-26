@@ -478,6 +478,11 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/suggest-hooks/index.ts"
 
+[functions.suggest-names]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/suggest-names/index.ts"
+
 [functions.suggest-caption]
 enabled = true
 verify_jwt = true

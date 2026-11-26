@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  repeatsLast,
   GENERAL_CHARS,
   plainWords,
   cleanFollowUps,
@@ -1125,7 +1126,7 @@ describe("prompts", () => {
     expect(p).toMatch(/suggest a data question/);
     expect(p).toContain("first name is Fatima");
     expect(p).not.toContain("<data>");
-    expect(p.length).toBeLessThan(2400); // ≈ 580 tokens: rules, industry line (17e), general questions (round 2)
+    expect(p.length).toBeLessThan(2700); // ≈ 650 tokens: rules, industry line (17e), general questions (round 2), corrections (27 Nov)
     const u = askLightUser({
       history: [{ q: "what's working?", a: "Carousels." }],
       question: "huh?",
@@ -1201,7 +1202,7 @@ describe("prompts", () => {
     // ≈ 1.15K tokens. Ask Blip is the biggest (voice + chat rules + the client brief, Slice 17e; numbers
     // and follow-ups, Smart Blip round 1; first pull, plain words and general questions, round 2); its
     // ~2.5K-token data summary is the real cost, which light mode skips for small talk.
-    expect(Math.max(...sizes)).toBeLessThan(4900); // ≈ 1.2K tokens
+    expect(Math.max(...sizes)).toBeLessThan(5200); // ≈ 1.3K tokens (+ corrections, 27 Nov)
   });
 
   it("the client's brief and rules follow the client (Slice 17e)", () => {
@@ -1828,6 +1829,40 @@ describe("general questions (Smart Blip round 2)", () => {
     for (const p of [full, light]) {
       expect(p).toMatch(/may_be_outdated/);
       expect(p).toMatch(/medical, diet, dosage/);
+    }
+  });
+});
+
+describe("corrections and repeats (27 Nov)", () => {
+  it("spots an answer that repeats the last one", () => {
+    const history = [
+      {
+        q: "PUCIT and FCIT are the same",
+        a: "PUCIT and FCIT are two separate faculties of the university.\n1. x",
+      },
+    ];
+    const same = {
+      type: "chat" as const,
+      message: "PUCIT and FCIT are two separate faculties of the university!",
+    };
+    const other = {
+      type: "chat" as const,
+      message: "Got it, PUCIT and FCIT are the same, so I'll treat them as one.",
+    };
+    expect(repeatsLast(same, history)).toBe(true);
+    expect(repeatsLast(other, history)).toBe(false);
+    expect(repeatsLast({ type: "chat", message: "ok!" }, [{ a: "ok!" }])).toBe(false); // too short to count
+    expect(repeatsLast(same, [])).toBe(false);
+  });
+  it("the prompts accept corrections and answer well-known people", () => {
+    for (const p of [
+      askSystem({ client: "OBU Health", firstName: null, today: "2026-11-27" }),
+      askLightSystem({ client: "OBU Health", firstName: null, today: "2026-11-27" }),
+    ]) {
+      expect(p).toMatch(/Also known as in Client settings/);
+      expect(p).toMatch(/Never argue about who the client is/);
+      expect(p).toMatch(/well-known person, place, event/);
+      expect(p).toMatch(/not someone you know/);
     }
   });
 });

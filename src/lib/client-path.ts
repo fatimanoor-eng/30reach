@@ -9,6 +9,8 @@ export type ClientSummary = {
   /** 27 Nov: shown where space is tight; other names Blip treats as the client. */
   short_name?: string | null;
   aliases?: string[];
+  /** When Blip suggested short names for this client and its competitors (once); null = not yet. */
+  names_suggested_at?: string | null;
   initials: string | null;
   brand_color: string | null;
   is_demo: boolean;

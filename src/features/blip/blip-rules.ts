@@ -331,6 +331,13 @@ export function hesitationReply(
   };
 }
 
+/** The composer's hint (27 Nov): "Ask Blip about OBU…" on one line, or just "Ask Blip…" when it's long. */
+export const PLACEHOLDER_NAME_MAX = 16;
+export function composerPlaceholder(shortName: string): string {
+  const n = shortName.trim();
+  return n && n.length <= PLACEHOLDER_NAME_MAX ? `Ask Blip about ${n}…` : "Ask Blip…";
+}
+
 /** The answer to "what changed?" when there's only one pull (code, no tokens; 27 Nov). */
 export const FIRST_PULL_LINE =
   "This is the first pull, so there’s nothing to compare yet. The next Refresh will show what changed.";
