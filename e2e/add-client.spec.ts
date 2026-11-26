@@ -64,6 +64,8 @@ const SUGGESTIONS = [
   domain,
   about,
   why: domain === "carnabyandvine.com" ? "Luxury gift boxes in LA, like yours" : "",
+  // Relevance (26 Nov): only same-business-model rivals are pre-ticked (a florist isn't a gift-box shop).
+  sameModel: domain !== "pasadenafloraldesign.com",
 }));
 
 /** Discovery 2.0: "Big in your space" (unticked; followers from one snippet search). */
@@ -533,6 +535,14 @@ test("Discovery 2.0 review: Big in your space unticked with followers; ticking r
     page.getByText("This doesn’t look like Giften Market’s account. Save anyway?"),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Create client" })).toBeEnabled();
+
+  // 26 Nov: account fields for every platform the client tracks; the first two show, then "+ N more".
+  const giften = rivals.getByRole("listitem").filter({ hasText: "Giften Market" });
+  await expect(giften.getByRole("textbox")).toHaveCount(2); // Instagram + Facebook (on from the site)
+  await expect(giften.getByRole("textbox", { name: "Facebook" })).toBeVisible();
+  await page.getByRole("switch", { name: "Track TikTok" }).click();
+  await giften.getByRole("button", { name: /1 more platform/ }).click();
+  await expect(giften.getByRole("textbox", { name: "TikTok" })).toBeVisible();
 
   // UI polish 26 Nov: the whole row toggles; its website link opens a new tab and doesn't.
   const pfd = rivals.getByRole("listitem").filter({ hasText: "Pasadena Floral Design" });

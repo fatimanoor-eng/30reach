@@ -32,6 +32,40 @@ const json = (body: unknown) => ({
 const LATEST = { id: "pull-new", started_at: "2026-11-16T16:20:00Z", status: "done" };
 const PREVIOUS = { id: "pull-old", started_at: "2026-11-06T10:00:00Z", status: "done" };
 
+/** [brand, Instagram now, before, TikTok now, before]; Ro's TikTok count is unknown. */
+const FOLLOWERS: [string, number, number, number | null, number | null][] = [
+  ["c-found", 52_000, 51_400, 18_000, 17_100],
+  ["c-hers", 310_000, 311_200, 95_000, 93_000],
+  ["c-hims", 412_000, 408_800, 120_000, 121_100],
+  ["c-lifemd", 24_000, 24_000, 6_500, 6_300],
+  ["c-ro", 61_000, 60_100, null, null],
+  ["c-ww", 1_240_000, 1_236_000, 410_000, 404_000],
+];
+const FOLLOWER_TASKS = FOLLOWERS.flatMap(([id, ig, igBefore, tt, ttBefore]) => [
+  {
+    pull_id: "pull-new",
+    competitor_id: id,
+    platform: "instagram",
+    followers: ig,
+    error_code: null,
+  },
+  {
+    pull_id: "pull-old",
+    competitor_id: id,
+    platform: "instagram",
+    followers: igBefore,
+    error_code: null,
+  },
+  { pull_id: "pull-new", competitor_id: id, platform: "tiktok", followers: tt, error_code: null },
+  {
+    pull_id: "pull-old",
+    competitor_id: id,
+    platform: "tiktok",
+    followers: ttBefore,
+    error_code: null,
+  },
+]);
+
 async function setup(
   page: Page,
   pulls: (typeof LATEST)[],
@@ -79,6 +113,12 @@ async function setup(
       boost: { "c-hers": 1.4 },
     }).map((p, i) => (i % 3 === 0 ? { ...p, external_id: p.external_id.replace("old-", "") } : p)),
   };
+  // Followers saved by each pull (26 Nov): counts, growth since the previous pull, engagement rate.
+  await page.route("**/rest/v1/pull_tasks**", (r) =>
+    new URL(r.request().url()).searchParams.get("select")?.includes("followers")
+      ? r.fulfill(json(FOLLOWER_TASKS))
+      : r.fallback(),
+  );
   await page.route("**/rest/v1/posts**", (r) => {
     const pullId = new URL(r.request().url()).searchParams.get("pull_id")?.replace("eq.", "") ?? "";
     return r.fulfill(json(postsByPull[pullId] ?? []));
@@ -582,4 +622,29 @@ test("pointer cursor on clickables, not-allowed when disabled (polish 2)", async
   await page.getByRole("button", { name: "Refresh" }).filter({ visible: true }).first().click();
   const box = page.getByRole("dialog").getByRole("checkbox", { name: /Instagram/ });
   await expect.poll(() => cursor(box)).toBe("pointer");
+});
+
+test("leaderboard: followers, growth since the last pull, engagement rate and its sort (26 Nov)", async ({
+  page,
+}, info) => {
+  await setup(page, [LATEST, PREVIOUS]);
+  await ready(page);
+  const card = page
+    .getByRole("heading", { name: "Leaderboard" })
+    .locator("xpath=ancestor::section[1]");
+  if (info.project.name === "mobile-390") {
+    await expect(page.getByText(/532K followers · \+2\.1K/)).toBeVisible(); // Hims: IG + TikTok
+  } else {
+    const hims = page.getByRole("row").filter({ hasText: "Hims" });
+    await expect(hims).toContainText("532K"); // 412K Instagram + 120K TikTok
+    await expect(hims).toContainText("+2.1K"); // +3.2K Instagram, −1.1K TikTok
+    await expect(page.getByRole("row").filter({ hasText: "Ro" }).first()).toContainText("61K");
+  }
+  // Sort by engagement rate: small accounts with strong posts move up.
+  await page.getByRole("radio", { name: "Engagement rate" }).click();
+  await expect(page.getByRole("radio", { name: "Engagement rate" })).toBeChecked();
+  await expect(page.getByRole("button", { name: "What is engagement rate?" })).toBeVisible();
+  await noSidewaysScroll(page);
+  if (info.project.name === "mobile-390") await tapTargetsOk(page);
+  await expect(card).toHaveScreenshot(`leaderboard-rate-${info.project.name}.png`);
 });
